@@ -112,3 +112,37 @@ was deleted in the build sandbox before syncing (it was never shared); disclosed
 Both environments here still cannot reach Google Maven / the Android SDK. The `app` module was re-parsed after the
 changes (only unresolved-Android-symbol cascades remain). **The owner's Gradle build on the Mac is the first
 compile of the app module**; compile errors from it come back to Claude to fix before the device checklist.
+
+
+---
+
+## Codex CP3a re-review → fix (15 Oct 2026, ~23:50 ICT)
+
+[P1] `signedInNow()` opened the signed-in screens (`signedIn = true`) before `GET /v1/me` and `bindOwner()` had
+finished; with a slow or failing `/me`, B could see A's queue metadata or add photos to A's queue.
+
+**Fix:** new `core/SessionGate` with states `SignedOut / Checking / IdentityFailed / Ready`.
+- `begin()` stops the queue at once (keeps a stronger stop the user chose: their pause or withdrawn consent) and
+  enters `Checking`. Screens: `Checking` → "Checking your account…" only; `IdentityFailed` → explanation +
+  **Retry** + Log out, queue hidden; only `Ready` opens the tabs.
+- The queue is reachable only through the gate: `readyQueue()` returns it only when `Ready` and bound to that same
+  account; `visibleEntries()`, `enqueue()`, `pumpOnce()` go through it. The app module no longer touches the queue
+  directly except the thread-safe `requestPause`.
+- Each check has an epoch; `complete()` applies a `/me` result only for the current check, so a late answer after
+  logout or after another sign-in cannot bind the queue. `signOut()` (logout, any 401) invalidates checks in flight.
+
+Tests (core, `CoreSelfTest`): A queued → B signs in → `/me` fails → A's queue hidden, enqueue refused, nothing
+sent (also by a direct `runOnce`) → retry → Ready for B, A's photo discarded; late `/me` of an earlier check ignored
+after logout and after another sign-in; session end while Ready hides and stops, same-account re-check restores
+its photos and keeps the user's own pause. E2E (real backend): E queues a photo → F signs in → `/me` offline →
+IdentityFailed, 0 visible, 0 sent, enqueue refused → retry → Ready for F, no uploads. Mutations: `readyQueue`
+ignoring state (2 tests fail), stale `/me` applied (1), `begin` not stopping the queue (1).
+
+| Run | Evidence | Result |
+|---|---|---|
+| Client core + E2E vs real backend (x86_64, PG 16.15) | `evidence/runs/20261015T164817Z-cp3a-gate-client-e2e-cloud` | 25/25, 27/27 |
+| Backend full suite (no backend change this round; DB enabled) | `evidence/runs/20261015T164958Z-cp3a-gate-backend` | 257 passed, skipped 0 |
+| Invalid attempt kept with NOTE.md | `20261015T164627Z-cp3a-gate-client-e2e-cloud` (sandbox Postgres had stopped) | not evidence |
+| Client core + E2E, Linux ARM64 VM on the owner's Mac (Java 11 jar compiled here from the same sources), PG 18.4 | `evidence/runs/20261015T165304Z-cp3a-gate-client-e2e-device-pg18-arm64` | 25/25, 27/27 |
+
+Observed on the owner's Mac at ~23:51 ICT: `android/app/build/outputs/apk/debug/app-debug.apk` (8.8 MB, versionName 0.3.0-cp3a) exists, built from the **previous** sources (before this gate fix); Gradle's problems report lists only plugin deprecation warnings. So the app module compiled at least once — by the owner, not by Claude. The gate fix needs a rebuild. Not verified: install and the 19-line checklist on the S23.

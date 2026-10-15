@@ -252,6 +252,46 @@ object CoreSelfTest {
             eq(ReviewActions.forItem(mapOf("reason" to "x", "allowed_decisions" to listOf("teleport"))), emptyList<ReviewActions.Action>())
         }
 
+        // ---- Codex CP3a re-review: nothing of the queue before identity is confirmed ----
+        test("gate: A has a queue → B signs in → /me fails → A's queue hidden, no enqueue, no send → retry ok → Ready for B") {
+            val store = MemStore(); val blobs = MemBlobs(); val api = ScriptApi(mutableListOf(ok("b1")))
+            val q = UploadQueue(store, blobs, api) { 0 }.also { it.bindOwner("A") }
+            q.enqueue(byteArrayOf(50), "image/png", "2026-10-15T13:00:00+07:00")  // A's photo waiting
+            val gate = SessionGate(q)
+            val e = gate.begin()                                                    // B just signed in
+            yes(gate.state is SessionState.Checking, "checking")
+            eq(gate.readyQueue(), null); eq(gate.visibleEntries(), emptyList<QueueEntry>())
+            throws<IllegalStateException> { gate.enqueue(byteArrayOf(51), "image/png", "2026-10-15T13:00:00+07:00") }
+            eq(gate.pumpOnce(), 0); eq(q.runOnce(), 0); eq(api.calls, 0)          // even a direct run sends nothing (queue stopped)
+            gate.complete(e, Result.failure(NetworkException(java.io.IOException("offline"))))
+            yes(gate.state is SessionState.IdentityFailed, "identity failed"); eq(gate.visibleEntries(), emptyList<QueueEntry>())
+            eq(gate.pumpOnce(), 0); eq(api.calls, 0)
+            eq(gate.check { "B" }, SessionState.Ready(2, "B"))                       // retry succeeds
+            eq(gate.visibleEntries(), emptyList<QueueEntry>()); eq(blobs.m.isEmpty(), true) // A's photo discarded, never shown
+            gate.enqueue(byteArrayOf(51), "image/png", "2026-10-15T13:00:00+07:00"); eq(gate.pumpOnce(), 1); eq(api.owners, listOf("B"))
+        }
+        test("gate: a late /me answer from an earlier session cannot bind the queue (after logout or account switch)") {
+            val q = UploadQueue(MemStore(), MemBlobs(), ScriptApi(mutableListOf())) { 0 }.also { it.bindOwner("A") }
+            q.enqueue(byteArrayOf(60), "image/png", "2026-10-15T13:00:00+07:00")
+            val gate = SessionGate(q)
+            val e1 = gate.begin()                                                   // check for B starts…
+            gate.signOut()                                                          // …user logs out before /me returns
+            eq(gate.complete(e1, Result.success("B")), false); eq(gate.state, SessionState.SignedOut); eq(q.owner, "A")
+            val e2 = gate.begin()                                                   // C signs in
+            eq(gate.complete(e1, Result.success("B")), false); eq(q.owner, "A")     // B's late answer still ignored
+            eq(gate.complete(e2, Result.success("C")), true); eq(gate.state, SessionState.Ready(e2, "C")); eq(q.snapshot(), emptyList<QueueEntry>())
+        }
+        test("gate: session end while Ready stops the queue and hides it; same account re-check keeps its photos") {
+            val api = ScriptApi(mutableListOf(fail(SessionExpiredException("SESSION_EXPIRED", "x", null)), ok("a1")))
+            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }
+            val gate = SessionGate(q); gate.check { "A" }
+            gate.enqueue(byteArrayOf(70), "image/png", "2026-10-15T13:00:00+07:00")
+            gate.pumpOnce(); eq(gate.state, SessionState.SignedOut); eq(gate.visibleEntries(), emptyList<QueueEntry>())
+            gate.check { "A" }; eq(gate.visibleEntries().size, 1); eq(gate.pumpOnce(), 1)
+            gate.readyQueue()!!.pause(BlockReason.PAUSED_BY_USER); gate.signOut(); gate.check { "A" }
+            eq(gate.readyQueue()!!.blocked, BlockReason.PAUSED_BY_USER)  // the user's own pause survives a re-check
+        }
+
         val failed = results.filter { it.second != null }
         results.forEach { (n, e) -> println((if (e == null) "PASS " else "FAIL ") + n + (e?.let { "\n     $it" } ?: "")) }
         println("${results.size - failed.size}/${results.size} passed")

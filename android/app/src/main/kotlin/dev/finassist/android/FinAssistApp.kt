@@ -3,6 +3,7 @@ package dev.finassist.android
 import android.app.Application
 import dev.finassist.core.ApiClient
 import dev.finassist.core.ApiUploadAdapter
+import dev.finassist.core.SessionGate
 import dev.finassist.core.UploadQueue
 import dev.finassist.core.UrlConnectionTransport
 
@@ -15,6 +16,8 @@ class FinAssistApp : Application() {
         private set
     lateinit var queueStore: PrefsQueueStore
         private set
+    lateinit var gate: SessionGate
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -23,5 +26,6 @@ class FinAssistApp : Application() {
         blobs = FileBlobStore(this)
         queueStore = PrefsQueueStore(this)
         queue = UploadQueue(queueStore, blobs, ApiUploadAdapter(api))
+        gate = SessionGate(queue) // starts SignedOut: nothing of the queue is reachable until the account is confirmed
     }
 }

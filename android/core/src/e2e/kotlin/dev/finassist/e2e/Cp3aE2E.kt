@@ -170,6 +170,28 @@ fun main(args: Array<String>) {
         val cUploads = ApiClient(base, transport, MemoryTokenStore(), true).let { it.login(emailC, pw); it.uploads().size }
         blockedAfterExpiry && discarded == 2 && qc.snapshot().isEmpty() && bl.m.isEmpty() && c.uploads().isEmpty() && cUploads == 0
     }
+    step("gate: E queued photos; F signs in; /me fails (offline) → nothing visible or sent; retry → Ready for F only", "0 visible, 0 sent, then Ready") {
+        var meFails = true
+        val flaky = Transport { r -> if (meFails && r.url.endsWith("/v1/me")) throw java.io.IOException("offline") else transport.send(r) }
+        val tokens = MemoryTokenStore()
+        val api = ApiClient(base, flaky, tokens, true)
+        val st = object : QueueStore { var v: String? = null; override fun load() = v; override fun save(json: String) { v = json } }
+        val bl = object : BlobStore { val m = HashMap<String, ByteArray>(); override fun put(key: String, bytes: ByteArray) { m[key] = bytes }
+            override fun get(key: String) = m[key]; override fun delete(key: String) { m.remove(key) } }
+        val qe = UploadQueue(st, bl, ApiUploadAdapter(api)); val gate = SessionGate(qe)
+        val emailE = "e-${UUID.randomUUID().toString().take(8)}@example.test"; api.signup(emailE, pw); api.login(emailE, pw)
+        meFails = false; gate.check { api.me() }; meFails = true
+        gate.enqueue(slip("slip_035_transfer_out.png"), "image/png", captured)   // E's photo; E has no consent → stays queued
+        gate.pumpOnce()
+        api.logout()
+        val emailF = "f-${UUID.randomUUID().toString().take(8)}@example.test"; api.signup(emailF, pw); api.login(emailF, pw)
+        val failed = gate.check { api.me() }
+        val hidden = gate.visibleEntries().isEmpty() && gate.pumpOnce() == 0 &&
+            runCatching { gate.enqueue(slip("slip_036_transfer_out.png"), "image/png", captured) }.isFailure
+        meFails = false
+        val ready = gate.check { api.me() }
+        failed is SessionState.IdentityFailed && hidden && ready is SessionState.Ready && gate.visibleEntries().isEmpty() && api.uploads().isEmpty()
+    }
     step("server refuses an upload that names another account (defence in depth)", "409 OWNER_MISMATCH") {
         try { a.upload(slip("slip_034_transfer_out.png"), "image/png", captured, expectedOwnerId = UUID.randomUUID().toString()); false }
         catch (e: ApiException) { e.code == "OWNER_MISMATCH" }

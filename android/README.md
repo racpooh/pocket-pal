@@ -99,6 +99,7 @@ Prerequisites: Android Studio (Ladybug 2024.2 or newer; it bundles a JDK), USB d
 | 16 | Pick a photo without a date (e.g. a screenshot of a synthetic slip saved by an app that drops EXIF; if none, skip) | Dialog "1 photo(s) have no date"; "Don't send" sends nothing |
 | 17 | Upload the receipt + its slip pair (see `ground_truth.jsonl` group tag `same_purchase_as`) | Review shows the existing record and only "Same purchase — attach", "Different purchase", "Not a transaction"; attach → no new transaction |
 | 18 | With photos waiting (consent withdrawn), end the session: stop the server and start it again with `--reset` (all sessions and accounts are gone); in the app act once ("Session ended"), then create/sign in a different account | "N unsent photo(s) from another account … discarded"; nothing of the first account appears or is sent |
+| 19 | Signed in, close the app; stop the server; open the app | "Checking your account…" then "could not be confirmed" with Retry; no tabs, no queue. Start the server, Retry → tabs open |
 
 Screenshots (synthetic data only; crop out the status bar if it shows notifications):
 `adb exec-out screencap -p > evidence/runs/<UTC>-cp3a-device/NN-<step>.png`. Do not record real accounts or photos.

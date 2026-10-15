@@ -77,9 +77,9 @@ fun AuthScreen(s: AppState) {
         Field("Email", email, { email = it.trim() })
         Field("Password (10+ characters)", pw, { pw = it }, password = true)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !s.busy, onClick = { s.act({ s.app.api.login(email, pw) }) { pw = ""; s.signedInNow() } }) { Text("Sign in") }
+            Button(enabled = !s.busy, onClick = { s.act({ s.app.api.login(email, pw) }) { pw = ""; s.checkIdentity() } }) { Text("Sign in") }
             OutlinedButton(enabled = !s.busy, onClick = {
-                s.act({ s.app.api.signup(email, pw); s.app.api.login(email, pw) }) { pw = ""; s.signedInNow() }
+                s.act({ s.app.api.signup(email, pw); s.app.api.login(email, pw) }) { pw = ""; s.checkIdentity() }
             }) { Text("Create account") }
         }
         Text("The session token is stored encrypted with the Android Keystore. The assistant's model key never reaches this app.")
@@ -153,7 +153,7 @@ fun ConsentScreen(s: AppState) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(enabled = !s.busy && "photo_processing" !in active, onClick = {
                     s.act({ s.app.api.grantConsent("photo_processing", "v1", mapOf("scan_from" to scanFrom)) }) {
-                        scope.launch { s.onQueue { s.app.queue.resume() }; s.pumpQueue() }; reload()
+                        scope.launch { s.withReadyQueue { it.resume() }; s.pumpQueue() }; reload()
                     }
                 }) { Text("Allow") }
                 OutlinedButton(enabled = !s.busy && "photo_processing" in active, onClick = {
@@ -203,7 +203,8 @@ fun UploadScreen(s: AppState) {
     var blocked by remember { mutableStateOf<dev.finassist.core.BlockReason?>(null) }
     var serverInfo by remember { mutableStateOf("") }
     LaunchedEffect(s.queueTick) {
-        val (e, b) = s.onQueue { s.app.queue.snapshot() to s.app.queue.blocked }
+        // Only the confirmed account's entries (empty unless the session is Ready).
+        val (e, b) = s.onQueue { s.app.gate.visibleEntries() to s.app.gate.readyQueue()?.blocked }
         entries.clear(); entries.addAll(e.sortedByDescending { it.createdAtMs }); blocked = b
     }
     LaunchedEffect(Unit) {
@@ -220,7 +221,7 @@ fun UploadScreen(s: AppState) {
                 val p = withContext(Dispatchers.IO) { readPicked(ctx, u) }
                 if (p.bytes == null) { problems += p.problem ?: "unreadable"; continue }
                 if (p.takenIso == null) { noDate += p; continue }
-                s.onQueue { s.app.queue.enqueue(p.bytes, p.mime!!, p.takenIso) }
+                if (s.withReadyQueue { it.enqueue(p.bytes, p.mime!!, p.takenIso) } == null) { problems += "account not confirmed"; break }
             }
             if (problems.isNotEmpty()) s.message = "Skipped ${problems.size}: ${problems.distinct().joinToString()}"
             undated = noDate
@@ -235,7 +236,7 @@ fun UploadScreen(s: AppState) {
             confirmButton = { Button(onClick = {
                 val list = undated; undated = emptyList<Picked>()
                 scope.launch {
-                    for (p in list) s.onQueue { s.app.queue.enqueue(p.bytes!!, p.mime!!, null, confirmedUndated = true) }
+                    for (p in list) s.withReadyQueue { it.enqueue(p.bytes!!, p.mime!!, null, confirmedUndated = true) }
                     s.touchQueue(); s.pumpQueue()
                 }
             }) { Text("Send these photos") } },
@@ -249,7 +250,7 @@ fun UploadScreen(s: AppState) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { s.pumpQueue() }) { Text("Refresh") }
                 if (blocked == dev.finassist.core.BlockReason.PAUSED_BY_USER)
-                    OutlinedButton(onClick = { scope.launch { s.onQueue { s.app.queue.resume() }; s.pumpQueue() } }) { Text("Resume") }
+                    OutlinedButton(onClick = { scope.launch { s.withReadyQueue { it.resume() }; s.pumpQueue() } }) { Text("Resume") }
                 else OutlinedButton(onClick = { s.pauseQueue(dev.finassist.core.BlockReason.PAUSED_BY_USER) }) { Text("Pause sending") }
             }
         }
@@ -261,16 +262,16 @@ fun UploadScreen(s: AppState) {
                     Text("photo ${e.sha256.take(8)} · ${e.capturedAt ?: "date unknown"}" + (if (e.attempts > 1) " · tries ${e.attempts}" else ""))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (UploadLabels.canRetryServer(e)) OutlinedButton(onClick = {
-                            s.act({ s.app.api.retryUpload(e.uploadId!!) }) { scope.launch { s.onQueue { s.app.queue.markServerRetried(e.sha256) }; s.pumpQueue() } }
+                            s.act({ s.app.api.retryUpload(e.uploadId!!) }) { scope.launch { s.withReadyQueue { it.markServerRetried(e.sha256) }; s.pumpQueue() } }
                         }) { Text("Retry processing") }
                         if (UploadLabels.needsUndatedConfirmation(e)) OutlinedButton(onClick = {
-                            scope.launch { s.onQueue { s.app.queue.confirmUndated(e.sha256) }; s.pumpQueue() }
+                            scope.launch { s.withReadyQueue { it.confirmUndated(e.sha256) }; s.pumpQueue() }
                         }) { Text("Send without date") }
                         if (UploadLabels.canRetryLocal(e)) OutlinedButton(onClick = {
-                            scope.launch { s.onQueue { s.app.queue.retryLocal(e.sha256) }; s.pumpQueue() }
+                            scope.launch { s.withReadyQueue { it.retryLocal(e.sha256) }; s.pumpQueue() }
                         }) { Text("Retry upload") }
                         if (e.state == LocalState.FAILED || e.state == LocalState.GAVE_UP) OutlinedButton(onClick = {
-                            scope.launch { s.onQueue { s.app.queue.forget(e.sha256) }; s.touchQueue() }
+                            scope.launch { s.withReadyQueue { it.forget(e.sha256) }; s.touchQueue() }
                         }) { Text("Discard") }
                     }
                 }

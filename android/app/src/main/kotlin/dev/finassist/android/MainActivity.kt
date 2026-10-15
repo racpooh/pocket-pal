@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.finassist.core.SessionState
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,7 +51,7 @@ private val TABS = listOf("Setup", "Consent", "Upload", "Review", "Ledger")
 
 @Composable
 fun AppRoot(s: AppState) {
-    LaunchedEffect(Unit) { s.checkServer(); if (s.signedIn) s.signedInNow() /* binds the queue to this account first */ }
+    LaunchedEffect(Unit) { s.checkServer(); s.checkIdentity() /* stored session? confirm the account before showing anything */ }
     Column(Modifier.fillMaxSize()) {
         // Visible, never silent: the backend says it is running with the fake (test) extractor.
         if (s.testMode == true) Banner("TEST MODE — fake extraction, synthetic fixtures only. Not real data.", Color(0xFFFFE082))
@@ -62,7 +63,18 @@ fun AppRoot(s: AppState) {
                 TextButton(onClick = { s.message = null }) { Text("OK") }
             }
         }
-        if (!s.signedIn) AuthScreen(s) else SignedIn(s)
+        when (val st = s.session) {
+            is SessionState.SignedOut -> AuthScreen(s)
+            is SessionState.Checking -> Text("Checking your account…", Modifier.padding(16.dp))
+            is SessionState.IdentityFailed -> Column(Modifier.padding(16.dp)) {
+                Text("Your account could not be confirmed (${st.reason}). Photos waiting on this phone stay hidden and are not sent.")
+                Row {
+                    TextButton(onClick = { s.checkIdentity() }) { Text("Retry") }
+                    TextButton(onClick = { s.logout() }) { Text("Log out") }
+                }
+            }
+            is SessionState.Ready -> SignedIn(s)
+        }
     }
 }
 
