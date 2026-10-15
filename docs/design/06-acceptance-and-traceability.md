@@ -6,7 +6,7 @@ Status values: `not-started` · `designed` · `implemented-untested` · `pass (r
 
 ## 1. Traceability matrix (chain: requirement → design → code → test → evidence)
 
-Evidence: unit + integration suite run `20261015T093021Z-cp1f-review-fixes` (202 passed incl. Codex CP1 regression tests; API and worker run as RLS-restricted roles, Python 3.12.3, Postgres 16.15); sandbox scenario `20261015T072919Z-demo-fake-mocks-rls` (47 API steps, 0 unexpected statuses).
+Evidence: unit + integration suite run `20261015T094412Z-cp1g-rereview-fixes` (209 passed incl. Codex CP1 + re-review regression tests; API and worker run as RLS-restricted roles, Python 3.12.3, Postgres 16.15; device re-run `20261015T094715Z-cp1g-device-pg18` 209 passed on Postgres 18.4); sandbox scenario `20261015T072919Z-demo-fake-mocks-rls` (47 API steps, 0 unexpected statuses).
 **Mocks:** integration tests and the demo use `FakeExtractionProvider` (returns ground-truth fields) and `ScriptedChatModel` (fixed tool calls). "pass (mock)" below means the server-side logic is proven, not model quality.
 
 | Req | Design | Code | Tests | Status |
@@ -20,9 +20,9 @@ Evidence: unit + integration suite run `20261015T093021Z-cp1f-review-fixes` (202
 | R2.4 duplicate images & payments (revised after Codex #5; ledger-level replay `20261015T092956Z-replay-v02-adv`: 0 double counts) | FI-28..30 | `domain/dedup.py`, `imports._route` | `test_exact_duplicate_image_is_idempotent`, `test_same_bank_ref_different_image_counts_once`, `test_two_waters_*`, `test_receipt_and_slip_count_once`, `test_sec_conc_manual_and_import_race` | pass (mock extraction) |
 | R2.5 auto-save validated, marked, removable | FI-11 | `imports._insert_import_txn`, `delete_upload` | `test_e2e_slip_import_updates_plan`, `test_sec_cons_delete_then_retry_is_noop` | pass (mock extraction) |
 | R2.6 review queue; unresolved excluded | FI-11 | `imports._route`, `resolve_review` | `test_unclear_amount_goes_to_review_and_is_excluded`, `test_pending_slip_recorded_but_excluded_from_totals` | pass |
-| R2.7 pause / delete imported data (two-phase image purge after Codex #3: `test_f3_*`) | SI-5 | `revoke_consent`, `delete_upload`, `delete_all_imported` | `test_sec_cons_*` | pass (`/data/delete` route untested) |
+| R2.7 pause / delete imported data (two-phase image purge after Codex #3: `test_f3_*`; purge never dies, repeat DELETE recovers, worker lease reclaim: `test_r2_*`, `test_r3_*`) | SI-5 | `revoke_consent`, `delete_upload`, `delete_all_imported` | `test_sec_cons_*` | pass (`/data/delete` route untested) |
 | R3.1–R3.3 manual entry, edit, duplicate check | FI-14, FI-30 | `core.create_manual_txn`, `patch_txn`, `delete_txn` | `test_manual_duplicate_check_and_confirm`, `test_refund_reconciles_and_cannot_exceed` | pass (edit path lightly tested) |
-| R4.1–R4.3 pockets, reallocation via approval (BP-1 added after Codex #1: `test_f1_*`) | FI-16, FI-17, FI-17a | `budget.create_pocket`, `pocket_status`, proposals | `test_reallocation_conserves_total_and_creates_no_expense`, `test_sec_agent_proposes_user_approves` | pass |
+| R4.1–R4.3 pockets, reallocation via approval (BP-1 added after Codex #1: `test_f1_*`; buffer/period rule: `test_r1_*`) | FI-16, FI-17, FI-17a | `budget.create_pocket`, `pocket_status`, proposals | `test_reallocation_conserves_total_and_creates_no_expense`, `test_sec_agent_proposes_user_approves` | pass |
 | R5.1 analyse history (3 months) | — | `domain/insights.monthly_history`, `GET /insights` | `test_monthly_history_and_recommendation` | pass (calendar months; averages use complete months only) |
 | R5.2 allocations + allowance after bills/essentials/savings/buffer | FI-23..25 | `domain/cashflow.py`, `budget.suggest_budget_plan` | `test_waterfall_reconciles_without_double_reservation`, `test_budget_plan_reconciles` | pass |
 | R5.3 amounts/percentages with base | FI-4 | `allocation.allocate_bps` | unit | pass (percent editing UI contract only) |

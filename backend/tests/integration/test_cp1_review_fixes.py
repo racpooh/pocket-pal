@@ -242,3 +242,149 @@ def test_f5_ocr_refs_are_stored_unconfirmed(client, db, storage, provider):
     drain(db, storage, provider)
     with db.connect() as c:
         assert c.execute("select bank_ref_confirmed from txn").fetchone()["bank_ref_confirmed"] is False
+
+
+# ================= Codex re-review (round 2) =================
+
+def test_r1_raising_buffer_alone_is_checked(client):
+    """1,000 available, 1,000 allocated; buffer 0 → 500 with the same pockets must be refused."""
+    u = User(client).onboard()
+    u.approve_plan()
+    alloc = _pockets(u)
+    body = _plan_payload(u, alloc)
+    raised = {**body, "payload": {**body["payload"], "buffer_satang": 50_000}}
+    r = u.req("POST", "/proposals", json=raised)
+    assert r.status_code == 400 and r.json()["error"]["code"] == "ALLOCATION_EXCEEDS_AVAILABLE", r.text
+    assert u.req("POST", "/proposals", json=body).status_code == 201  # unchanged plan is fine
+    shrunk = dict(alloc, Other=alloc["Other"] - 50_000)  # make room for the buffer → fits
+    ok = _plan_payload(u, shrunk)
+    ok["payload"]["buffer_satang"] = 50_000
+    assert u.req("POST", "/proposals", json=ok).status_code == 201
+
+
+def test_r1_period_change_goes_through_full_check(client):
+    u = User(client).onboard()
+    u.approve_plan()
+    alloc = _pockets(u)
+    # unassigned spending lowers money left but no pocket's unspent budget → plan is now over by 100.00
+    r = u.req("POST", "/transactions", idem=True, json={"kind": "expense", "amount_satang": 10_000, "occurred_date": "2026-10-15",
+                                                        "occurred_at": "2026-10-15T14:00:00+07:00", "payee": "unknown shop"})
+    assert r.status_code == 201
+    same = _plan_payload(u, alloc)
+    assert u.req("POST", "/proposals", json=same).status_code == 201  # same period, same buffer, not worse → allowed
+    moved = {**same, "payload": {**same["payload"], "period_end": "2026-10-31"}}
+    r2 = u.req("POST", "/proposals", json=moved)
+    assert r2.status_code == 400 and r2.json()["error"]["code"] == "ALLOCATION_EXCEEDS_AVAILABLE", r2.text
+
+
+def _set_now(monkeypatch, minutes_after_0600z: int):
+    from datetime import datetime, timedelta, timezone
+
+    t = datetime(2026, 10, 15, 6, 0, tzinfo=timezone.utc) + timedelta(minutes=minutes_after_0600z)
+    monkeypatch.setenv("FINASSIST_FIXED_NOW", t.isoformat())
+
+
+def test_r2_purge_survives_more_than_five_failures(client, db, storage, provider, monkeypatch):
+    u = User(client).onboard()
+    up = u.upload(register(provider, "slip_001_transfer_out.png")).json()
+    drain(db, storage, provider)
+    storage.fail = True
+    assert u.req("DELETE", f"/uploads/{up['upload_id']}").json()["image_purge"] == "pending_retry"
+    outcomes = []
+    for i in range(1, 9):  # 8 more failures, each after the (capped) backoff has elapsed
+        _set_now(monkeypatch, 61 * i)
+        outcomes += drain(db, storage, provider)
+    assert outcomes == ["purge_retry"] * 8, outcomes
+    with db.connect() as c:
+        job = c.execute("select status, attempts from job where subject_id=%s and kind='purge_upload'", (up["upload_id"],)).fetchone()
+        overdue = c.execute("select count(*) n from audit_event where subject_id=%s and action='image_purge_overdue'", (up["upload_id"],)).fetchone()["n"]
+    assert job["status"] == "queued" and job["attempts"] == 8 and overdue >= 1
+    storage.fail = False
+    _set_now(monkeypatch, 61 * 10)
+    assert drain(db, storage, provider) == ["purged"]
+    with db.connect() as c:
+        row = c.execute("select object_key, object_purged_at from upload where id=%s", (up["upload_id"],)).fetchone()
+    assert row["object_key"] is None and row["object_purged_at"] is not None
+
+
+def test_r2_legacy_dead_purge_is_revived_and_repeat_delete_recovers(client, db, storage, provider, monkeypatch):
+    u = User(client).onboard()
+    up = u.upload(register(provider, "slip_002_transfer_out.png")).json()
+    drain(db, storage, provider)
+    storage.fail = True
+    u.req("DELETE", f"/uploads/{up['upload_id']}")
+    with db.connect() as c:  # simulate a job that died under the old policy
+        c.execute("update job set status='dead' where subject_id=%s and kind='purge_upload'", (up["upload_id"],))
+    # repeat DELETE is idempotent (200, not 404) and re-queues/retries
+    r = u.req("DELETE", f"/uploads/{up['upload_id']}")
+    assert r.status_code == 200 and r.json()["repeat"] is True and r.json()["image_purge"] == "pending_retry"
+    storage.fail = False
+    _set_now(monkeypatch, 120)
+    out = drain(db, storage, provider)
+    assert "purged" in out, out
+    with db.connect() as c:
+        assert c.execute("select object_key from upload where id=%s", (up["upload_id"],)).fetchone()["object_key"] is None
+        assert c.execute("select count(*) n from job where subject_id=%s and status in ('queued','running','dead')", (up["upload_id"],)).fetchone()["n"] == 0
+    assert u.req("DELETE", f"/uploads/{up['upload_id']}").json()["image_purge"] == "done"
+
+
+def _worker_conn():
+    from finassist.infra import Database
+
+    from .conftest import URL, app_url
+
+    return Database(app_url(URL, "finassist_worker"))
+
+
+def test_r3_crashed_worker_lease_is_reclaimed_and_stale_worker_cannot_write(client, db, storage, provider, monkeypatch):
+    from finassist.infra import set_owner
+    from finassist.services.imports import claim_job, persist_extraction
+
+    u = User(client).onboard()
+    data = register(provider, "slip_001_transfer_out.png")
+    u.upload(data)
+    w = _worker_conn()
+    with w.connect() as conn:
+        crashed = claim_job(conn)  # worker A claims, then "dies"
+        result_a = provider.extract(data, "image/png")
+    assert drain(db, storage, provider) == []  # lease still valid: nobody else takes it
+    _set_now(monkeypatch, 6)  # lease (5 min) expired
+    assert drain(db, storage, provider) == ["imported"]  # worker B reclaims and finishes
+    with w.connect() as conn:  # worker A wakes up late and tries to write its result
+        set_owner(conn, crashed["owner_id"])
+        assert persist_extraction(conn, crashed, result_a) == "stale_lease"
+    assert len(u.req("GET", "/transactions").json()) == 1
+    with db.connect() as c:
+        job = c.execute("select status, attempts from job where id=%s", (crashed["id"],)).fetchone()
+        lease_audit = c.execute("select count(*) n from audit_event where action='job_lease_expired'").fetchone()["n"]
+    assert job["status"] == "done" and job["attempts"] == 2 and lease_audit >= 1
+
+
+def test_r3_crashed_purge_is_reclaimed(client, db, storage, provider, monkeypatch):
+    from finassist.services.imports import claim_job
+
+    u = User(client).onboard()
+    up = u.upload(register(provider, "slip_003_transfer_out.png")).json()
+    drain(db, storage, provider)
+    storage.fail = True
+    u.req("DELETE", f"/uploads/{up['upload_id']}")
+    storage.fail = False
+    _set_now(monkeypatch, 1)
+    with _worker_conn().connect() as conn:
+        assert claim_job(conn)["kind"] == "purge_upload"  # claimed, then the worker dies
+    _set_now(monkeypatch, 8)
+    assert drain(db, storage, provider) == ["purged"]
+
+
+def test_r3_extraction_crash_loop_stops_after_max_attempts(client, db, storage, provider, monkeypatch):
+    from finassist.services.imports import MAX_ATTEMPTS, claim_job
+
+    u = User(client).onboard()
+    u.upload(register(provider, "slip_004_transfer_out.png"))
+    for i in range(MAX_ATTEMPTS):  # worker dies after every claim
+        _set_now(monkeypatch, i * 6)
+        with _worker_conn().connect() as conn:
+            assert claim_job(conn) is not None
+    _set_now(monkeypatch, MAX_ATTEMPTS * 6)
+    assert drain(db, storage, provider) == ["dead"]
+    assert any(x["status"] == "extract_failed" for x in u.req("GET", "/uploads").json())

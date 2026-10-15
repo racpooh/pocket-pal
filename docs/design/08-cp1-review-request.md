@@ -142,3 +142,21 @@ Full suite: **202 passed** (`evidence/runs/20261015T093021Z-cp1f-review-fixes`, 
 
 ### Still open
 Known false-positive mode of rule #5 (two real payments with near-sequential refs and equal amounts → one review question); real slips; Android client; deployment. The approval card should warn on large reallocations (observed in the agent demo).
+
+---
+
+## Codex re-review (round 2) → fixes (15 Oct 2026, ~16:50 ICT)
+
+| # | Finding | Fix | Tests (pass; each fails when its fix is removed) |
+|---|---|---|---|
+| R1 [P1] | Raising the buffer with unchanged pockets skipped the money check (e.g. 1,000 available, 1,000 allocated, buffer 0→500 accepted) | The "not worse" shortcut now also requires the same period and a buffer that is not raised; otherwise the full BP-1 check runs with the new buffer | `test_r1_raising_buffer_alone_is_checked` (Codex's example; shrinking a pocket to make room is accepted), `test_r1_period_change_goes_through_full_check` |
+| R2 [P1] | Purge jobs went `dead` after 5 storage failures and nothing retried them; a repeat DELETE returned 404 | Purge has its own policy: never `dead`, capped backoff ≤1 h, `image_purge_overdue` audit every 5 failures. Legacy dead purge jobs are revived by the worker (only when no live job exists for that upload). A repeat `DELETE` is idempotent (200, `repeat: true`) and re-queues + retries the purge | `test_r2_purge_survives_more_than_five_failures` (8 failures → storage recovers → purged), `test_r2_legacy_dead_purge_is_revived_and_repeat_delete_recovers` |
+| R3 [P2] | A job left `running` by a crashed worker was never reclaimed | Migration `0004_job_leases.sql`: `lease_token`. Claim also takes `running` jobs whose lease expired (audited `job_lease_expired`); every worker write (`done`, retry, dead, persist) is conditional on the token; a stale worker writes nothing (`stale_lease`). Extraction crash loops stop at 5 attempts → `dead` + `extract_failed` | `test_r3_crashed_worker_lease_is_reclaimed_and_stale_worker_cannot_write` (one txn, job `done`, attempts 2), `test_r3_crashed_purge_is_reclaimed`, `test_r3_extraction_crash_loop_stops_after_max_attempts` |
+
+Also fixed while testing: the stale-lease check originally applied only while the job was `running`, so a stale worker arriving after the job was `done` could overwrite it to `cancelled` — now any token mismatch writes nothing. `delete_upload` now runs in one transaction (it previously released the row lock between the check and the update).
+
+Mutation checks: R1 old shortcut → 2 tests fail; purge dying at 5 → 1 fails; no lease reclaim → 3 fail; no stale-lease check → 1 fails.
+
+Evidence: full suite **209 passed** (`evidence/runs/20261015T094412Z-cp1g-rereview-fixes`, Postgres 16.15; same 209 on the owner's Mac VM, Postgres 18.4: `20261015T094715Z-cp1g-device-pg18`); ledger replay re-run `20261015T094459Z-replay-v02-adv-r2` PASS (28/29 counted once, 0 double counts, total difference 0). No model calls.
+
+Deferred (agreed): approval-card warning for large reallocations.

@@ -20,7 +20,10 @@ from finassist.providers import EXTRACTION_SCHEMA_VERSION, ExtractionProvider, P
 from finassist.services import core
 from finassist.services.core import _nf, now_utc
 
-MAX_ATTEMPTS = 5
+MAX_ATTEMPTS = 5  # extraction jobs only; purge jobs never give up (see _fail_purge)
+LEASE = timedelta(minutes=5)
+PURGE_MAX_DELAY = timedelta(hours=1)
+PURGE_ALERT_EVERY = 5  # audit an "overdue" event every N failed attempts
 SEED_MERCHANTS: dict[str, str] = {}  # curated later; kept empty rather than invented
 
 
@@ -172,30 +175,39 @@ def read_image(conn, storage: LocalStorage, owner_id, upload_id) -> tuple[bytes,
 
 
 def delete_upload(conn, storage: LocalStorage, owner_id, upload_id, *, remove_records: bool = True) -> dict:
+    """Two-phase delete (CP1 #3). One transaction marks the upload deleted (unreachable via the API), removes its
+    records and queues a purge job; the stored object is then deleted and only a confirmed delete clears the key.
+    A repeated DELETE is idempotent and doubles as a recovery path: it re-queues and retries the purge."""
+    removed, repeat = 0, False
     with conn.transaction():
-        row = conn.execute("select object_key from upload where owner_id=%s and id=%s and status<>'deleted' for update", (owner_id, upload_id)).fetchone()
+        row = conn.execute("select object_key, status from upload where owner_id=%s and id=%s for update", (owner_id, upload_id)).fetchone()
         if not row:
             raise _nf()
-        # Two-phase: keep object_key until the store confirms deletion (finding #3). The image is already
-        # unreachable through the API (status='deleted'); a purge job retries until the object is gone.
-        conn.execute("update upload set status='deleted', deleted_at=%s where id=%s", (now_utc(), upload_id))
-        conn.execute("update job set status='cancelled' where owner_id=%s and subject_id=%s and kind='extract' and status in ('queued','running')", (owner_id, upload_id))
         if row["object_key"]:
             conn.execute("""insert into job(owner_id,kind,subject_id,consent_grant_id,run_after) values (%s,'purge_upload',%s,null,%s)
                             on conflict do nothing""", (owner_id, upload_id, now_utc()))
-        conn.execute("update review_item set status='dismissed', resolution='upload_deleted' where owner_id=%s and upload_id=%s and status='open'", (owner_id, upload_id))
-        removed = 0
-        if remove_records:
-            removed = conn.execute("""update txn set deleted_at=%s, bank_ref_norm=null where owner_id=%s and upload_id=%s
-                                      and source<>'manual' and deleted_at is null""", (now_utc(), owner_id, upload_id)).rowcount
-            removed += conn.execute("""update bill set status='cancelled', version=version+1 where owner_id=%s and upload_id=%s
-                                       and status='unpaid'""", (owner_id, upload_id)).rowcount
-        bump_watermark(conn, owner_id)
-        audit(conn, owner_id, "user", "upload_delete", "upload", upload_id, details={"records_removed": removed})
-    purge = "not_needed"
+        if row["status"] == "deleted":
+            repeat = True
+        else:
+            conn.execute("update upload set status='deleted', deleted_at=%s where id=%s", (now_utc(), upload_id))
+            conn.execute("update job set status='cancelled' where owner_id=%s and subject_id=%s and kind='extract' and status in ('queued','running')",
+                         (owner_id, upload_id))
+            conn.execute("update review_item set status='dismissed', resolution='upload_deleted' where owner_id=%s and upload_id=%s and status='open'",
+                         (owner_id, upload_id))
+            if remove_records:
+                removed = conn.execute("""update txn set deleted_at=%s, bank_ref_norm=null where owner_id=%s and upload_id=%s
+                                          and source<>'manual' and deleted_at is null""", (now_utc(), owner_id, upload_id)).rowcount
+                removed += conn.execute("""update bill set status='cancelled', version=version+1 where owner_id=%s and upload_id=%s
+                                           and status='unpaid'""", (owner_id, upload_id)).rowcount
+            bump_watermark(conn, owner_id)
+            audit(conn, owner_id, "user", "upload_delete", "upload", upload_id, details={"records_removed": removed})
+    purge = "done" if repeat else "not_needed"
     if row["object_key"]:
         purge = "done" if _purge_object(conn, storage, owner_id, upload_id, row["object_key"]) else "pending_retry"
-    return {"upload_id": str(upload_id), "status": "deleted", "records_removed": removed, "image_purge": purge}
+    out = {"upload_id": str(upload_id), "status": "deleted", "records_removed": removed, "image_purge": purge}
+    if repeat:
+        out["repeat"] = True
+    return out
 
 
 def _purge_object(conn, storage, owner_id, upload_id, key: str) -> bool:
@@ -225,18 +237,37 @@ def delete_all_imported(conn, storage: LocalStorage, owner_id) -> dict:
 # ---------------- worker ----------------
 
 def claim_job(conn) -> dict | None:
+    """Claim one job: queued and due, OR running with an expired lease (its worker died). Each claim gets a new
+    lease token; every later write by the worker is conditional on that token (stale workers cannot overwrite)."""
+    import uuid as _uuid
+
     with conn.transaction():
+        # Recovery for purge jobs that died under the old policy: purges never give up.
+        conn.execute("""update job d set status='queued', run_after=%s where d.kind='purge_upload' and d.status='dead'
+                        and not exists (select 1 from job l where l.kind='purge_upload' and l.subject_id=d.subject_id
+                                        and l.status in ('queued','running'))""", (now_utc(),))
         job = conn.execute(
-            """select id,owner_id,kind,subject_id,consent_grant_id,attempts from job
-               where status='queued' and run_after <= %s order by id for update skip locked limit 1""", (now_utc(),)).fetchone()
+            """select id,owner_id,kind,subject_id,consent_grant_id,attempts,status from job
+               where (status='queued' and run_after <= %s) or (status='running' and locked_until < %s)
+               order by id for update skip locked limit 1""", (now_utc(), now_utc())).fetchone()
         if not job:
             return None
         set_owner(conn, job["owner_id"])  # RLS: everything below is scoped to this job's owner
-        conn.execute("update job set status='running', attempts=attempts+1, locked_until=%s where id=%s",
-                     (now_utc() + timedelta(minutes=5), job["id"]))
+        reclaimed = job["status"] == "running"
+        if reclaimed:
+            audit(conn, job["owner_id"], "worker", "job_lease_expired", "job", None, details={"job_id": job["id"], "kind": job["kind"], "attempts": job["attempts"]})
+            if job["kind"] == "extract" and job["attempts"] >= MAX_ATTEMPTS:  # crash loop: stop retrying extraction
+                conn.execute("update job set status='dead', last_error_code='LeaseExpired', locked_until=null, lease_token=null where id=%s", (job["id"],))
+                conn.execute("update upload set status='extract_failed' where id=%s and status in ('received','extracting')", (job["subject_id"],))
+                return {"dead": True, **job}
+        token = _uuid.uuid4()
+        conn.execute("update job set status='running', attempts=attempts+1, locked_until=%s, lease_token=%s where id=%s",
+                     (now_utc() + LEASE, token, job["id"]))
         if job["kind"] == "extract":
             conn.execute("update upload set status='extracting' where id=%s and status='received'", (job["subject_id"],))
     job["attempts"] += 1
+    job["lease_token"] = token
+    job["reclaimed"] = reclaimed
     return job
 
 
@@ -245,6 +276,8 @@ def run_once(conn, storage: LocalStorage, provider: ExtractionProvider) -> str |
     job = claim_job(conn)
     if not job:
         return None
+    if job.get("dead"):
+        return "dead"
     owner = job["owner_id"]
     if job["kind"] == "purge_upload":
         row = conn.execute("select object_key from upload where owner_id=%s and id=%s", (owner, job["subject_id"])).fetchone()
@@ -253,7 +286,7 @@ def run_once(conn, storage: LocalStorage, provider: ExtractionProvider) -> str |
             return "purged"
         if _purge_object(conn, storage, owner, job["subject_id"], row["object_key"]):
             return "purged"
-        return _fail(conn, job, "StorageDeleteError", mark_upload=False)
+        return _fail_purge(conn, job)
     up = conn.execute("select object_key,mime,status from upload where owner_id=%s and id=%s", (owner, job["subject_id"])).fetchone()
     if not up or up["status"] in ("deleted", "cancelled_consent") or not up["object_key"]:
         _finish(conn, job, "cancelled")
@@ -267,20 +300,37 @@ def run_once(conn, storage: LocalStorage, provider: ExtractionProvider) -> str |
 
 def _finish(conn, job, status: str) -> None:
     with conn.transaction():
-        conn.execute("update job set status=%s, locked_until=null where id=%s", (status, job["id"]))
+        conn.execute("update job set status=%s, locked_until=null where id=%s and lease_token=%s", (status, job["id"], job["lease_token"]))
+
+
+def _fail_purge(conn, job) -> str:
+    """Purge failures are retried forever with capped backoff; never 'dead'. Overdue purges are audited."""
+    with conn.transaction():
+        delay = min(timedelta(seconds=2 ** min(job["attempts"], 20)), PURGE_MAX_DELAY)
+        n = conn.execute("""update job set status='queued', run_after=%s, last_error_code='StorageDeleteError', locked_until=null
+                            where id=%s and lease_token=%s and status='running'""", (now_utc() + delay, job["id"], job["lease_token"])).rowcount
+        if n and job["attempts"] % PURGE_ALERT_EVERY == 0:
+            audit(conn, job["owner_id"], "system", "image_purge_overdue", "upload", job["subject_id"], result="error",
+                  details={"attempts": job["attempts"]})
+    return "purge_retry" if n else "stale_lease"
 
 
 def _fail(conn, job, code: str, *, mark_upload: bool = True) -> str:
     with conn.transaction():
         if job["attempts"] >= MAX_ATTEMPTS:
-            conn.execute("update job set status='dead', last_error_code=%s where id=%s", (code, job["id"]))
+            n = conn.execute("update job set status='dead', last_error_code=%s where id=%s and lease_token=%s and status='running'",
+                             (code, job["id"], job["lease_token"])).rowcount
+            if not n:
+                return "stale_lease"
             if mark_upload:
                 conn.execute("update upload set status='extract_failed' where id=%s and status='extracting'", (job["subject_id"],))
             audit(conn, job["owner_id"], "worker", "extract", "upload", job["subject_id"], result="error", details={"code": code, "dead": True})
             return "dead"
         delay = timedelta(seconds=2 ** job["attempts"])
-        conn.execute("update job set status='queued', run_after=%s, last_error_code=%s where id=%s and status='running'",
-                     (now_utc() + delay, code, job["id"]))
+        n = conn.execute("update job set status='queued', run_after=%s, last_error_code=%s where id=%s and status='running' and lease_token=%s",
+                         (now_utc() + delay, code, job["id"], job["lease_token"])).rowcount
+        if not n:
+            return "stale_lease"
         audit(conn, job["owner_id"], "worker", "extract", "upload", job["subject_id"], result="error", details={"code": code, "attempt": job["attempts"]})
     return "retry"
 
@@ -291,7 +341,11 @@ def persist_extraction(conn, job: dict, result) -> str:
         # SI-5: lock consent FOR SHARE (revoke takes FOR UPDATE) and re-check job/upload state.
         grant = conn.execute("select id,params,revoked_at from consent_grant where owner_id=%s and id=%s for share",
                              (owner, job["consent_grant_id"])).fetchone()
-        jrow = conn.execute("select status from job where id=%s for update", (job["id"],)).fetchone()
+        jrow = conn.execute("select status, lease_token from job where id=%s for update", (job["id"],)).fetchone()
+        if jrow["lease_token"] != job.get("lease_token"):
+            # Another worker reclaimed this job after our lease expired (and may have finished it): write nothing.
+            audit(conn, owner, "worker", "extract", "upload", upload_id, result="rejected", details={"why": "stale_lease"})
+            return "stale_lease"
         up = conn.execute("select status,captured_at from upload where owner_id=%s and id=%s for update", (owner, upload_id)).fetchone()
         if not grant or grant["revoked_at"] is not None or jrow["status"] != "running" or up["status"] not in ("extracting", "received"):
             conn.execute("update job set status='cancelled' where id=%s", (job["id"],))
@@ -313,7 +367,7 @@ def persist_extraction(conn, job: dict, result) -> str:
                      (owner, upload_id, result.model_id, EXTRACTION_SCHEMA_VERSION, Jsonb(stored), Jsonb(v.field_states),
                       result.latency_ms, result.input_tokens, result.output_tokens))
         outcome = _route(conn, owner, upload_id, v, tz)
-        conn.execute("update job set status='done', locked_until=null where id=%s", (job["id"],))
+        conn.execute("update job set status='done', locked_until=null where id=%s and lease_token=%s", (job["id"], job["lease_token"]))
         audit(conn, owner, "worker", "extract", "upload", upload_id, details={"outcome": outcome, "model": result.model_id})
     return outcome
 

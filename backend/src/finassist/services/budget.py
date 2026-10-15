@@ -229,15 +229,19 @@ def unspent_allocations(conn, owner_id, period_start: date, period_end: date, al
 
 
 def _enforce_unspent_fits(conn, owner_id, period_start: date, period_end: date, buffer_satang: int,
-                          old_alloc: dict[str, int], new_alloc: dict[str, int]) -> None:
+                          old_alloc: dict[str, int], new_alloc: dict[str, int], *,
+                          old_buffer_satang: int | None = None, old_period: tuple[date, date] | None = None) -> None:
     """BP-1 (Codex CP1 review, finding #1): the budget still available to spend across all pockets must fit the
     money actually available now. Σ max(0, allocation_i − spent_i) ≤ max(0, discretionary_now).
-    A change that does not increase the unspent total is always allowed (so an already-tight plan can be reduced)."""
+    A change that does not increase the unspent total is allowed without the money check ONLY if it also does not
+    raise the buffer and keeps the same period (Codex re-review #1: raising the buffer alone used to slip through)."""
     from dataclasses import replace
 
     new_unspent = unspent_allocations(conn, owner_id, period_start, period_end, new_alloc)
     old_unspent = unspent_allocations(conn, owner_id, period_start, period_end, old_alloc) if old_alloc else 0
-    if new_unspent <= old_unspent and old_alloc:
+    same_period = old_period is not None and tuple(map(str, old_period)) == (str(period_start), str(period_end))
+    buffer_not_raised = old_buffer_satang is not None and buffer_satang <= old_buffer_satang
+    if old_alloc and new_unspent <= old_unspent and same_period and buffer_not_raised:
         return
     inp, _ = cashflow_inputs(conn, owner_id)
     disc = cf.compute(replace(inp, buffer=cf.Buffer(amount_satang=buffer_satang))).discretionary_satang
@@ -263,7 +267,8 @@ def _check_applicable(conn, owner_id, kind: str, p: dict, *, lock: bool) -> dict
         except ValueError as e:
             raise ApiError(400, "VALIDATION_FAILED", str(e)) from None
         pr = conn.execute("select period_start, period_end, buffer_satang from budget_plan where id=%s", (plan["id"],)).fetchone()
-        _enforce_unspent_fits(conn, owner_id, pr["period_start"], pr["period_end"], pr["buffer_satang"], alloc, new_alloc)
+        _enforce_unspent_fits(conn, owner_id, pr["period_start"], pr["period_end"], pr["buffer_satang"], alloc, new_alloc,
+                              old_buffer_satang=pr["buffer_satang"], old_period=(pr["period_start"], pr["period_end"]))
         base.update(base_plan_id=plan["id"], base_plan_version=plan["version"])
     elif kind == "budget_plan":
         if p["period_start"] >= p["period_end"]:
@@ -271,13 +276,16 @@ def _check_applicable(conn, owner_id, kind: str, p: dict, *, lock: bool) -> dict
         owned = {str(r["id"]) for r in conn.execute("select id from pocket where owner_id=%s and archived_at is null", (owner_id,)).fetchall()}
         if not set(p["allocations"]) <= owned:
             raise _nf()
-        existing = conn.execute(f"select id,version from budget_plan where owner_id=%s and period_start=%s{fu}", (owner_id, p["period_start"])).fetchone()
+        existing = conn.execute(f"select id,version,period_start,period_end,buffer_satang from budget_plan where owner_id=%s and period_start=%s{fu}",
+                                (owner_id, p["period_start"])).fetchone()
         old_alloc = {}
         if existing:
             old_alloc = {str(r["pocket_id"]): r["allocation_satang"] for r in conn.execute(
                 "select pocket_id, allocation_satang from pocket_allocation where owner_id=%s and plan_id=%s", (owner_id, existing["id"])).fetchall()}
         _enforce_unspent_fits(conn, owner_id, date.fromisoformat(str(p["period_start"])), date.fromisoformat(str(p["period_end"])),
-                              p["buffer_satang"], old_alloc, p["allocations"])
+                              p["buffer_satang"], old_alloc, p["allocations"],
+                              old_buffer_satang=existing["buffer_satang"] if existing else None,
+                              old_period=(existing["period_start"], existing["period_end"]) if existing else None)
         if existing:
             base.update(base_plan_id=existing["id"], base_plan_version=existing["version"])
     elif kind == "goal_update":
