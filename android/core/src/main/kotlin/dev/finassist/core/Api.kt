@@ -15,8 +15,13 @@ open class ApiException(
     val fields: List<Map<String, Any?>> = emptyList(),
 ) : Exception(message)
 
-/** 401: the stored session is gone (expired, revoked, logged out elsewhere). The token has already been cleared. */
-class SessionExpiredException(code: String, message: String, requestId: String?) : ApiException(401, code, message, requestId)
+/**
+ * 401 for the token that was sent. If that token is still the current one it has been cleared ([staleToken] = false).
+ * If the session changed while the request was in flight (logout, another account signed in), the 401 belongs to an
+ * old session: the current token is left untouched and [staleToken] = true — callers must not end the new session.
+ */
+class SessionExpiredException(code: String, message: String, requestId: String?, val staleToken: Boolean = false) :
+    ApiException(401, code, message, requestId)
 
 /** No HTTP response at all (offline, timeout). Always safe to retry. */
 class NetworkException(cause: IOException) : Exception("network unavailable", cause)
@@ -25,12 +30,15 @@ class NetworkException(cause: IOException) : Exception("network unavailable", ca
 interface TokenStore {
     fun get(): String?
     fun set(token: String?)
+    /** Atomically clears the token only if it is still [expected]. Returns true if it was cleared. */
+    fun clearIf(expected: String?): Boolean
 }
 
 class MemoryTokenStore : TokenStore {
-    @Volatile private var t: String? = null
-    override fun get() = t
-    override fun set(token: String?) { t = token }
+    private var t: String? = null
+    @Synchronized override fun get() = t
+    @Synchronized override fun set(token: String?) { t = token }
+    @Synchronized override fun clearIf(expected: String?): Boolean { if (expected == null || t != expected) return false; t = null; return true }
 }
 
 class UploadResult(val httpStatus: Int, val uploadId: String, val status: String, val duplicateImage: Boolean)
@@ -52,7 +60,8 @@ class ApiClient(
     private fun call(method: String, path: String, body: Any? = null, idempotencyKey: String? = null, auth: Boolean = true,
                      rawBody: Pair<String, ByteArray>? = null): Pair<Int, Any?> {
         val h = linkedMapOf("Accept" to "application/json")
-        if (auth) tokens.get()?.let { h["Authorization"] = "Bearer $it" }
+        val sent = if (auth) tokens.get() else null // remember which session this request belongs to
+        if (sent != null) h["Authorization"] = "Bearer $sent"
         if (idempotencyKey != null) h["Idempotency-Key"] = idempotencyKey
         var bytes: ByteArray? = null
         if (rawBody != null) { h["Content-Type"] = rawBody.first; bytes = rawBody.second }
@@ -60,17 +69,22 @@ class ApiClient(
         val resp = try { transport.send(HttpRequest(method, base + path, h, bytes)) } catch (e: IOException) { throw NetworkException(e) }
         val text = resp.text()
         val parsed: Any? = if (text.isBlank()) null else try { Json.parse(text) } catch (e: IllegalArgumentException) { null }
-        if (resp.status >= 400) throw toError(resp.status, parsed)
+        if (resp.status >= 400) throw toError(resp.status, parsed, sent)
         return resp.status to parsed
     }
 
-    private fun toError(status: Int, parsed: Any?): ApiException {
+    private fun toError(status: Int, parsed: Any?, sentToken: String?): ApiException {
         val e = (parsed as? Map<*, *>)?.get("error") as? Map<*, *>
         @Suppress("UNCHECKED_CAST") val em = (e as? Map<String, Any?>) ?: emptyMap()
         val code = em.str("code") ?: "HTTP_$status"
         val msg = em.str("message") ?: "Request failed ($status)."
         val rid = em.str("request_id")
-        if (status == 401) { tokens.set(null); return SessionExpiredException(code, msg, rid) }
+        if (status == 401) {
+            // Clear only the session this request was sent with; never a newer one (Codex CP3a re-review 2).
+            val cleared = tokens.clearIf(sentToken)
+            val stale = sentToken != null && !cleared && tokens.get() != null
+            return SessionExpiredException(code, msg, rid, staleToken = stale)
+        }
         return ApiException(status, code, msg, rid, em.bool("retryable") ?: (status >= 500 || status == 429),
             em.obj("details") ?: emptyMap(), em.list("fields").objs())
     }

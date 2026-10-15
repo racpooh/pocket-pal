@@ -52,6 +52,12 @@ class KeystoreTokenStore(context: Context) : TokenStore {
         return cache
     }
 
+    /** Clears only if [expected] is still the stored token (a late 401 of an older session must not log out a newer one). */
+    @Synchronized override fun clearIf(expected: String?): Boolean {
+        if (expected == null || get() != expected) return false
+        set(null); return true
+    }
+
     @Synchronized override fun set(token: String?) {
         cache = token; loaded = true
         if (token == null) { prefs.edit().clear().apply(); return }

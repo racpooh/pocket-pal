@@ -57,10 +57,30 @@ class SessionGate(private val queue: UploadQueue) {
         return true
     }
 
-    /** begin + /me + complete, synchronously (callers run it off the main thread). */
+    /**
+     * Apply the outcome of the `/me` call of check [forEpoch]. A 401 ends the session ONLY if it belongs to the
+     * current check and was for the current token; a late 401 of an earlier session is ignored entirely
+     * (Codex CP3a re-review 2). Everything else goes to [complete]. Returns true if applied.
+     */
+    fun finish(forEpoch: Int, me: Result<String>): Boolean {
+        val err = me.exceptionOrNull()
+        if (err is SessionExpiredException) {
+            if (err.staleToken || forEpoch != epoch || state !is SessionState.Checking) return false
+            signOut(); return true
+        }
+        return complete(forEpoch, me)
+    }
+
+    /** A 401 seen outside an identity check (any API call). Ends the session unless it belongs to an older token. */
+    fun onUnauthorized(e: SessionExpiredException): Boolean {
+        if (e.staleToken) return false
+        signOut(); return true
+    }
+
+    /** begin + /me + finish, synchronously (callers run it off the main thread). */
     fun check(me: () -> String): SessionState {
         val e = begin()
-        complete(e, runCatching(me))
+        finish(e, runCatching(me))
         return state
     }
 

@@ -69,15 +69,23 @@ class AppState(val app: FinAssistApp, private val scope: CoroutineScope) {
         val epoch = onQueue { app.gate.begin() }
         val me = withContext(Dispatchers.IO) { runCatching { app.api.me() } }
         val err = me.exceptionOrNull()
-        if (err is SessionExpiredException) { onQueue { app.gate.signOut() }; message = "Session ended. Please sign in again."; return@launch }
-        val applied = onQueue { app.gate.complete(epoch, me) }
-        if (applied && err == null) pumpQueue()
-        if (applied && err != null) message = if (err is NetworkException) "Cannot confirm your account (server not reachable)." else "Cannot confirm your account (${(err as? ApiException)?.code})."
+        // finish() checks the epoch for every outcome, including 401: a late answer of an older check changes nothing.
+        val applied = onQueue { app.gate.finish(epoch, me) }
+        if (!applied) return@launch
+        message = when {
+            err == null -> null
+            err is SessionExpiredException -> "Session ended. Please sign in again."
+            err is NetworkException -> "Cannot confirm your account (server not reachable)."
+            else -> "Cannot confirm your account (${(err as? ApiException)?.code})."
+        }
+        if (err == null) pumpQueue()
     }
 
-    private fun sessionEnded(text: String?) {
+    /** A 401 from any call. Ignored if it belongs to an older session (the token sent is no longer the current one). */
+    private fun sessionEnded(e: SessionExpiredException, text: String?) {
+        if (e.staleToken) return
         app.gate.requestStop()
-        scope.launch { onQueue { app.gate.signOut() } }
+        scope.launch { onQueue { app.gate.onUnauthorized(e) } }
         message = text
     }
 
@@ -89,7 +97,7 @@ class AppState(val app: FinAssistApp, private val scope: CoroutineScope) {
                 val r = withContext(Dispatchers.IO) { block() }
                 onOk(r)
             } catch (e: SessionExpiredException) {
-                sessionEnded(if (e.code == "UNAUTHENTICATED") e.message else "Session ended (${e.code}). Please sign in again.")
+                sessionEnded(e, if (e.code == "UNAUTHENTICATED") e.message else "Session ended (${e.code}). Please sign in again.")
             } catch (e: ApiException) {
                 val fields = e.fields.joinToString { "${it["path"]}: ${it["issue"]}" }
                 message = "${e.code}: ${e.message}" + (if (fields.isNotEmpty()) " [$fields]" else "") + (e.requestId?.let { " (request $it)" } ?: "")

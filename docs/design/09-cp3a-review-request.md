@@ -146,3 +146,35 @@ ignoring state (2 tests fail), stale `/me` applied (1), `begin` not stopping the
 | Client core + E2E, Linux ARM64 VM on the owner's Mac (Java 11 jar compiled here from the same sources), PG 18.4 | `evidence/runs/20261015T165304Z-cp3a-gate-client-e2e-device-pg18-arm64` | 25/25, 27/27 |
 
 Observed on the owner's Mac at ~23:51 ICT: `android/app/build/outputs/apk/debug/app-debug.apk` (8.8 MB, versionName 0.3.0-cp3a) exists, built from the **previous** sources (before this gate fix); Gradle's problems report lists only plugin deprecation warnings. So the app module compiled at least once — by the owner, not by Claude. The gate fix needs a rebuild. Not verified: install and the 19-line checklist on the S23.
+
+
+---
+
+## Codex CP3a re-review 2 → fix (16 Oct 2026, ~00:30 ICT)
+
+Owner's build of the pre-gate sources: `22/22`, `BUILD SUCCESSFUL` (reported by the owner). The gate sources are not
+built yet.
+
+[P2] A late **401** of an older `/me` could still end the new session: `AppState` signed out on
+`SessionExpiredException` before checking the epoch, and `ApiClient` cleared the token on every 401.
+
+**Fix (two layers, each sufficient for its part):**
+- `ApiClient` remembers the token each request was sent with; on 401 it clears the store only via
+  `TokenStore.clearIf(sentToken)` (atomic compare-and-clear; implemented by `MemoryTokenStore` and
+  `KeystoreTokenStore`). If a newer token is current, the exception is marked `staleToken = true`.
+- `SessionGate.finish(epoch, result)` handles every `/me` outcome, 401 included, only for the current check;
+  `onUnauthorized(e)` (any other call) ignores stale 401s. `AppState` uses only these. The upload queue does not
+  stop on a stale 401 (re-queues without counting an attempt).
+
+Tests (core): the exact scenario — A's `/me` delayed in a second thread → B signs in and becomes Ready → A's `/me`
+answers 401 → B's token still stored, gate still `Ready(B)`, queue owner still B; plus each layer alone
+(`clearIf`, old-epoch 401 ignored, stale 401 outside a check ignored, queue not stopped, a real 401 still signs out).
+Mutations: client clearing on any 401 (1 fails), gate signing out on any 401 (2), queue stopping on a stale 401 (1).
+
+| Run | Evidence | Result |
+|---|---|---|
+| Client core + E2E vs real backend (x86_64, PG 16.15) | `evidence/runs/20261015T172759Z-cp3a-stale401-client-e2e-cloud` | 27/27, 27/27 |
+| Same, Linux ARM64 VM on the owner's Mac (Java 11 jar compiled here from the same sources), PG 18.4 | `evidence/runs/20261015T173118Z-cp3a-stale401-client-e2e-device-pg18-arm64` | 27/27, 27/27 |
+
+No backend change this round (last backend suite: `20261015T164958Z-cp3a-gate-backend`, 257 passed).
+Observed: a new `app-debug.apk` (8.96 MB) on the owner's Mac at ~00:25 ICT, i.e. built from the **gate** sources (before this 401 fix) — owner's report pending. Expected for the latest sources: `./gradlew :core:selfTest` → **27/27**, then `:app:assembleDebug`.

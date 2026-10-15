@@ -198,7 +198,9 @@ class UploadQueue(
             } catch (x: NetworkException) {
                 backoff(e, "NETWORK")
             } catch (x: SessionExpiredException) {
-                e.state = LocalState.QUEUED; e.attempts -= 1; blocked = BlockReason.SIGNED_OUT; persist(); return sent
+                e.state = LocalState.QUEUED; e.attempts -= 1
+                if (!x.staleToken) blocked = BlockReason.SIGNED_OUT // a 401 of an older session must not stop the new one
+                persist(); return sent
             } catch (x: ApiException) {
                 when {
                     x.code == "CONSENT_REQUIRED" -> { e.state = LocalState.QUEUED; e.attempts -= 1; blocked = BlockReason.CONSENT_REQUIRED; persist(); return sent }
@@ -227,7 +229,8 @@ class UploadQueue(
             val id = e.uploadId ?: continue
             if (e.state != LocalState.SENT || e.serverStatus in TERMINAL_SERVER) continue
             val s = try { api.uploadStatus(id) } catch (x: NetworkException) { continue } catch (x: SessionExpiredException) {
-                blocked = BlockReason.SIGNED_OUT; persist(); return changed
+                if (!x.staleToken) { blocked = BlockReason.SIGNED_OUT; persist() }
+                return changed
             } catch (x: ApiException) {
                 if (x.status == 404) "deleted" else continue
             }

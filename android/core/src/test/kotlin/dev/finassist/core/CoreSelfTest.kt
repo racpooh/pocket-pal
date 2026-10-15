@@ -292,6 +292,51 @@ object CoreSelfTest {
             eq(gate.readyQueue()!!.blocked, BlockReason.PAUSED_BY_USER)  // the user's own pause survives a re-check
         }
 
+        // ---- Codex CP3a re-review 2: a late 401 of an older session must not end the new one ----
+        test("late 401 of A's /me after B is Ready: B's token stays, gate stays Ready(B), queue stays B's") {
+            val tokens = MemoryTokenStore().apply { set("tokA") }
+            val aInFlight = java.util.concurrent.CountDownLatch(1); val releaseA = java.util.concurrent.CountDownLatch(1)
+            val transport = Transport { r ->
+                when (r.headers["Authorization"]) {
+                    "Bearer tokA" -> { aInFlight.countDown(); releaseA.await()
+                        HttpResponse(401, """{"error":{"code":"SESSION_EXPIRED","message":"expired"}}""".toByteArray()) }
+                    "Bearer tokB" -> HttpResponse(200, """{"user_id":"B"}""".toByteArray())
+                    else -> HttpResponse(401, """{"error":{"code":"UNAUTHENTICATED","message":"x"}}""".toByteArray())
+                }
+            }
+            val api = ApiClient("http://127.0.0.1:8000", transport, tokens, true)
+            val q = UploadQueue(MemStore(), MemBlobs(), ScriptApi(mutableListOf())) { 0 }
+            val gate = SessionGate(q)
+            val e1 = gate.begin()                                                         // check for A starts
+            var lateA: Result<String>? = null
+            val t = Thread { lateA = runCatching { api.me() } }.apply { start() }
+            yes(aInFlight.await(5, java.util.concurrent.TimeUnit.SECONDS), "A's /me in flight")
+            tokens.set("tokB")                                                            // B signs in
+            eq(gate.check { api.me() }, SessionState.Ready(e1 + 1, "B"))
+            releaseA.countDown(); t.join(5_000)                                           // A's /me now answers 401
+            val err = lateA!!.exceptionOrNull() as SessionExpiredException
+            yes(err.staleToken, "401 recognised as belonging to the old session")
+            eq(tokens.get(), "tokB")                                                      // API client did not clear B's token
+            eq(gate.finish(e1, lateA!!), false)                                           // app layer ignores it (epoch + stale)
+            eq(gate.state, SessionState.Ready(e1 + 1, "B")); eq(q.owner, "B")
+        }
+        test("each layer alone: client keeps a newer token; gate ignores an old-epoch 401; queue not stopped by a stale 401") {
+            val tokens = MemoryTokenStore().apply { set("new") }
+            eq(tokens.clearIf("old"), false); eq(tokens.get(), "new"); eq(tokens.clearIf("new"), true); eq(tokens.get(), null)
+            val q = UploadQueue(MemStore(), MemBlobs(), ScriptApi(mutableListOf(
+                fail(SessionExpiredException("SESSION_EXPIRED", "x", null, staleToken = true)), ok("u1")))) { 0 }
+            val gate = SessionGate(q)
+            val e1 = gate.begin(); gate.check { "B" }
+            eq(gate.finish(e1, Result.failure(SessionExpiredException("SESSION_EXPIRED", "x", null, staleToken = false))), false)
+            yes(gate.state is SessionState.Ready, "still ready")
+            eq(gate.onUnauthorized(SessionExpiredException("SESSION_EXPIRED", "x", null, staleToken = true)), false)
+            yes(gate.state is SessionState.Ready, "still ready after stale 401 elsewhere")
+            gate.enqueue(byteArrayOf(80), "image/png", "2026-10-15T13:00:00+07:00")
+            eq(gate.pumpOnce(), 0); eq(q.blocked, null); yes(gate.state is SessionState.Ready, "stale upload 401 does not sign out")
+            eq(gate.pumpOnce(), 1)                                                        // next round sends with the current token
+            eq(gate.onUnauthorized(SessionExpiredException("SESSION_EXPIRED", "x", null)), true); eq(gate.state, SessionState.SignedOut)
+        }
+
         val failed = results.filter { it.second != null }
         results.forEach { (n, e) -> println((if (e == null) "PASS " else "FAIL ") + n + (e?.let { "\n     $it" } ?: "")) }
         println("${results.size - failed.size}/${results.size} passed")
