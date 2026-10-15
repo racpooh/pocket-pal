@@ -50,13 +50,13 @@ def _account(c, owner) -> uuid.UUID:
     return aid
 
 
-def _txn(c, owner, account, *, amount=1000, ref=None, kind="expense") -> uuid.UUID:
+def _txn(c, owner, account, *, amount=1000, ref=None, kind="expense", confirmed=True) -> uuid.UUID:
     tid = uuid.uuid4()
     c.execute(
         """insert into txn(id,owner_id,account_id,kind,amount_satang,occurred_date,payment_status,
-                           amount_state,direction_state,source,bank_ref_norm)
-           values (%s,%s,%s,%s,%s,'2026-10-15','completed','confirmed','confirmed','manual',%s)""",
-        (tid, owner, account, kind, amount, ref),
+                           amount_state,direction_state,source,bank_ref_norm,bank_ref_confirmed)
+           values (%s,%s,%s,%s,%s,'2026-10-15','completed','confirmed','confirmed','manual',%s,%s)""",
+        (tid, owner, account, kind, amount, ref, confirmed),
     )
     return tid
 
@@ -67,6 +67,17 @@ def test_amount_must_be_positive(conn):
     for bad in (0, -100):
         with pytest.raises(errors.CheckViolation):
             _txn(conn, u, a, amount=bad)
+
+
+def test_unconfirmed_ocr_refs_may_repeat(conn):
+    # 0003: a reference read by the model is evidence, not identity (Codex CP1 finding #5)
+    u = _user(conn)
+    a = _account(conn, u)
+    _txn(conn, u, a, ref="OCR-READ-1", confirmed=False)
+    _txn(conn, u, a, ref="OCR-READ-1", confirmed=False)
+    _txn(conn, u, a, ref="OCR-READ-1", confirmed=True)
+    with pytest.raises(errors.UniqueViolation):
+        _txn(conn, u, a, ref="OCR-READ-1", confirmed=True)
 
 
 def test_bank_ref_unique_per_owner_only(conn):

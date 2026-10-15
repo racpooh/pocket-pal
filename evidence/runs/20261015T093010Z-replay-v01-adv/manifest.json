@@ -1,0 +1,50 @@
+{
+  "run_id": "20261015T093010Z-replay-v01-adv",
+  "kind": "pipeline replay (recorded real model outputs; no model calls; $0)",
+  "uses_mocks": [
+    "ReplayProvider returns outputs recorded in 20261015T090604Z-haiku-synth40",
+    "SIMULATED inputs: see summary.simulated_inputs"
+  ],
+  "fixed_now": "2026-10-15T08:00:00+00:00",
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39"
+  },
+  "summary": {
+    "source_run": "20261015T090604Z-haiku-synth40",
+    "source_model": "claude-haiku-5-5",
+    "images_uploaded": 41,
+    "simulated_inputs": [
+      {
+        "file": "SIM_slip_021_reencoded_correct_ref.jpg",
+        "same_payment_as": "slip_021_transfer_out.png",
+        "what": "re-encoded/cropped copy; recorded raw output with the correct reference substituted"
+      }
+    ],
+    "expected_payments": 29,
+    "counted_once": 28,
+    "double_counted": [],
+    "wrong_value": [],
+    "missed_silently": [],
+    "held_in_review": {
+      "DS52882001826330": "missing_fields"
+    },
+    "unexpected_counted_keys": [],
+    "open_review_items_by_reason": {
+      "receipt_link": 1,
+      "missing_fields": 2
+    },
+    "bills": {
+      "expected": 5,
+      "created": 5
+    },
+    "merged_duplicates": 2,
+    "expense_total_satang": {
+      "expected_all": 884900,
+      "counted": 878900,
+      "expected_excluding_items_waiting_for_user": 878900,
+      "difference_vs_resolvable": 0
+    },
+    "verdict": "PASS"
+  }
+}

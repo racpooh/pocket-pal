@@ -105,3 +105,40 @@ Full suite after fixes: 188 passed (`evidence/runs/20261015T091023Z-cp1e-cloud-a
 
 ### Not proven by this checkpoint
 Real slips (not used this round); album scanning; generalisation beyond 40 synthetic images; agent behaviour beyond three scripted prompts; deployment.
+
+---
+
+## Codex review of the real-model checkpoint → fixes (15 Oct 2026, ~16:40 ICT)
+
+Codex did not recommend closing CP1. Five findings; all fixed with regression tests. No paid model calls in this round.
+
+| # | Finding | Fix | Regression tests (all pass; each fails when its fix is removed) |
+|---|---|---|---|
+| 1 [P1] | Raising the plan total checked only the increase against money left, which ignored existing allocations | New invariant BP-1 (`02` FI-17a): Σ max(0, allocation − spent) ≤ money left now; enforced at proposal creation and under lock at approval, for plans, reallocations and trade-offs | `test_f1_*` (4): Codex's 1,000→2,000 example and +1 satang rejected; reduction allowed; after spending only unspent budget moves; overspent pocket cannot donate; re-checked at approval |
+| 2 [P1] | Bills were created without auto-import consent | Bills go through the same consent gate; otherwise `confirm_import` review | `test_f2_bill_needs_auto_import_consent`, `test_f2_bill_with_consent_still_imports` |
+| 3 [P1] | Image deletion cleared the key before the store confirmed; GCS swallowed all errors | Two-phase delete: row → `deleted` (unreachable via API) but keeps `object_key`; `purge_upload` job retries until the store confirms; only NotFound counts as success; purge not cancelled by consent revocation; API reports `image_purge: done | pending_retry` | `test_f3_failed_storage_delete_is_retried_not_reported_done`, `test_f3_already_missing_object_counts_as_deleted` |
+| 4 [P2] | A bill in review could never be confirmed | Review `accept` for bills creates a bill (never a txn); unique `(owner, upload)` on bills; repeat → 404/409 | `test_f4_bill_missing_due_date_can_be_completed_once` |
+| 5 [P2] | A misread OCR reference could make one payment count twice | OCR refs stored unconfirmed (unique only when confirmed, migration 0003); only same-ref-and-amount merges automatically; same ref + different amount, or refs within 2 edits + same amount → review; image hash removed as a signal (see below) | `test_misread_ref_with_same_amount_goes_to_review` (uses the real slip_021 values), `test_same_ref_different_amount_is_a_conflict_not_a_merge`, `test_f5_misread_ref_then_correct_read_does_not_double_count`, `test_f5_ocr_refs_are_stored_unconfirmed`, `test_unconfirmed_ocr_refs_may_repeat` |
+
+Mutation check (manual): disabling each fix made its tests fail (#1: 4 fail; #2: 1; #3: 1; #5: 1).
+
+**Additional finding while fixing #5:** the 64-bit dHash used for "near-identical image" is useless on templated bank slips — many *distinct* synthetic payments have distance 0 (106 pairs at distance 4, several at 0, out of 780 pairs). The earlier rule (near image without a ref → review) would have produced false duplicate questions. Image similarity is no longer used for decisions.
+
+### Extraction → dedup → ledger check (Codex's request), $0
+`scripts/eval_pipeline_replay.py` replays the **recorded real Haiku outputs** through the real worker pipeline (consent, validation, dedup, review routing, RLS roles) into a fresh test DB, then compares the ledger with ground truth: each real payment counted exactly once; duplicates/receipt pairs collapse; pending/failed recorded but not counted; bills become bills.
+
+| Run | Source outputs | Verdict | Counted once | Held in review (not counted until user answers) | Double / wrong / silently missed | Expense total vs resolvable |
+|---|---|---|---|---|---|---|
+| `20261015T092956Z-replay-v02-adv` | v0.2 run `20261015T091318Z` + 1 SIMULATED re-encoded slip_021 with the correct ref | PASS | 28/29 | slip_022 (wrong-year read → missing/conflicting date) | 0 / 0 / 0 | 878,900 = 878,900 |
+| `20261015T093010Z-replay-v01-adv` | v0.1 run `20261015T090604Z` + same simulated input | PASS | 28/29 | slip_022 | 0 / 0 / 0 | 878,900 = 878,900 |
+| `20261015T093013Z-NEGATIVE-CONTROL-...` | v0.2, **with the similar-ref rule disabled on purpose** | FAIL | — | — | double: DS63726516761222 (+50.00) | 883,900 vs 878,900 |
+
+Open review items in the passing runs: 1 receipt link (receipt+slip pair), 2 missing fields (blurred amount; wrong-year date), 1 possible duplicate (the simulated copy). Bills 5/5.
+
+Honest reading: on this set the protection against importing the misread date works; the model still misreads that date (v0.2 date accuracy 39/40). The replay proves pipeline behaviour on 40 recorded outputs + 1 simulated case, not general accuracy.
+
+### Evidence
+Full suite: **202 passed** (`evidence/runs/20261015T093021Z-cp1f-review-fixes`, Postgres 16.15, API/worker under RLS roles). Same suite on the owner's machine VM: **202 passed** (`evidence/runs/20261015T093209Z-cp1f-device-pg18`, Postgres 18.4). New migration: `db/migrations/0003_cp1_review_fixes.sql`.
+
+### Still open
+Known false-positive mode of rule #5 (two real payments with near-sequential refs and equal amounts → one review question); real slips; Android client; deployment. The approval card should warn on large reallocations (observed in the agent demo).

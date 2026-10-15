@@ -215,6 +215,37 @@ def _validate_payload(kind: str, payload: dict) -> dict:
         raise ApiError(400, "VALIDATION_FAILED", "Invalid proposal.", fields=[{"path": ".".join(map(str, x["loc"])), "issue": x["type"]} for x in e.errors()]) from None
 
 
+def unspent_allocations(conn, owner_id, period_start: date, period_end: date, allocations: dict[str, int]) -> int:
+    """Σ over pockets of max(0, allocation − spending already attributed to that pocket in the period)."""
+    cmap = {r["category_code"]: str(r["pocket_id"]) for r in conn.execute(
+        "select category_code, pocket_id from pocket_category_map where owner_id=%s", (owner_id,)).fetchall()}
+    s = spending(load_txns(conn, owner_id), period_start, period_end)
+    spent: dict[str, int] = {}
+    for code, v in s.by_category.items():
+        pid = cmap.get(code)
+        if pid:
+            spent[pid] = spent.get(pid, 0) + v["confirmed"] + v["predicted"]
+    return sum(max(0, amt - spent.get(str(pid), 0)) for pid, amt in allocations.items())
+
+
+def _enforce_unspent_fits(conn, owner_id, period_start: date, period_end: date, buffer_satang: int,
+                          old_alloc: dict[str, int], new_alloc: dict[str, int]) -> None:
+    """BP-1 (Codex CP1 review, finding #1): the budget still available to spend across all pockets must fit the
+    money actually available now. Σ max(0, allocation_i − spent_i) ≤ max(0, discretionary_now).
+    A change that does not increase the unspent total is always allowed (so an already-tight plan can be reduced)."""
+    from dataclasses import replace
+
+    new_unspent = unspent_allocations(conn, owner_id, period_start, period_end, new_alloc)
+    old_unspent = unspent_allocations(conn, owner_id, period_start, period_end, old_alloc) if old_alloc else 0
+    if new_unspent <= old_unspent and old_alloc:
+        return
+    inp, _ = cashflow_inputs(conn, owner_id)
+    disc = cf.compute(replace(inp, buffer=cf.Buffer(amount_satang=buffer_satang))).discretionary_satang
+    if new_unspent > max(0, disc):
+        raise ApiError(400, "ALLOCATION_EXCEEDS_AVAILABLE", "Pocket budgets would exceed the money available until next income.",
+                       details={"unspent_after_satang": new_unspent, "available_satang": max(0, disc), "unspent_before_satang": old_unspent})
+
+
 def _check_applicable(conn, owner_id, kind: str, p: dict, *, lock: bool) -> dict:
     """Validates the payload against current state. Returns base versions. Raises ApiError if impossible."""
     fu = " for update" if lock else ""
@@ -226,11 +257,13 @@ def _check_applicable(conn, owner_id, kind: str, p: dict, *, lock: bool) -> dict
         rows = conn.execute("select pocket_id,allocation_satang from pocket_allocation where owner_id=%s and plan_id=%s", (owner_id, plan["id"])).fetchall()
         alloc = {str(r["pocket_id"]): r["allocation_satang"] for r in rows}
         try:
-            reallocate(alloc, p["from_pocket"], p["to_pocket"], p["amount_satang"])
+            new_alloc = reallocate(alloc, p["from_pocket"], p["to_pocket"], p["amount_satang"])
         except KeyError:
             raise _nf() from None
         except ValueError as e:
             raise ApiError(400, "VALIDATION_FAILED", str(e)) from None
+        pr = conn.execute("select period_start, period_end, buffer_satang from budget_plan where id=%s", (plan["id"],)).fetchone()
+        _enforce_unspent_fits(conn, owner_id, pr["period_start"], pr["period_end"], pr["buffer_satang"], alloc, new_alloc)
         base.update(base_plan_id=plan["id"], base_plan_version=plan["version"])
     elif kind == "budget_plan":
         if p["period_start"] >= p["period_end"]:
@@ -238,20 +271,13 @@ def _check_applicable(conn, owner_id, kind: str, p: dict, *, lock: bool) -> dict
         owned = {str(r["id"]) for r in conn.execute("select id from pocket where owner_id=%s and archived_at is null", (owner_id,)).fetchall()}
         if not set(p["allocations"]) <= owned:
             raise _nf()
-        from dataclasses import replace
         existing = conn.execute(f"select id,version from budget_plan where owner_id=%s and period_start=%s{fu}", (owner_id, p["period_start"])).fetchone()
-        existing_total = 0
+        old_alloc = {}
         if existing:
-            existing_total = conn.execute("select coalesce(sum(allocation_satang),0) s from pocket_allocation where owner_id=%s and plan_id=%s",
-                                          (owner_id, existing["id"])).fetchone()["s"]
-        new_total = sum(p["allocations"].values())
-        if new_total > existing_total:
-            # Raising the total must fit the money still available now (spending already made is not refundable).
-            inp, _ = cashflow_inputs(conn, owner_id)
-            disc = cf.compute(replace(inp, buffer=cf.Buffer(amount_satang=p["buffer_satang"]))).discretionary_satang
-            if new_total - existing_total > max(0, disc) if existing else new_total > max(0, disc):
-                raise ApiError(400, "ALLOCATION_EXCEEDS_AVAILABLE", "Pocket allocations exceed the money available until next income.",
-                               details={"discretionary_satang": disc})
+            old_alloc = {str(r["pocket_id"]): r["allocation_satang"] for r in conn.execute(
+                "select pocket_id, allocation_satang from pocket_allocation where owner_id=%s and plan_id=%s", (owner_id, existing["id"])).fetchall()}
+        _enforce_unspent_fits(conn, owner_id, date.fromisoformat(str(p["period_start"])), date.fromisoformat(str(p["period_end"])),
+                              p["buffer_satang"], old_alloc, p["allocations"])
         if existing:
             base.update(base_plan_id=existing["id"], base_plan_version=existing["version"])
     elif kind == "goal_update":

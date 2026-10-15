@@ -41,6 +41,7 @@ Implementation note (CP1): the earlier draft names `transfer_internal` / `transf
 
 - **FI-16** A pocket is an allocation within a budget period, not money. `Σ pocket allocations + unallocated = discretionary budget` for the period (strict equality, tested).
 - **FI-17** Reallocation changes two allocations by ±x in one transaction; Σ unchanged; no `txn` row is created. An allocation cannot go below 0; it may go below the amount already spent, which then shows as overspent.
+- **FI-17a (BP-1, added after Codex CP1 review #1)** For the plan period, Σ over pockets of max(0, allocation − spending attributed to that pocket) must be ≤ max(0, money left now). Checked when a proposal is created and again under lock at approval, for budget plans, reallocations and trade-offs. A change that does not increase that unspent total is always allowed. Consequence: budget already spent (including an overspent pocket's allocation) cannot be moved to another pocket.
 - **FI-18** Pocket spending = Σ settled expenses − linked refunds in the period whose (confirmed or predicted) category maps to the pocket. Confirmed and predicted parts are reported separately.
 
 ## 5. Bills
@@ -76,12 +77,14 @@ Ordered checks; earlier strong evidence wins.
 | Evidence | Action |
 |---|---|
 | Same image bytes (sha256, per owner) | Same upload; return existing (idempotent) |
-| Same bank transaction reference (from slip text or QR), per owner | Same payment; do not create a second txn; link the second image as extra evidence |
-| Different bank references | **Never** duplicates, even with identical amount/time/payee (e.g., two ฿10 waters) |
-| Near-identical image (perceptual hash distance ≤ threshold) without a readable reference | Possible duplicate → review item; the new row is held out of totals until resolved |
+| Same bank reference **and same amount** | Same payment; no second txn; image linked as evidence (the only automatic merge) |
+| Same reference, different amount | Conflict → review |
+| References within 2 edits (≥8 chars) and same amount | Possible misread → review (Codex CP1 #5; real case slip_021) |
+| Clearly different references | Distinct, even with identical amount/time/payee (two ฿10 waters) |
+| ~~Near-identical image (perceptual hash)~~ | **Removed as a signal (15 Oct):** on templated slips, distinct payments have dHash distance 0 (measured on the synthetic set), so it cannot separate purchases |
 | Receipt (no bank ref) + slip with equal amount, same payee similarity, within ±30 min | Proposed "receipt is evidence of this slip" link; count once (the slip); confirm in batch review |
 | Manual entry matching an existing txn (amount equal, same local day, payee similar) | API returns candidates; client must resend with `confirm_distinct=true` to create |
 
 - **FI-28** Equal amount + equal date alone never deletes or merges a transaction.
-- **FI-29** DB uniqueness: `(owner_id, bank_ref_norm)` partial unique index on non-deleted txns; `(owner_id, sha256)` on uploads. Concurrent imports of the same payment resolve via these constraints (one wins, the other gets the existing id).
+- **FI-29** DB uniqueness: `(owner_id, sha256)` on uploads; `(owner_id, bank_ref_norm)` unique only for **confirmed** references (user-typed or confirmed in review; migration 0003). A model-read reference is stored with `bank_ref_confirmed=false` and is evidence, not identity. Concurrent imports of the same payment resolve via these constraints (one wins, the other gets the existing id).
 - **FI-30** Manual entries usually have no bank reference, so a constraint cannot catch a manual/import race. Transaction creation therefore takes a per-owner transaction-scoped advisory lock (`pg_advisory_xact_lock`) around "find candidates → insert", so the second writer sees the first and goes to the candidate/review path. Throughput cost is irrelevant at one user's scale.

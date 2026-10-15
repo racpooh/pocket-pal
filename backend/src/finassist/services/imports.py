@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from finassist.api.errors import ApiError
 from finassist.domain import extraction_validation as ev
 from finassist.domain.classify import is_intermediary, normalize_payee, suggest
-from finassist.domain.dedup import Candidate, decide, hamming64, normalize_ref, PHASH_MAX_DISTANCE
+from finassist.domain.dedup import Candidate, decide, normalize_ref
 from finassist.infra import audit, bump_watermark, lock_owner_ledger, set_owner
 from finassist.providers import EXTRACTION_SCHEMA_VERSION, ExtractionProvider, ProviderError
 from finassist.services import core
@@ -40,10 +40,15 @@ class LocalStorage:
         return (self.root / key).read_bytes()
 
     def delete(self, key: str) -> None:
+        """Raises on failure. A missing object counts as deleted (idempotent retry)."""
         try:
             (self.root / key).unlink()
         except FileNotFoundError:
             pass
+
+
+class StorageDeleteError(Exception):
+    """The object store did not confirm deletion; the caller must keep the key and retry."""
 
 
 class GCSStorage:
@@ -63,10 +68,15 @@ class GCSStorage:
         return self.bucket.blob(key).download_as_bytes()
 
     def delete(self, key: str) -> None:
+        """Raises StorageDeleteError unless GCS confirms deletion. NotFound (already gone) is success."""
+        from google.api_core import exceptions as gexc
+
         try:
             self.bucket.blob(key).delete()
-        except Exception:
-            pass
+        except gexc.NotFound:
+            return
+        except Exception as e:  # permission, network, 5xx: keep the key, retry later
+            raise StorageDeleteError(type(e).__name__) from None
 
 
 def make_storage(settings):
@@ -166,18 +176,43 @@ def delete_upload(conn, storage: LocalStorage, owner_id, upload_id, *, remove_re
         row = conn.execute("select object_key from upload where owner_id=%s and id=%s and status<>'deleted' for update", (owner_id, upload_id)).fetchone()
         if not row:
             raise _nf()
-        conn.execute("update upload set status='deleted', deleted_at=%s, object_key=null where id=%s", (now_utc(), upload_id))
-        conn.execute("update job set status='cancelled' where owner_id=%s and subject_id=%s and status in ('queued','running')", (owner_id, upload_id))
+        # Two-phase: keep object_key until the store confirms deletion (finding #3). The image is already
+        # unreachable through the API (status='deleted'); a purge job retries until the object is gone.
+        conn.execute("update upload set status='deleted', deleted_at=%s where id=%s", (now_utc(), upload_id))
+        conn.execute("update job set status='cancelled' where owner_id=%s and subject_id=%s and kind='extract' and status in ('queued','running')", (owner_id, upload_id))
+        if row["object_key"]:
+            conn.execute("""insert into job(owner_id,kind,subject_id,consent_grant_id,run_after) values (%s,'purge_upload',%s,null,%s)
+                            on conflict do nothing""", (owner_id, upload_id, now_utc()))
         conn.execute("update review_item set status='dismissed', resolution='upload_deleted' where owner_id=%s and upload_id=%s and status='open'", (owner_id, upload_id))
         removed = 0
         if remove_records:
             removed = conn.execute("""update txn set deleted_at=%s, bank_ref_norm=null where owner_id=%s and upload_id=%s
                                       and source<>'manual' and deleted_at is null""", (now_utc(), owner_id, upload_id)).rowcount
+            removed += conn.execute("""update bill set status='cancelled', version=version+1 where owner_id=%s and upload_id=%s
+                                       and status='unpaid'""", (owner_id, upload_id)).rowcount
         bump_watermark(conn, owner_id)
         audit(conn, owner_id, "user", "upload_delete", "upload", upload_id, details={"records_removed": removed})
+    purge = "not_needed"
     if row["object_key"]:
-        storage.delete(row["object_key"])
-    return {"upload_id": str(upload_id), "status": "deleted", "records_removed": removed}
+        purge = "done" if _purge_object(conn, storage, owner_id, upload_id, row["object_key"]) else "pending_retry"
+    return {"upload_id": str(upload_id), "status": "deleted", "records_removed": removed, "image_purge": purge}
+
+
+def _purge_object(conn, storage, owner_id, upload_id, key: str) -> bool:
+    """Delete the stored image; only on confirmed success clear the key and close the purge job."""
+    try:
+        storage.delete(key)
+    except Exception as e:
+        with conn.transaction():
+            audit(conn, owner_id, "system", "image_purge", "upload", upload_id, result="error", details={"code": type(e).__name__})
+        return False
+    with conn.transaction():
+        conn.execute("update upload set object_key=null, object_purged_at=%s where owner_id=%s and id=%s and object_key=%s",
+                     (now_utc(), owner_id, upload_id, key))
+        conn.execute("update job set status='done', locked_until=null where owner_id=%s and subject_id=%s and kind='purge_upload' and status in ('queued','running')",
+                     (owner_id, upload_id))
+        audit(conn, owner_id, "system", "image_purge", "upload", upload_id)
+    return True
 
 
 def delete_all_imported(conn, storage: LocalStorage, owner_id) -> dict:
@@ -199,7 +234,8 @@ def claim_job(conn) -> dict | None:
         set_owner(conn, job["owner_id"])  # RLS: everything below is scoped to this job's owner
         conn.execute("update job set status='running', attempts=attempts+1, locked_until=%s where id=%s",
                      (now_utc() + timedelta(minutes=5), job["id"]))
-        conn.execute("update upload set status='extracting' where id=%s and status='received'", (job["subject_id"],))
+        if job["kind"] == "extract":
+            conn.execute("update upload set status='extracting' where id=%s and status='received'", (job["subject_id"],))
     job["attempts"] += 1
     return job
 
@@ -210,6 +246,14 @@ def run_once(conn, storage: LocalStorage, provider: ExtractionProvider) -> str |
     if not job:
         return None
     owner = job["owner_id"]
+    if job["kind"] == "purge_upload":
+        row = conn.execute("select object_key from upload where owner_id=%s and id=%s", (owner, job["subject_id"])).fetchone()
+        if not row or not row["object_key"]:
+            _finish(conn, job, "done")
+            return "purged"
+        if _purge_object(conn, storage, owner, job["subject_id"], row["object_key"]):
+            return "purged"
+        return _fail(conn, job, "StorageDeleteError", mark_upload=False)
     up = conn.execute("select object_key,mime,status from upload where owner_id=%s and id=%s", (owner, job["subject_id"])).fetchone()
     if not up or up["status"] in ("deleted", "cancelled_consent") or not up["object_key"]:
         _finish(conn, job, "cancelled")
@@ -226,11 +270,12 @@ def _finish(conn, job, status: str) -> None:
         conn.execute("update job set status=%s, locked_until=null where id=%s", (status, job["id"]))
 
 
-def _fail(conn, job, code: str) -> str:
+def _fail(conn, job, code: str, *, mark_upload: bool = True) -> str:
     with conn.transaction():
         if job["attempts"] >= MAX_ATTEMPTS:
             conn.execute("update job set status='dead', last_error_code=%s where id=%s", (code, job["id"]))
-            conn.execute("update upload set status='extract_failed' where id=%s and status='extracting'", (job["subject_id"],))
+            if mark_upload:
+                conn.execute("update upload set status='extract_failed' where id=%s and status='extracting'", (job["subject_id"],))
             audit(conn, job["owner_id"], "worker", "extract", "upload", job["subject_id"], result="error", details={"code": code, "dead": True})
             return "dead"
         delay = timedelta(seconds=2 ** job["attempts"])
@@ -297,8 +342,10 @@ def _route(conn, owner, upload_id, v: ev.Validated, tz: str) -> str:
         if not v.due_date:
             _review(conn, owner, upload_id, "missing_fields", ["due_date"])
             return "needs_review"
-        core.create_bill(conn, owner, {"biller": v.payee_display or "Unknown biller", "amount_due_satang": v.amount_satang,
-                                       "due_date": v.due_date}, upload_id=upload_id)
+        if not core.active_consent(conn, owner, "auto_import", lock="share"):
+            _review(conn, owner, upload_id, "confirm_import", [])
+            return "needs_review"
+        _create_bill_from(conn, owner, upload_id, v, actor="worker")
         conn.execute("update upload set status='imported' where id=%s", (upload_id,))
         return "bill_created"
 
@@ -310,15 +357,9 @@ def _route(conn, owner, upload_id, v: ev.Validated, tz: str) -> str:
                         (owner, ref, v.occurred_date - timedelta(days=1), v.occurred_date + timedelta(days=1))).fetchall()
     cands = [Candidate(str(r["id"]), "manual" if r["source"] == "manual" else "transfer_out", r["amount_satang"], r["occurred_at"],
                        r["occurred_date"].isoformat(), r["payee_key"], r["bank_ref_norm"]) for r in rows]
-    near = None
-    ph = conn.execute("select phash from upload where id=%s", (upload_id,)).fetchone()["phash"]
-    if ph is not None:
-        for o in conn.execute("""select u.id,u.phash from upload u where u.owner_id=%s and u.id<>%s and u.phash is not null
-                                 and u.status in ('imported','needs_review','merged_duplicate')""", (owner, upload_id)).fetchall():
-            if hamming64(ph, o["phash"]) <= PHASH_MAX_DISTANCE:
-                near = str(o["id"]); break
+    # No image-hash signal: on templated slips distinct payments hash identically (see dedup.decide rule 4).
     new = Candidate("new", v.doc_type, v.amount_satang, v.occurred_at, v.occurred_date.isoformat(), payee_key, ref)
-    d = decide(new, cands, near_image_match_id=near)
+    d = decide(new, cands)
     if d.action == "same_payment":
         conn.execute("insert into txn_evidence(owner_id,txn_id,upload_id,relation) values (%s,%s,%s,'duplicate_image') on conflict do nothing",
                      (owner, d.match_id, upload_id))
@@ -328,8 +369,8 @@ def _route(conn, owner, upload_id, v: ev.Validated, tz: str) -> str:
         _review(conn, owner, upload_id, "receipt_link", [], [d.match_id])
         return "needs_review"
     if d.action == "possible_duplicate":
-        cand = [d.match_id] if d.action and d.match_id and _is_txn(conn, owner, d.match_id) else []
-        _review(conn, owner, upload_id, "possible_duplicate", [], cand)
+        cand = [d.match_id] if d.match_id and _is_txn(conn, owner, d.match_id) else []
+        _review(conn, owner, upload_id, "possible_duplicate", [d.reason], cand)
         return "needs_review"
 
     auto = core.active_consent(conn, owner, "auto_import", lock="share")
@@ -348,7 +389,13 @@ def _is_txn(conn, owner, tid) -> bool:
         return False
 
 
-def _insert_import_txn(conn, owner, upload_id, v: ev.Validated, payee_key, ref, source: str) -> str:
+def _create_bill_from(conn, owner, upload_id, v: ev.Validated, actor: str) -> str:
+    b = core.create_bill(conn, owner, {"biller": v.payee_display or "Unknown biller", "amount_due_satang": v.amount_satang,
+                                       "due_date": v.due_date}, upload_id=upload_id)
+    return str(b["id"])
+
+
+def _insert_import_txn(conn, owner, upload_id, v: ev.Validated, payee_key, ref, source: str, ref_confirmed: bool = False) -> str:
     hist = [r["category_code"] for r in conn.execute(
         "select category_code from txn where owner_id=%s and payee_key=%s and category_state='confirmed' and deleted_at is null",
         (owner, payee_key)).fetchall()] if payee_key else []
@@ -358,10 +405,10 @@ def _insert_import_txn(conn, owner, upload_id, v: ev.Validated, payee_key, ref, 
     account = core.main_account(conn, owner)
     t = conn.execute(
         """insert into txn(owner_id,account_id,kind,amount_satang,occurred_at,occurred_date,payment_status,amount_state,direction_state,
-                           payee_display,payee_key,bank_ref_norm,category_code,category_state,category_source,source,upload_id)
-           values (%s,%s,%s,%s,%s,%s,%s,'confirmed','confirmed',%s,%s,%s,%s,%s,%s,%s,%s) returning id""",
+                           payee_display,payee_key,bank_ref_norm,bank_ref_confirmed,category_code,category_state,category_source,source,upload_id)
+           values (%s,%s,%s,%s,%s,%s,%s,'confirmed','confirmed',%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id""",
         (owner, account, v.kind, v.amount_satang, v.occurred_at, v.occurred_date, v.payment_status, v.payee_display, payee_key, ref,
-         s.category_code, s.state, s.source, source, upload_id)).fetchone()
+         bool(ref and ref_confirmed), s.category_code, s.state, s.source, source, upload_id)).fetchone()
     conn.execute("insert into txn_evidence(owner_id,txn_id,upload_id,relation) values (%s,%s,%s,'primary')", (owner, t["id"], upload_id))
     bump_watermark(conn, owner)
     return str(t["id"])
@@ -413,14 +460,30 @@ def resolve_review(conn, owner_id, item_id, body: dict) -> dict:
             if "implausible_date" in v.problems and v.field_states.get("occurred") == "conflicting":
                 v.field_states["occurred"] = "ok"
             v.field_states.pop("readability", None)
-            if not v.critical_ok or v.doc_type == "bill":
-                raise ApiError(400, "VALIDATION_FAILED", "Some required details are still missing.",
-                               fields=[{"path": k, "issue": s} for k, s in v.field_states.items() if s != "ok" and k in ev.CRITICAL])
-            lock_owner_ledger(conn, owner_id)
-            ref = normalize_ref(v.bank_ref)
-            if ref and conn.execute("select 1 from txn where owner_id=%s and bank_ref_norm=%s and deleted_at is null", (owner_id, ref)).fetchone():
-                raise ApiError(409, "POSSIBLE_DUPLICATE", "A record with this bank reference already exists.")
-            result["txn_id"] = _insert_import_txn(conn, owner_id, it["upload_id"], v, normalize_payee(v.payee_display), ref, source="review_import")
+            needed = ("amount", "occurred", "due_date") if v.doc_type == "bill" else ev.CRITICAL
+            missing = [{"path": k, "issue": v.field_states.get(k, "missing")} for k in needed if v.field_states.get(k) != "ok"]
+            if v.doc_type is None or missing:
+                raise ApiError(400, "VALIDATION_FAILED", "Some required details are still missing.", fields=missing or [{"path": "doc_type", "issue": "missing"}])
+            if v.doc_type == "bill":
+                # A reviewed bill creates a bill, never a transaction; the unique (owner, upload) index makes a repeat impossible.
+                try:
+                    with conn.transaction():
+                        result["bill_id"] = _create_bill_from(conn, owner_id, it["upload_id"], v, actor="user")
+                except psycopg.errors.UniqueViolation:
+                    raise ApiError(409, "ALREADY_IMPORTED", "A bill from this image already exists.") from None
+            else:
+                lock_owner_ledger(conn, owner_id)
+                ref = normalize_ref(v.bank_ref)
+                user_ref = "bank_ref" in (body.get("fields") or {})
+                if decision == "accept" and ref and conn.execute(
+                        "select 1 from txn where owner_id=%s and bank_ref_norm=%s and deleted_at is null", (owner_id, ref)).fetchone():
+                    raise ApiError(409, "POSSIBLE_DUPLICATE", "A record with this bank reference already exists; choose duplicate_of or distinct.")
+                try:
+                    with conn.transaction():
+                        result["txn_id"] = _insert_import_txn(conn, owner_id, it["upload_id"], v, normalize_payee(v.payee_display), ref,
+                                                              source="review_import", ref_confirmed=user_ref)
+                except psycopg.errors.UniqueViolation:
+                    raise ApiError(409, "POSSIBLE_DUPLICATE", "Another record already has this confirmed bank reference.") from None
             conn.execute("update upload set status='imported' where id=%s", (it["upload_id"],))
         else:
             raise ApiError(400, "VALIDATION_FAILED", "Unknown decision.")

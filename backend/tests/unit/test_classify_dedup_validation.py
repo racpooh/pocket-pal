@@ -56,7 +56,21 @@ def _c(id, doc="transfer_out", amt=1_000, at=T, ref=None, payee="ร้านป
 
 
 def test_two_waters_with_different_refs_are_distinct():
-    assert decide(_c("n", ref="REF2"), [_c("e", ref="REF1")]).action == "new"
+    assert decide(_c("n", ref="DS52882001826330"), [_c("e", ref="DS39099603082462")]).action == "new"
+    assert decide(_c("n", ref="REF2"), [_c("e", ref="REF1")]).action == "new"  # short refs: no misread inference
+
+
+def test_same_ref_different_amount_is_a_conflict_not_a_merge():
+    d = decide(_c("n", ref="DS0181590830166", amt=1_000), [_c("e", ref="DS0181590830166", amt=10_000)])
+    assert d.action == "possible_duplicate"
+
+
+def test_misread_ref_with_same_amount_goes_to_review():
+    # slip_021 (real Haiku run v0.2) dropped one digit of the reference; a re-import read correctly must not double count.
+    # Real values from evidence/runs/20261015T091318Z-haiku-synth40-v02: printed DS63726516761222, model read DS6372651676122.
+    d = decide(_c("n", ref="DS63726516761222"), [_c("e", ref="DS6372651676122")])
+    assert (d.action, d.match_id) == ("possible_duplicate", "e")
+    assert decide(_c("n", ref="DS63726516761222", amt=2_000), [_c("e", ref="DS6372651676122")]).action == "new"  # amount differs
 
 
 def test_same_ref_is_same_payment_even_if_formatted_differently():

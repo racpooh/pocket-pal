@@ -1,0 +1,1 @@
+NEGATIVE CONTROL — produced on purpose with the similar-reference rule (dedup.refs_similar) disabled in the working copy for this one run, then restored. It shows the replay harness detects the Codex #5 double count (DS63726516761222 counted twice, +50.00 THB). Not a result of the shipped code.
