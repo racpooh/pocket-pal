@@ -1,0 +1,108 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-8.4.2, pluggy-1.6.0 -- /sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/bin/python3
+rootdir: /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1
+collecting ... collected 79 items
+
+tests/api/test_health_and_errors.py::test_health PASSED                  [  1%]
+tests/api/test_health_and_errors.py::test_unknown_route_uses_error_envelope PASSED [  2%]
+tests/db/test_schema_constraints.py::test_amount_must_be_positive SKIPPED [  3%]
+tests/db/test_schema_constraints.py::test_bank_ref_unique_per_owner_only SKIPPED [  5%]
+tests/db/test_schema_constraints.py::test_same_amount_same_day_without_ref_is_allowed SKIPPED [  6%]
+tests/db/test_schema_constraints.py::test_cannot_reference_other_owners_account SKIPPED [  7%]
+tests/db/test_schema_constraints.py::test_bill_paid_once_and_payment_settles_one_bill SKIPPED [  8%]
+tests/db/test_schema_constraints.py::test_bill_link_cannot_cross_owners SKIPPED [ 10%]
+tests/db/test_schema_constraints.py::test_one_active_consent_per_scope SKIPPED [ 11%]
+tests/db/test_schema_constraints.py::test_category_state_consistency SKIPPED [ 12%]
+tests/db/test_schema_constraints.py::test_upload_sha_unique_per_owner SKIPPED [ 13%]
+tests/db/test_schema_constraints.py::test_allocation_cannot_be_negative SKIPPED [ 15%]
+tests/db/test_schema_constraints.py::test_transfer_internal_requires_group SKIPPED [ 16%]
+tests/unit/test_allocation.py::test_largest_remainder_exact_sum PASSED   [ 17%]
+tests/unit/test_allocation.py::test_tie_break_is_input_order PASSED      [ 18%]
+tests/unit/test_allocation.py::test_partial_percentages_leave_unallocated PASSED [ 20%]
+tests/unit/test_allocation.py::test_zero_base PASSED                     [ 21%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares0-x] PASSED [ 22%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares1-x] PASSED [ 24%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares2-] PASSED [ 25%]
+tests/unit/test_allocation.py::test_invalid_allocations[-1-shares3-x] PASSED [ 26%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares4-x] PASSED [ 27%]
+tests/unit/test_allocation.py::test_reallocate_conserves_total PASSED    [ 29%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-food-1-ValueError] PASSED [ 30%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-nope-1-KeyError] PASSED [ 31%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-shopping-0-ValueError] PASSED [ 32%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-shopping-300001-ValueError] PASSED [ 34%]
+tests/unit/test_layering.py::test_domain_has_files PASSED                [ 35%]
+tests/unit/test_layering.py::test_domain_imports_stdlib_only PASSED      [ 36%]
+tests/unit/test_money.py::test_parse_valid[10-1000] PASSED               [ 37%]
+tests/unit/test_money.py::test_parse_valid[0.01-1] PASSED                [ 39%]
+tests/unit/test_money.py::test_parse_valid[1234.50-123450] PASSED        [ 40%]
+tests/unit/test_money.py::test_parse_valid[1,234.5-123450] PASSED        [ 41%]
+tests/unit/test_money.py::test_parse_valid[\u0e3f1,234.50-123450] PASSED [ 43%]
+tests/unit/test_money.py::test_parse_valid[1,234.50 \u0e1a\u0e32\u0e17-123450] PASSED [ 44%]
+tests/unit/test_money.py::test_parse_valid[THB 120.00-12000] PASSED      [ 45%]
+tests/unit/test_money.py::test_parse_valid[1,000,000-100000000] PASSED   [ 46%]
+tests/unit/test_money.py::test_parse_valid[\u0e51\u0e52\u0e50.\u0e55\u0e50-12050] PASSED [ 48%]
+tests/unit/test_money.py::test_parse_valid[  99.9 -9990] PASSED          [ 49%]
+tests/unit/test_money.py::test_parse_rejects[] PASSED                    [ 50%]
+tests/unit/test_money.py::test_parse_rejects[   ] PASSED                 [ 51%]
+tests/unit/test_money.py::test_parse_rejects[0] PASSED                   [ 53%]
+tests/unit/test_money.py::test_parse_rejects[0.00] PASSED                [ 54%]
+tests/unit/test_money.py::test_parse_rejects[-5] PASSED                  [ 55%]
+tests/unit/test_money.py::test_parse_rejects[+5] PASSED                  [ 56%]
+tests/unit/test_money.py::test_parse_rejects[(5)] PASSED                 [ 58%]
+tests/unit/test_money.py::test_parse_rejects[1.234] PASSED               [ 59%]
+tests/unit/test_money.py::test_parse_rejects[1,23] PASSED                [ 60%]
+tests/unit/test_money.py::test_parse_rejects[12,34.00] PASSED            [ 62%]
+tests/unit/test_money.py::test_parse_rejects[1,234,5] PASSED             [ 63%]
+tests/unit/test_money.py::test_parse_rejects[1e3] PASSED                 [ 64%]
+tests/unit/test_money.py::test_parse_rejects[1.] PASSED                  [ 65%]
+tests/unit/test_money.py::test_parse_rejects[.5] PASSED                  [ 67%]
+tests/unit/test_money.py::test_parse_rejects[abc] PASSED                 [ 68%]
+tests/unit/test_money.py::test_parse_rejects[1.2.3] PASSED               [ 69%]
+tests/unit/test_money.py::test_parse_rejects[\u0661\u0662] PASSED        [ 70%]
+tests/unit/test_money.py::test_parse_rejects[100000001] PASSED           [ 72%]
+tests/unit/test_money.py::test_parse_rejects_non_string PASSED           [ 73%]
+tests/unit/test_money.py::test_format[0-0.00] PASSED                     [ 74%]
+tests/unit/test_money.py::test_format[1-0.01] PASSED                     [ 75%]
+tests/unit/test_money.py::test_format[12050-120.50] PASSED               [ 77%]
+tests/unit/test_money.py::test_format[123456789-1,234,567.89] PASSED     [ 78%]
+tests/unit/test_money.py::test_format[-1050--10.50] PASSED               [ 79%]
+tests/unit/test_money.py::test_format_rejects_float_and_bool PASSED      [ 81%]
+tests/unit/test_money.py::test_split_evenly_reports_remainder PASSED     [ 82%]
+tests/unit/test_money.py::test_split_evenly_rejects_negative_and_zero_parts PASSED [ 83%]
+tests/unit/test_periods.py::test_local_date_crosses_midnight PASSED      [ 84%]
+tests/unit/test_periods.py::test_naive_datetime_rejected PASSED          [ 86%]
+tests/unit/test_periods.py::test_end_of_local_day PASSED                 [ 87%]
+tests/unit/test_periods.py::test_period_half_open PASSED                 [ 88%]
+tests/unit/test_periods.py::test_period_rejects_empty PASSED             [ 89%]
+tests/unit/test_periods.py::test_days_until_income PASSED                [ 91%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[occurred_at0-None-True] PASSED [ 92%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[occurred_at1-None-True] PASSED [ 93%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[occurred_at2-None-False] PASSED [ 94%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[None-occurred_date3-True] PASSED [ 96%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[None-occurred_date4-True] PASSED [ 97%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[None-occurred_date5-False] PASSED [ 98%]
+tests/unit/test_periods.py::test_reflected_requires_some_time PASSED     [100%]
+
+=============================== warnings summary ===============================
+../../../venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/evidence/runs/20261015T060600Z-cp0-device-unit-api-nocache/junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/db/test_schema_constraints.py:64: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:72: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:81: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:91: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:98: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:115: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:128: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:137: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:152: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:165: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:174: TEST_DATABASE_URL not set
+================== 68 passed, 11 skipped, 1 warning in 0.29s ===================

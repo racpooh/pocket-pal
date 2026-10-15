@@ -1,0 +1,86 @@
+-- 0002_rls.sql — second isolation layer (defence in depth behind service-level owner filters).
+-- The API connects as a role WITHOUT BYPASSRLS and sets app.owner_id from the verified session for each request.
+-- The worker connects as finassist_worker: it may see ALL rows of `job` only (to claim work); for every other table it
+-- binds app.owner_id to the job's owner, so RLS applies to the worker too. No role needs BYPASSRLS.
+-- app_user, user_session and category are not owner-scoped (needed before the owner is known) and have no RLS.
+BEGIN;
+CREATE OR REPLACE FUNCTION app_owner() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('app.owner_id', true), '')::uuid $$;
+ALTER TABLE income_schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE income_schedule FORCE ROW LEVEL SECURITY;
+CREATE POLICY income_schedule_owner ON income_schedule USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE essential_expense ENABLE ROW LEVEL SECURITY;
+ALTER TABLE essential_expense FORCE ROW LEVEL SECURITY;
+CREATE POLICY essential_expense_owner ON essential_expense USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE consent_grant ENABLE ROW LEVEL SECURITY;
+ALTER TABLE consent_grant FORCE ROW LEVEL SECURITY;
+CREATE POLICY consent_grant_owner ON consent_grant USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE account ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account FORCE ROW LEVEL SECURITY;
+CREATE POLICY account_owner ON account USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE balance_observation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE balance_observation FORCE ROW LEVEL SECURITY;
+CREATE POLICY balance_observation_owner ON balance_observation USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE pocket ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pocket FORCE ROW LEVEL SECURITY;
+CREATE POLICY pocket_owner ON pocket USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE pocket_category_map ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pocket_category_map FORCE ROW LEVEL SECURITY;
+CREATE POLICY pocket_category_map_owner ON pocket_category_map USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE budget_plan ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budget_plan FORCE ROW LEVEL SECURITY;
+CREATE POLICY budget_plan_owner ON budget_plan USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE pocket_allocation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pocket_allocation FORCE ROW LEVEL SECURITY;
+CREATE POLICY pocket_allocation_owner ON pocket_allocation USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE upload ENABLE ROW LEVEL SECURITY;
+ALTER TABLE upload FORCE ROW LEVEL SECURITY;
+CREATE POLICY upload_owner ON upload USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE extraction ENABLE ROW LEVEL SECURITY;
+ALTER TABLE extraction FORCE ROW LEVEL SECURITY;
+CREATE POLICY extraction_owner ON extraction USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE txn ENABLE ROW LEVEL SECURITY;
+ALTER TABLE txn FORCE ROW LEVEL SECURITY;
+CREATE POLICY txn_owner ON txn USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE txn_evidence ENABLE ROW LEVEL SECURITY;
+ALTER TABLE txn_evidence FORCE ROW LEVEL SECURITY;
+CREATE POLICY txn_evidence_owner ON txn_evidence USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE payee_default ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payee_default FORCE ROW LEVEL SECURITY;
+CREATE POLICY payee_default_owner ON payee_default USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE review_item ENABLE ROW LEVEL SECURITY;
+ALTER TABLE review_item FORCE ROW LEVEL SECURITY;
+CREATE POLICY review_item_owner ON review_item USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE bill ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bill FORCE ROW LEVEL SECURITY;
+CREATE POLICY bill_owner ON bill USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE bill_payment_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bill_payment_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY bill_payment_link_owner ON bill_payment_link USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE goal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE goal FORCE ROW LEVEL SECURITY;
+CREATE POLICY goal_owner ON goal USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE proposal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE proposal FORCE ROW LEVEL SECURITY;
+CREATE POLICY proposal_owner ON proposal USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE owner_watermark ENABLE ROW LEVEL SECURITY;
+ALTER TABLE owner_watermark FORCE ROW LEVEL SECURITY;
+CREATE POLICY owner_watermark_owner ON owner_watermark USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE idempotency_key ENABLE ROW LEVEL SECURITY;
+ALTER TABLE idempotency_key FORCE ROW LEVEL SECURITY;
+CREATE POLICY idempotency_key_owner ON idempotency_key USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE job ENABLE ROW LEVEL SECURITY;
+ALTER TABLE job FORCE ROW LEVEL SECURITY;
+CREATE POLICY job_owner ON job USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE chat_message ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_message FORCE ROW LEVEL SECURITY;
+CREATE POLICY chat_message_owner ON chat_message USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+ALTER TABLE audit_event ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_event FORCE ROW LEVEL SECURITY;
+CREATE POLICY audit_event_owner ON audit_event USING (owner_id = app_owner()) WITH CHECK (owner_id = app_owner());
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'finassist_worker') THEN
+    CREATE ROLE finassist_worker NOLOGIN NOSUPERUSER NOBYPASSRLS;
+  END IF;
+END $$;
+CREATE POLICY job_worker_claim ON job TO finassist_worker USING (true) WITH CHECK (true);
+COMMIT;

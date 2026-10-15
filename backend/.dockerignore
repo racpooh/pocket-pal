@@ -1,0 +1,8 @@
+.venv
+var
+tests
+fixtures
+tools
+scripts
+**/__pycache__
+.pytest_cache

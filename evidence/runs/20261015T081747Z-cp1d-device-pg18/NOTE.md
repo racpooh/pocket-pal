@@ -1,0 +1,1 @@
+Environment/script error: local_pg.py built a wrong socket path (URI parsing bug, fixed with psycopg make_conninfo), so all 49 DB tests failed to connect. Superseded by 20261015T081812Z-cp1d-device-pg18.

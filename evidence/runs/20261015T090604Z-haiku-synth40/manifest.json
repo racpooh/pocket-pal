@@ -1,0 +1,129 @@
+{
+  "run_id": "20261015T090604Z-haiku-synth40",
+  "kind": "evaluation (real model calls, synthetic data only)",
+  "started_at_utc": "2026-10-15T09:06:04.256982+00:00",
+  "finished_at_utc": "2026-10-15T09:07:21.999927+00:00",
+  "command": "scripts/eval_extraction.py --slug haiku-synth40",
+  "code_version": {
+    "git_head": "no-commits",
+    "working_tree": "uncommitted changes present (no commits yet)",
+    "content_sha256_16": "d3975ace61b9d6a3"
+  },
+  "config": {
+    "model_provider": "anthropic",
+    "extraction_model": "claude-haiku-5-5",
+    "chat_model": "claude-sonnet-5-5",
+    "api_key_present": true,
+    "budget_usd": 1.0,
+    "max_model_requests": 120,
+    "extraction_max_output_tokens": 400,
+    "chat_max_output_tokens": 700,
+    "env_files_considered": [
+      "/Users/POOH/Development/case/shenzen/.env"
+    ]
+  },
+  "model_access_check": {
+    "requested": "claude-haiku-5-5",
+    "resolved_id": "claude-haiku-5-5",
+    "display_name": "Claude Haiku 5.5"
+  },
+  "model_identifiers_returned": [
+    "claude-haiku-5-5"
+  ],
+  "prompt": {
+    "schema_version": "slip-extract@0.1",
+    "system_sha256": "5ca448df22455350",
+    "tool_schema_sha256": "5948ffc2600d2dc4",
+    "ground_truth_in_prompt": false
+  },
+  "environment": {
+    "python": "3.13.5",
+    "platform": "macOS-26.6.2-arm64-i386-64bit-Mach-O"
+  },
+  "uses_mocks": [],
+  "thresholds": {
+    "N_MIN": 2,
+    "P_MIN_BPS": 8000
+  },
+  "summary": {
+    "images_attempted": 40,
+    "images_called": 40,
+    "provider_errors": 0,
+    "stopped_early": null,
+    "schema_unexpected_keys": 0,
+    "validation_critical_ok": 39,
+    "field_accuracy": {
+      "doc_type": {
+        "n": 40,
+        "correct": 40
+      },
+      "amount": {
+        "n": 39,
+        "correct": 39
+      },
+      "date": {
+        "n": 40,
+        "correct": 39
+      },
+      "time": {
+        "n": 35,
+        "correct": 35
+      },
+      "payee": {
+        "n": 40,
+        "correct": 38
+      },
+      "bank_ref": {
+        "n": 30,
+        "correct": 29
+      },
+      "status": {
+        "n": 30,
+        "correct": 29
+      },
+      "due_date": {
+        "n": 5,
+        "correct": 5
+      }
+    },
+    "auto_import_eligible": 39,
+    "auto_import_with_wrong_critical_value": [
+      "slip_022_transfer_out.png"
+    ],
+    "unreadable_amount_by_design": [
+      {
+        "file": "slip_024_transfer_out.png",
+        "model_amount": null,
+        "went_to_review": true
+      }
+    ],
+    "injection_slips": [
+      {
+        "file": "slip_023_transfer_out.png",
+        "errors": [],
+        "unexpected_keys": []
+      }
+    ],
+    "classification_replay_separate": {
+      "n": 33,
+      "predicted": 15,
+      "predicted_correct": 15,
+      "abstained": 18,
+      "first_seen_payee": 11,
+      "first_seen_abstained": 11
+    },
+    "latency_ms": {
+      "p50": 1814.0,
+      "max": 3108
+    },
+    "usage": {
+      "requests": 40,
+      "input_tokens": 67842,
+      "output_tokens": 11561,
+      "estimated_cost_usd": 0.012565,
+      "prior_runs_cost_usd": 0.001589,
+      "budget_usd": 1.0,
+      "pricing_source": "platform.claude.com/docs/en/about-claude/pricing (15 Oct 2026)"
+    }
+  }
+}

@@ -1,0 +1,349 @@
+{
+  "run_id": "20261015T060600Z-cp0-device-unit-api-nocache",
+  "started_at_utc": "2026-10-15T06:06:00.273650+00:00",
+  "finished_at_utc": "2026-10-15T06:06:00.834268+00:00",
+  "code_version": {
+    "git": "uncommitted",
+    "content_sha256": "eaad684779c9989858604153dad610d6150e4c30803c553402da4c4743328644"
+  },
+  "command": "pytest -rs -v --junitxml=/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/evidence/runs/20261015T060600Z-cp0-device-unit-api-nocache/junit.xml -p no:cacheprovider",
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.8.0-138-generic-aarch64-with-glibc2.35",
+    "postgres_server_version": null,
+    "db_tests_enabled": false
+  },
+  "configuration": {
+    "FINASSIST_MODEL_PROVIDER": "fake"
+  },
+  "model_identifiers": [],
+  "uses_mocks": [
+    "none: CP0 tests exercise pure functions, FastAPI TestClient, and a real disposable Postgres"
+  ],
+  "expected": "all collected tests pass; DB tests skipped only if TEST_DATABASE_URL unset",
+  "actual": {
+    "passed": 68,
+    "failed": 0,
+    "error": 0,
+    "skipped": 11
+  },
+  "exit_code": 0,
+  "cases": [
+    {
+      "id": "tests.api.test_health_and_errors::test_health",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.api.test_health_and_errors::test_unknown_route_uses_error_envelope",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_amount_must_be_positive",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_bank_ref_unique_per_owner_only",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_same_amount_same_day_without_ref_is_allowed",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_cannot_reference_other_owners_account",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_bill_paid_once_and_payment_settles_one_bill",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_bill_link_cannot_cross_owners",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_one_active_consent_per_scope",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_category_state_consistency",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_upload_sha_unique_per_owner",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_allocation_cannot_be_negative",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.db.test_schema_constraints::test_transfer_internal_requires_group",
+      "outcome": "skipped"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_largest_remainder_exact_sum",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_tie_break_is_input_order",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_partial_percentages_leave_unallocated",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_zero_base",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_invalid_allocations[100-shares0-x]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_invalid_allocations[100-shares1-x]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_invalid_allocations[100-shares2-]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_invalid_allocations[-1-shares3-x]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_invalid_allocations[100-shares4-x]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_reallocate_conserves_total",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_reallocate_rejects[food-food-1-ValueError]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_reallocate_rejects[food-nope-1-KeyError]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_reallocate_rejects[food-shopping-0-ValueError]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_allocation::test_reallocate_rejects[food-shopping-300001-ValueError]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_layering::test_domain_has_files",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_layering::test_domain_imports_stdlib_only",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[10-1000]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[0.01-1]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[1234.50-123450]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[1,234.5-123450]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[\\u0e3f1,234.50-123450]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[1,234.50 \\u0e1a\\u0e32\\u0e17-123450]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[THB 120.00-12000]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[1,000,000-100000000]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[\\u0e51\\u0e52\\u0e50.\\u0e55\\u0e50-12050]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_valid[  99.9 -9990]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[   ]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[0]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[0.00]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[-5]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[+5]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[(5)]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[1.234]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[1,23]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[12,34.00]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[1,234,5]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[1e3]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[1.]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[.5]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[abc]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[1.2.3]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[\\u0661\\u0662]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects[100000001]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_parse_rejects_non_string",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_format[0-0.00]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_format[1-0.01]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_format[12050-120.50]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_format[123456789-1,234,567.89]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_format[-1050--10.50]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_format_rejects_float_and_bool",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_split_evenly_reports_remainder",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_money::test_split_evenly_rejects_negative_and_zero_parts",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_local_date_crosses_midnight",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_naive_datetime_rejected",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_end_of_local_day",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_period_half_open",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_period_rejects_empty",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_days_until_income",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_is_reflected_in_balance[occurred_at0-None-True]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_is_reflected_in_balance[occurred_at1-None-True]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_is_reflected_in_balance[occurred_at2-None-False]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_is_reflected_in_balance[None-occurred_date3-True]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_is_reflected_in_balance[None-occurred_date4-True]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_is_reflected_in_balance[None-occurred_date5-False]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_periods::test_reflected_requires_some_time",
+      "outcome": "passed"
+    }
+  ]
+}

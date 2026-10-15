@@ -1,0 +1,20 @@
+# secrets and local config
+.env
+*.env.local
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# local runtime data (uploads, db files)
+backend/var/
+# private evaluation data: real or redacted slips never go to Git
+eval/private/
+**/private/
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+# leftover temp dirs if pytest cannot clean up
+backend/pytest-cache-files-*/
+.sync/
