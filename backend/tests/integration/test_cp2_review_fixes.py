@@ -101,6 +101,57 @@ def test_r1_database_rejects_a_one_leg_change_from_any_code_path(client, db):
         c.execute("update txn set payment_status='pending' where id = any(%s)", ([t["out"]["id"], t["in"]["id"]],))
 
 
+def _insert_leg(c, o, account, kind, gid):
+    return c.execute(
+        """insert into txn(owner_id,account_id,kind,amount_satang,occurred_at,occurred_date,payment_status,amount_state,
+           direction_state,source,transfer_group_id) values (%s,%s,%s,50000,'2026-10-15T15:00:00+07:00','2026-10-15','completed',
+           'confirmed','confirmed','manual',%s) returning id""", (o, account, kind, gid)).fetchone()["id"]
+
+
+def test_r1b_hard_delete_of_one_leg_is_rejected_but_both_is_allowed(client, db):
+    """Codex CP2 re-review: 0006 only caught a lone leg next to a soft-deleted partner, not a SQL DELETE."""
+    u, t = _two_accounts_with_transfer(client, db)
+    with pytest.raises(psycopg.errors.CheckViolation):
+        with db.connect() as c, c.transaction():
+            c.execute("delete from txn where id=%s", (t["out"]["id"],))
+    assert len([x for x in u.req("GET", "/transactions").json() if x["kind"].startswith("transfer")]) == 2  # rolled back
+    with db.connect() as c, c.transaction():
+        c.execute("delete from txn where id = any(%s)", ([t["out"]["id"], t["in"]["id"]],))
+    assert [x for x in u.req("GET", "/transactions").json() if x["kind"].startswith("transfer")] == []
+
+
+def test_r1b_groups_must_be_pairs_and_external_single_leg_has_no_group(client, db):
+    u, t = _two_accounts_with_transfer(client, db)
+    o = _owner(db, u)
+    with db.connect() as c, c.transaction():  # transfer to an external/untracked account: one leg, no group id → allowed
+        c.execute("""insert into txn(owner_id,account_id,kind,amount_satang,occurred_date,payment_status,amount_state,direction_state,source)
+                     values (%s,%s,'transfer_out',70000,'2026-10-15','completed','confirmed','confirmed','manual')""", (o, u.account))
+    with pytest.raises(psycopg.errors.CheckViolation):  # a lone leg WITH a group id is not a transfer between own accounts
+        with db.connect() as c, c.transaction():
+            _insert_leg(c, o, u.account, "transfer_out", uuid.uuid4())
+    with db.connect() as c, c.transaction():  # a complete pair inserted in one transaction → allowed
+        g = uuid.uuid4()
+        _insert_leg(c, o, u.account, "transfer_out", g)
+        _insert_leg(c, o, t["wallet"], "transfer_in", g)
+    with pytest.raises(psycopg.errors.CheckViolation):  # two outs are not a transfer
+        with db.connect() as c, c.transaction():
+            g = uuid.uuid4()
+            _insert_leg(c, o, u.account, "transfer_out", g)
+            _insert_leg(c, o, t["wallet"], "transfer_out", g)
+
+
+def test_r1b_moving_legs_between_groups_checks_old_and_new_group(client, db):
+    u, t = _two_accounts_with_transfer(client, db)
+    with pytest.raises(psycopg.errors.CheckViolation):  # old group left with one leg, new group with one leg
+        with db.connect() as c, c.transaction():
+            c.execute("update txn set transfer_group_id=%s where id=%s", (uuid.uuid4(), t["in"]["id"]))
+    with pytest.raises(psycopg.errors.CheckViolation):  # detaching one leg: only the OLD group shows the problem
+        with db.connect() as c, c.transaction():
+            c.execute("update txn set transfer_group_id=null where id=%s", (t["in"]["id"],))
+    with db.connect() as c, c.transaction():  # moving both legs together keeps both groups valid
+        c.execute("update txn set transfer_group_id=%s where id = any(%s)", (uuid.uuid4(), [t["out"]["id"], t["in"]["id"]]))
+
+
 # ---------------- #2 approval vs concurrent ledger change ----------------
 
 def _plan_and_proposal(u: User) -> dict:

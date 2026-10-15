@@ -1,0 +1,139 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-8.4.2, pluggy-1.6.0
+rootdir: /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1, platformdirs-4.13.0
+collected 248 items
+
+tests/api/test_health_and_errors.py ..                                   [  0%]
+tests/db/test_schema_constraints.py ssssssssssss                         [  5%]
+tests/integration/test_cp1_review_fixes.py ssssssssssssssssss            [ 12%]
+tests/integration/test_cp2_cards.py sssssssssssss                        [ 18%]
+tests/integration/test_cp2_gaps.py ssssssssssss.s                        [ 23%]
+tests/integration/test_cp2_review_fixes.py ssssssssss..                  [ 28%]
+tests/integration/test_flows.py sssssssssssssssssss                      [ 36%]
+tests/integration/test_security.py sssssssssssssss.ssss                  [ 44%]
+tests/unit/test_allocation.py ..............                             [ 50%]
+tests/unit/test_classify_dedup_validation.py ........................... [ 60%]
+..........                                                               [ 64%]
+tests/unit/test_config_fail_closed.py ......                             [ 67%]
+tests/unit/test_insights.py ......                                       [ 69%]
+tests/unit/test_layering.py ..                                           [ 70%]
+tests/unit/test_ledger_cashflow_goals.py ...............                 [ 76%]
+tests/unit/test_money.py .....................................           [ 91%]
+tests/unit/test_periods.py .............                                 [ 96%]
+tests/unit/test_synth_slips.py ........                                  [100%]
+
+=============================== warnings summary ===============================
+../../../venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/evidence/runs/20261015T131657Z-cp2c-device-pg18-arm64/junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/db/test_schema_constraints.py:64: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:72: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:83: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:92: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:102: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:109: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:126: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:139: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:148: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:163: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:176: TEST_DATABASE_URL not set
+SKIPPED [1] tests/db/test_schema_constraints.py:185: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:58: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:73: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:89: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:100: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:123: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:137: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:143: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:162: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:193: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:214: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:239: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:249: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:265: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:287: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:310: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:339: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:363: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp1_review_fixes.py:379: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:60: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:88: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:100: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:115: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:133: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:151: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:169: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:186: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:201: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:220: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:246: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:264: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_cards.py:274: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:73: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:99: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:122: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:139: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:151: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:177: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:211: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:236: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:255: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:275: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:286: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:297: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_gaps.py:334: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:58: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:71: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:84: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:92: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:111: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:123: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:143: TEST_DATABASE_URL not set
+SKIPPED [2] tests/integration/test_cp2_review_fixes.py:181: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_cp2_review_fixes.py:207: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:12: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:30: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:42: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:51: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:63: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:73: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:92: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:106: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:113: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:125: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:142: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:154: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:166: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:176: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:187: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:201: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:207: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:217: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_flows.py:234: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:31: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:59: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:66: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:86: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:93: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:108: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:116: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:132: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:153: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:177: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:184: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:193: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:212: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:225: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:242: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:266: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:285: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:302: TEST_DATABASE_URL not set
+SKIPPED [1] tests/integration/test_security.py:318: TEST_DATABASE_URL not set
+================= 144 passed, 104 skipped, 1 warning in 4.13s ==================
