@@ -50,7 +50,7 @@ private val TABS = listOf("Setup", "Consent", "Upload", "Review", "Ledger")
 
 @Composable
 fun AppRoot(s: AppState) {
-    LaunchedEffect(Unit) { s.checkServer(); if (s.signedIn) s.pumpQueue() }
+    LaunchedEffect(Unit) { s.checkServer(); if (s.signedIn) s.signedInNow() /* binds the queue to this account first */ }
     Column(Modifier.fillMaxSize()) {
         // Visible, never silent: the backend says it is running with the fake (test) extractor.
         if (s.testMode == true) Banner("TEST MODE — fake extraction, synthetic fixtures only. Not real data.", Color(0xFFFFE082))

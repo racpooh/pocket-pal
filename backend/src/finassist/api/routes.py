@@ -80,6 +80,12 @@ class ProfileIn(BaseModel):
     essentials: list[EssentialIn] = []
 
 
+@router.get("/me")
+def me(o=Depends(owner)):
+    # Lets the client bind its local upload queue to the signed-in account (CP3a review #1). No e-mail returned.
+    return _out(200, {"user_id": str(o)})
+
+
 @router.get("/me/profile")
 def get_profile(o=Depends(owner), conn=Depends(_conn)):
     return _out(200, core.get_profile(conn, o))
@@ -354,10 +360,12 @@ def cancel(pid: str, o=Depends(owner), conn=Depends(_conn)):
 # ---------- uploads / review ----------
 @router.post("/uploads")
 async def upload(request: Request, image: UploadFile = File(...), captured_at: datetime | None = Form(None),
+                 confirmed_undated: bool = Form(False), expected_owner_id: str | None = Form(None),
                  o=Depends(owner), conn=Depends(_conn)):
     max_b = request.app.state.settings.max_upload_bytes
     data = await image.read(max_b + 1)
-    code, body = imports.create_upload(conn, request.app.state.storage, o, data, captured_at, max_b)
+    code, body = imports.create_upload(conn, request.app.state.storage, o, data, captured_at, max_b,
+                                       confirmed_undated=confirmed_undated, expected_owner_id=expected_owner_id)
     return _out(code, body)
 
 

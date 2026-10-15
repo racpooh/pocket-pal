@@ -1,0 +1,70 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-8.4.2, pluggy-1.6.0
+rootdir: /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1, platformdirs-4.13.0
+collected 257 items
+
+tests/api/test_health_and_errors.py ..                                   [  0%]
+tests/db/test_schema_constraints.py ............                         [  5%]
+tests/integration/test_cp1_review_fixes.py ..................            [ 12%]
+tests/integration/test_cp2_cards.py .............                        [ 17%]
+tests/integration/test_cp2_gaps.py ..............                        [ 22%]
+tests/integration/test_cp2_review_fixes.py ............                  [ 27%]
+tests/integration/test_cp3a_client_api.py .......                        [ 30%]
+tests/integration/test_flows.py ...................                      [ 37%]
+tests/integration/test_security.py ....................                  [ 45%]
+tests/unit/test_allocation.py ..............                             [ 50%]
+tests/unit/test_classify_dedup_validation.py ........................... [ 61%]
+..........                                                               [ 65%]
+tests/unit/test_config_fail_closed.py ........                           [ 68%]
+tests/unit/test_insights.py ......                                       [ 70%]
+tests/unit/test_layering.py ..                                           [ 71%]
+tests/unit/test_ledger_cashflow_goals.py ...............                 [ 77%]
+tests/unit/test_money.py .....................................           [ 91%]
+tests/unit/test_periods.py .............                                 [ 96%]
+tests/unit/test_synth_slips.py ........                                  [100%]
+
+=============================== warnings summary ===============================
+../../../venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+src/finassist/api/app.py:54: 1 warning
+tests/integration/test_cp1_review_fixes.py: 18 warnings
+tests/integration/test_cp2_cards.py: 13 warnings
+tests/integration/test_cp2_gaps.py: 13 warnings
+tests/integration/test_cp2_review_fixes.py: 10 warnings
+tests/integration/test_cp3a_client_api.py: 7 warnings
+tests/integration/test_flows.py: 19 warnings
+tests/integration/test_security.py: 19 warnings
+tests/unit/test_config_fail_closed.py: 1 warning
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/src/finassist/api/app.py:54: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../../../venv-finassist/lib/python3.12/site-packages/fastapi/applications.py:4745: 1 warning
+tests/integration/test_cp1_review_fixes.py: 18 warnings
+tests/integration/test_cp2_cards.py: 13 warnings
+tests/integration/test_cp2_gaps.py: 13 warnings
+tests/integration/test_cp2_review_fixes.py: 10 warnings
+tests/integration/test_cp3a_client_api.py: 7 warnings
+tests/integration/test_flows.py: 19 warnings
+tests/integration/test_security.py: 19 warnings
+tests/unit/test_config_fail_closed.py: 1 warning
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/applications.py:4745: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/evidence/runs/20261015T141840Z-cp3a-fix-backend-device-pg18-arm64/junit.xml -
+====================== 257 passed, 203 warnings in 35.02s ======================

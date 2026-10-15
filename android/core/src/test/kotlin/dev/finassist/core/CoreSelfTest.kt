@@ -31,8 +31,12 @@ object CoreSelfTest {
     }
     class ScriptApi(val script: MutableList<() -> UploadResult>) : UploadApi {
         var calls = 0
+        val owners = mutableListOf<String>()
+        val undated = mutableListOf<Boolean>()
         val status = HashMap<String, String>()
-        override fun upload(bytes: ByteArray, mime: String, capturedAtIso: String?): UploadResult { calls++; return script.removeAt(0)() }
+        override fun upload(bytes: ByteArray, mime: String, capturedAtIso: String?, expectedOwnerId: String, confirmedUndated: Boolean): UploadResult {
+            calls++; owners += expectedOwnerId; undated += confirmedUndated; return script.removeAt(0)()
+        }
         override fun uploadStatus(uploadId: String) = status[uploadId] ?: "received"
     }
     private fun ok(id: String, dup: Boolean = false) = { UploadResult(if (dup) 200 else 202, id, "received", dup) }
@@ -107,7 +111,7 @@ object CoreSelfTest {
         // ---- upload queue ----
         test("queue: same image enqueued twice → one entry, one upload; local copy deleted once sent") {
             val blobs = MemBlobs(); val api = ScriptApi(mutableListOf(ok("u1")))
-            val q = UploadQueue(MemStore(), blobs, api) { 1000 }
+            val q = UploadQueue(MemStore(), blobs, api) { 1000 }.also { it.bindOwner("A") }
             val a = q.enqueue(byteArrayOf(9, 9), "image/png", null); val b = q.enqueue(byteArrayOf(9, 9), "image/png", null)
             eq(a.sha256, b.sha256); eq(q.snapshot().size, 1)
             eq(q.runOnce(), 1); eq(q.runOnce(), 0); eq(api.calls, 1)
@@ -116,7 +120,7 @@ object CoreSelfTest {
         test("queue: restart after a crash mid-upload re-sends; server duplicate answer → still one record") {
             val store = MemStore(); val blobs = MemBlobs()
             val crash = ScriptApi(mutableListOf({ throw IllegalStateException("process killed") }))
-            val q1 = UploadQueue(store, blobs, crash) { 1000 }
+            val q1 = UploadQueue(store, blobs, crash) { 1000 }.also { it.bindOwner("A") }
             q1.enqueue(byteArrayOf(1), "image/png", null)
             try { q1.runOnce() } catch (_: IllegalStateException) {}
             yes(store.v!!.contains("UPLOADING"), "persisted before network call")
@@ -128,7 +132,7 @@ object CoreSelfTest {
         test("queue: transient errors back off, then succeed; repeated runs before the backoff do nothing") {
             var t = 0L
             val api = ScriptApi(mutableListOf(fail(NetworkException(IOException())), fail(ApiException(503, "HTTP_503", "x", retryable = true)), ok("u1")))
-            val q = UploadQueue(MemStore(), MemBlobs(), api) { t }
+            val q = UploadQueue(MemStore(), MemBlobs(), api) { t }.also { it.bindOwner("A") }
             q.enqueue(byteArrayOf(2), "image/png", null)
             q.runOnce(); eq(q.snapshot()[0].nextAttemptAtMs, 5_000L); q.runOnce(); eq(api.calls, 1)
             t = 5_000; q.runOnce(); eq(q.snapshot()[0].nextAttemptAtMs, 15_000L)
@@ -137,7 +141,7 @@ object CoreSelfTest {
         test("queue: gives up after MAX_ATTEMPTS; manual retry restarts") {
             var t = 0L
             val api = ScriptApi(MutableList(UploadQueue.MAX_ATTEMPTS) { fail(NetworkException(IOException())) }.also { it += ok("u9") })
-            val q = UploadQueue(MemStore(), MemBlobs(), api) { t }
+            val q = UploadQueue(MemStore(), MemBlobs(), api) { t }.also { it.bindOwner("A") }
             val e = q.enqueue(byteArrayOf(3), "image/png", null)
             repeat(UploadQueue.MAX_ATTEMPTS) { t += 3_600_000; q.runOnce() }
             eq(q.snapshot()[0].state, LocalState.GAVE_UP)
@@ -145,7 +149,7 @@ object CoreSelfTest {
         }
         test("queue: CONSENT_REQUIRED blocks the whole queue; nothing is sent until resume") {
             val api = ScriptApi(mutableListOf(fail(ApiException(403, "CONSENT_REQUIRED", "x")), ok("u1"), ok("u2")))
-            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }
+            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }.also { it.bindOwner("A") }
             q.enqueue(byteArrayOf(4), "image/png", null); q.enqueue(byteArrayOf(5), "image/png", null)
             eq(q.runOnce(), 0); eq(q.blocked, BlockReason.CONSENT_REQUIRED); eq(api.calls, 1)
             eq(q.runOnce(), 0); eq(api.calls, 1)
@@ -153,21 +157,21 @@ object CoreSelfTest {
         }
         test("queue: user pause persists across restart and blocks sending") {
             val store = MemStore(); val api = ScriptApi(mutableListOf(ok("u1")))
-            val q = UploadQueue(store, MemBlobs(), api) { 0 }
+            val q = UploadQueue(store, MemBlobs(), api) { 0 }.also { it.bindOwner("A") }
             q.enqueue(byteArrayOf(6), "image/png", null); q.pause()
-            val q2 = UploadQueue(store, MemBlobs().apply { put(q.snapshot()[0].sha256, byteArrayOf(6)) }, api) { 0 }
+            val q2 = UploadQueue(store, MemBlobs().apply { put(q.snapshot()[0].sha256, byteArrayOf(6)) }, api) { 0 }.also { it.bindOwner("A") }
             eq(q2.blocked, BlockReason.PAUSED_BY_USER); eq(q2.runOnce(), 0); eq(api.calls, 0)
         }
         test("queue: session expiry stops sending without burning attempts") {
             val api = ScriptApi(mutableListOf(fail(SessionExpiredException("SESSION_EXPIRED", "x", null))))
-            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }
+            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }.also { it.bindOwner("A") }
             q.enqueue(byteArrayOf(7), "image/png", null)
             q.runOnce(); eq(q.blocked, BlockReason.SIGNED_OUT); eq(q.snapshot()[0].attempts, 0)
         }
         test("queue: permanent 4xx fails only that image and keeps the local copy for an explicit retry/discard") {
             val blobs = MemBlobs()
             val api = ScriptApi(mutableListOf(fail(ApiException(403, "OUTSIDE_CONSENTED_RANGE", "x")), ok("u2")))
-            val q = UploadQueue(MemStore(), blobs, api) { 0 }
+            val q = UploadQueue(MemStore(), blobs, api) { 0 }.also { it.bindOwner("A") }
             val a = q.enqueue(byteArrayOf(8), "image/png", "2026-01-01T00:00:00+07:00"); q.enqueue(byteArrayOf(10), "image/png", null)
             eq(q.runOnce(), 1)
             eq(q.snapshot().first { it.sha256 == a.sha256 }.state, LocalState.FAILED)
@@ -175,12 +179,77 @@ object CoreSelfTest {
         }
         test("queue: refresh follows server status to a terminal state; labels") {
             val api = ScriptApi(mutableListOf(ok("u1")))
-            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }
+            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }.also { it.bindOwner("A") }
             q.enqueue(byteArrayOf(11), "image/png", null); q.runOnce()
             api.status["u1"] = "needs_review"
             eq(q.refresh().size, 1); eq(q.refresh().size, 0)
             eq(UploadLabels.label(q.snapshot()[0], null), "Needs your review")
             eq(q.hasWork, false)
+        }
+
+        // ---- Codex CP3a review ----
+        test("#1 owner: A's photos are discarded (never sent or shown) when B signs in after A's session expired") {
+            val store = MemStore(); val blobs = MemBlobs()
+            val api = ScriptApi(mutableListOf(fail(SessionExpiredException("SESSION_EXPIRED", "x", null)), ok("b1")))
+            val q = UploadQueue(store, blobs, api) { 0 }.also { it.bindOwner("A") }
+            q.enqueue(byteArrayOf(20), "image/png", "2026-10-15T13:00:00+07:00"); q.enqueue(byteArrayOf(21), "image/png", "2026-10-15T13:00:00+07:00")
+            q.runOnce(); eq(q.blocked, BlockReason.SIGNED_OUT)                     // A's session ended with 2 photos waiting
+            val restarted = UploadQueue(store, blobs, api) { 0 }                    // app may also have been restarted
+            eq(restarted.snapshot().size, 2)
+            eq(restarted.bindOwner("B"), 2)                                         // B signs in → A's entries discarded first
+            eq(restarted.snapshot(), emptyList<QueueEntry>()); eq(blobs.m.isEmpty(), true)
+            eq(restarted.runOnce(), 0); eq(api.calls, 1)                            // nothing of A's is ever sent with B's token
+            restarted.enqueue(byteArrayOf(22), "image/png", "2026-10-15T13:00:00+07:00"); eq(restarted.runOnce(), 1)
+            eq(api.owners, listOf("A", "B"))                                        // each request names its account
+            eq(UploadQueue(store, blobs, api) { 0 }.snapshot().all { it.owner == "B" }, true)
+        }
+        test("#1 owner: same account signing in again keeps its queue; unbound queue sends nothing") {
+            val store = MemStore(); val api = ScriptApi(mutableListOf(ok("a1")))
+            val unbound = UploadQueue(store, MemBlobs(), api) { 0 }
+            throws<IllegalStateException> { unbound.enqueue(byteArrayOf(1), "image/png", null) }
+            eq(unbound.runOnce(), 0)
+            val blobs = MemBlobs(); val q = UploadQueue(store, blobs, api) { 0 }.also { it.bindOwner("A") }
+            q.enqueue(byteArrayOf(23), "image/png", "2026-10-15T13:00:00+07:00"); q.pause(BlockReason.SIGNED_OUT)
+            eq(q.bindOwner("A"), 0); eq(q.snapshot().size, 1); q.resume(); eq(q.runOnce(), 1)
+            q.clearAll(); eq(q.owner, null); eq(q.snapshot().size, 0)
+        }
+        test("#2 pause requested while the first upload is in flight → the second never starts") {
+            val inFlight = java.util.concurrent.CountDownLatch(1); val release = java.util.concurrent.CountDownLatch(1)
+            var q: UploadQueue? = null
+            val api = object : UploadApi {
+                var calls = 0
+                override fun upload(bytes: ByteArray, mime: String, capturedAtIso: String?, expectedOwnerId: String, confirmedUndated: Boolean): UploadResult {
+                    calls++; inFlight.countDown(); release.await(); return UploadResult(202, "u$calls", "received", false)
+                }
+                override fun uploadStatus(uploadId: String) = "received"
+            }
+            q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }.also { it.bindOwner("A") }
+            q.enqueue(byteArrayOf(30), "image/png", "2026-10-15T13:00:00+07:00"); q.enqueue(byteArrayOf(31), "image/png", "2026-10-15T13:00:00+07:00")
+            val worker = Thread { q.runOnce() }.apply { start() }                // the queue thread
+            yes(inFlight.await(5, java.util.concurrent.TimeUnit.SECONDS), "first upload started")
+            q.requestPause()                                                      // the UI thread, mid-request
+            release.countDown(); worker.join(5_000)
+            eq(api.calls, 1); eq(q.blocked, BlockReason.PAUSED_BY_USER)
+            eq(q.snapshot().map { it.state }.sorted(), listOf(LocalState.QUEUED, LocalState.SENT))
+        }
+        test("undated photo: server asks for confirmation; only an explicit confirm sends it, with the flag") {
+            val api = ScriptApi(mutableListOf(fail(ApiException(422, "CAPTURE_DATE_REQUIRED", "x")), ok("u1")))
+            val q = UploadQueue(MemStore(), MemBlobs(), api) { 0 }.also { it.bindOwner("A") }
+            val e = q.enqueue(byteArrayOf(40), "image/png", null)
+            q.runOnce(); val s1 = q.snapshot()[0]
+            yes(UploadLabels.needsUndatedConfirmation(s1) && !UploadLabels.canRetryLocal(s1), "asks, plain retry not offered")
+            eq(q.runOnce(), 0)                                                    // not re-sent by itself
+            yes(q.confirmUndated(e.sha256), "confirmed"); eq(q.runOnce(), 1); eq(api.undated, listOf(false, true))
+            val dated = q.enqueue(byteArrayOf(41), "image/png", "2026-10-15T13:00:00+07:00", confirmedUndated = true)
+            eq(dated.confirmedUndated, false)                                     // the flag is meaningless with a date
+        }
+        test("#3 review actions follow the server: receipt/duplicate items never offer 'accept'") {
+            val receipt = mapOf("reason" to "receipt_link", "allowed_decisions" to listOf("link_receipt", "distinct", "not_a_transaction"))
+            eq(ReviewActions.forItem(receipt).map { it.decision }, listOf("link_receipt", "distinct", "not_a_transaction"))
+            yes(ReviewActions.forItem(receipt).first().needsCandidate, "link needs the candidate")
+            val dup = mapOf("reason" to "possible_duplicate", "allowed_decisions" to listOf("duplicate_of", "distinct", "not_a_transaction"))
+            yes(ReviewActions.forItem(dup).none { it.decision == "accept" }, "no accept")
+            eq(ReviewActions.forItem(mapOf("reason" to "x", "allowed_decisions" to listOf("teleport"))), emptyList<ReviewActions.Action>())
         }
 
         val failed = results.filter { it.second != null }

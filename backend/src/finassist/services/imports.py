@@ -118,7 +118,14 @@ def _sniff(data: bytes) -> tuple[str, int | None]:
     return mime, phash
 
 
-def create_upload(conn, storage: LocalStorage, owner_id, data: bytes, captured_at: datetime | None, max_bytes: int) -> tuple[int, dict]:
+def create_upload(conn, storage: LocalStorage, owner_id, data: bytes, captured_at: datetime | None, max_bytes: int, *,
+                  confirmed_undated: bool = False, expected_owner_id: str | None = None) -> tuple[int, dict]:
+    """expected_owner_id: the account the client queued this image for. A mismatch means the session changed under a
+    queued image (account switch) → refused, so one user's photo is never filed under another (CP3a review #1).
+    confirmed_undated: a photo without a capture date cannot be checked against the consented date range; it is
+    accepted only when the user explicitly confirmed sending that photo (CP3a review, Codex answer 2)."""
+    if expected_owner_id is not None and str(expected_owner_id) != str(owner_id):
+        raise ApiError(409, "OWNER_MISMATCH", "This photo was queued by a different account; it was not uploaded.")
     if not data:
         raise ApiError(400, "VALIDATION_FAILED", "Empty upload.")
     if len(data) > max_bytes:
@@ -130,6 +137,9 @@ def create_upload(conn, storage: LocalStorage, owner_id, data: bytes, captured_a
         if not grant:
             raise ApiError(403, "CONSENT_REQUIRED", "Allow photo processing first.", details={"scope": "photo_processing"})
         rng = grant["params"] or {}
+        if captured_at is None and not confirmed_undated:
+            raise ApiError(422, "CAPTURE_DATE_REQUIRED", "This photo has no date, so it cannot be checked against the range you "
+                           "allowed. Confirm that you want to send this photo.", details={"ask": "confirm_undated"})
         if captured_at and rng.get("scan_from") and captured_at.date() < date.fromisoformat(rng["scan_from"]):
             raise ApiError(403, "OUTSIDE_CONSENTED_RANGE", "This photo is outside the date range you allowed.")
         existing = conn.execute("select id,status from upload where owner_id=%s and sha256=%s and status<>'deleted'", (owner_id, digest)).fetchone()
@@ -143,7 +153,8 @@ def create_upload(conn, storage: LocalStorage, owner_id, data: bytes, captured_a
                      (uid, owner_id, grant["id"], digest, phash, key, mime, len(data), captured_at))
         conn.execute("insert into job(owner_id,kind,subject_id,consent_grant_id,run_after) values (%s,'extract',%s,%s,%s)",
                      (owner_id, uid, grant["id"], now_utc()))
-        audit(conn, owner_id, "user", "upload", "upload", uid, details={"bytes": len(data), "mime": mime})
+        audit(conn, owner_id, "user", "upload", "upload", uid, details={"bytes": len(data), "mime": mime,
+                                                                       "undated_confirmed": captured_at is None})
     return 202, {"upload_id": str(uid), "status": "received", "duplicate_image": False}
 
 
@@ -509,6 +520,17 @@ def _insert_import_txn(conn, owner, upload_id, v: ev.Validated, payee_key, ref, 
 
 # ---------------- review ----------------
 
+# Which decisions make sense for each review reason (CP3a review #3). The client renders only these, and the server
+# refuses the others: confirming a receipt or a likely duplicate as a NEW record would count the money twice.
+ALLOWED_DECISIONS = {
+    "missing_fields": ("accept", "not_a_transaction"),
+    "confirm_import": ("accept", "not_a_transaction"),
+    "possible_duplicate": ("duplicate_of", "distinct", "not_a_transaction"),
+    "receipt_link": ("link_receipt", "distinct", "not_a_transaction"),
+    "unpaid_bill_match": ("accept", "not_a_transaction"),
+}
+
+
 def list_review(conn, owner_id) -> list[dict]:
     rows = conn.execute("""select r.id,r.upload_id,r.reason,r.problem_fields,r.candidate_txn_ids,r.created_at, e.fields
                            from review_item r left join lateral (select fields from extraction x where x.upload_id=r.upload_id
@@ -519,6 +541,12 @@ def list_review(conn, owner_id) -> list[dict]:
         f = r.pop("fields") or {}
         # Only the fields the user needs to see or fix; never the raw image text.
         r["extracted"] = {k: f.get(k) for k in ("doc_type", "amount_text", "date_text", "time_text", "payee", "status")}
+        r["allowed_decisions"] = list(ALLOWED_DECISIONS.get(r["reason"], ("not_a_transaction",)))
+        # The existing records this item may be the same as, so the user can compare before choosing.
+        r["candidates"] = conn.execute(
+            """select id txn_id, kind, amount_satang, occurred_date, occurred_at, payee_display, source from txn
+               where owner_id=%s and id = any(%s) and deleted_at is null order by occurred_date""",
+            (owner_id, list(r["candidate_txn_ids"] or []))).fetchall()
         out.append(r)
     return out
 
@@ -533,6 +561,11 @@ def resolve_review(conn, owner_id, item_id, body: dict) -> dict:
         if up["status"] == "deleted":
             raise _nf()
         decision = body["decision"]
+        if decision not in ALLOWED_DECISIONS.get(it["reason"], ("not_a_transaction",)):
+            raise ApiError(409, "DECISION_NOT_ALLOWED", f"'{decision}' is not possible for this item ({it['reason']}).",
+                           details={"allowed": list(ALLOWED_DECISIONS.get(it["reason"], ()))})
+        if body.get("txn_id") and str(body["txn_id"]) not in {str(c) for c in (it["candidate_txn_ids"] or [])}:
+            raise ApiError(400, "VALIDATION_FAILED", "Choose one of the suggested records.", fields=[{"path": "txn_id", "issue": "not_a_candidate"}])
         result: dict = {"decision": decision}
         if decision == "not_a_transaction":
             conn.execute("update upload set status='rejected' where id=%s", (it["upload_id"],))

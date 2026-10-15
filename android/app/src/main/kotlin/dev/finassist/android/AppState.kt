@@ -50,6 +50,7 @@ class AppState(val app: FinAssistApp, private val scope: CoroutineScope) {
                 val r = withContext(Dispatchers.IO) { block() }
                 onOk(r)
             } catch (e: SessionExpiredException) {
+                app.queue.requestPause(BlockReason.SIGNED_OUT)
                 signedIn = false
                 message = if (e.code == "UNAUTHENTICATED") e.message else "Session ended (${e.code}). Please sign in again."
             } catch (e: ApiException) {
@@ -81,14 +82,37 @@ class AppState(val app: FinAssistApp, private val scope: CoroutineScope) {
         }
     }
 
+    /**
+     * After sign-in (or app start with a stored session): bind the upload queue to THIS account before anything is
+     * shown or sent. A different account than the queue's owner discards the previous account's photos first
+     * (Codex CP3a #1). Nothing is pumped until the binding is done.
+     */
     fun signedInNow() {
         signedIn = true
-        scope.launch { onQueue { if (app.queue.blocked == BlockReason.SIGNED_OUT) app.queue.resume() }; pumpQueue() }
+        scope.launch {
+            val me = try { withContext(Dispatchers.IO) { app.api.me() } } catch (e: SessionExpiredException) {
+                signedIn = false; message = "Session ended. Please sign in again."; return@launch
+            } catch (e: Exception) { message = "Server not reachable; uploads wait until it is."; return@launch }
+            val discarded = onQueue {
+                val n = app.queue.bindOwner(me)
+                if (app.queue.blocked == BlockReason.SIGNED_OUT) app.queue.resume()
+                n
+            }
+            if (discarded > 0) message = "$discarded unsent photo(s) from another account on this phone were discarded."
+            touchQueue(); pumpQueue()
+        }
+    }
+
+    /** Thread-safe pause: takes effect before the next image starts, even in the middle of a batch (Codex CP3a #2). */
+    fun pauseQueue(reason: BlockReason) {
+        app.queue.requestPause(reason)
+        scope.launch { onQueue { app.queue.pause(reason) }; touchQueue() }
     }
 
     fun logout() = scope.launch {
+        app.queue.requestPause(BlockReason.SIGNED_OUT)
         withContext(Dispatchers.IO) { app.api.logout() }
-        onQueue { app.resetQueue() }
+        onQueue { app.queue.clearAll() }
         signedIn = false; touchQueue(); message = "Signed out. Unsent photos on this phone were discarded."
     }
 }

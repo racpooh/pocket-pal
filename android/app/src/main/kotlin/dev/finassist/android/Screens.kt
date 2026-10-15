@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import dev.finassist.core.LocalState
 import dev.finassist.core.Money
 import dev.finassist.core.QueueEntry
+import dev.finassist.core.ReviewActions
 import dev.finassist.core.UploadLabels
 import dev.finassist.core.list
 import dev.finassist.core.long
@@ -156,9 +157,10 @@ fun ConsentScreen(s: AppState) {
                     }
                 }) { Text("Allow") }
                 OutlinedButton(enabled = !s.busy && "photo_processing" in active, onClick = {
+                    s.app.queue.requestPause(dev.finassist.core.BlockReason.CONSENT_REQUIRED) // stop before the next image, now
                     s.act({ s.app.api.revokeConsent("photo_processing") }) { r ->
                         // Nothing new is sent after revocation; the server has cancelled queued work.
-                        scope.launch { s.onQueue { s.app.queue.pause(dev.finassist.core.BlockReason.CONSENT_REQUIRED) }; s.touchQueue() }
+                        s.pauseQueue(dev.finassist.core.BlockReason.CONSENT_REQUIRED)
                         s.message = "Photo processing stopped. Server cancelled ${r.long("jobs_cancelled") ?: 0} queued job(s)."; reload()
                     }
                 }) { Text("Withdraw") }
@@ -207,18 +209,37 @@ fun UploadScreen(s: AppState) {
     LaunchedEffect(Unit) {
         s.act({ s.app.api.scanStatus() }) { st -> serverInfo = "Server: processing ${if (st["processing_allowed"] == true) "allowed" else "NOT allowed"}" }
     }
+    // Photos without a capture date cannot be checked against the consented date range: ask about them explicitly.
+    var undated by remember { mutableStateOf<List<Picked>>(emptyList()) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         scope.launch {
             val problems = mutableListOf<String>()
+            val noDate = mutableListOf<Picked>()
             for (u in uris) {
                 val p = withContext(Dispatchers.IO) { readPicked(ctx, u) }
                 if (p.bytes == null) { problems += p.problem ?: "unreadable"; continue }
+                if (p.takenIso == null) { noDate += p; continue }
                 s.onQueue { s.app.queue.enqueue(p.bytes, p.mime!!, p.takenIso) }
             }
             if (problems.isNotEmpty()) s.message = "Skipped ${problems.size}: ${problems.distinct().joinToString()}"
+            undated = noDate
             s.touchQueue(); s.pumpQueue()
         }
+    }
+    if (undated.isNotEmpty()) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { undated = emptyList<Picked>() },
+            title = { Text("${undated.size} photo(s) have no date") },
+            text = { Text("The app cannot check them against the date range you allowed. Send these photos anyway?") },
+            confirmButton = { Button(onClick = {
+                val list = undated; undated = emptyList<Picked>()
+                scope.launch {
+                    for (p in list) s.onQueue { s.app.queue.enqueue(p.bytes!!, p.mime!!, null, confirmedUndated = true) }
+                    s.touchQueue(); s.pumpQueue()
+                }
+            }) { Text("Send these photos") } },
+            dismissButton = { OutlinedButton(onClick = { undated = emptyList<Picked>() }) { Text("Don't send") } })
     }
     Column(Modifier.fillMaxSize()) {
         Column(PAD, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -229,7 +250,7 @@ fun UploadScreen(s: AppState) {
                 OutlinedButton(onClick = { s.pumpQueue() }) { Text("Refresh") }
                 if (blocked == dev.finassist.core.BlockReason.PAUSED_BY_USER)
                     OutlinedButton(onClick = { scope.launch { s.onQueue { s.app.queue.resume() }; s.pumpQueue() } }) { Text("Resume") }
-                else OutlinedButton(onClick = { scope.launch { s.onQueue { s.app.queue.pause() }; s.touchQueue() } }) { Text("Pause sending") }
+                else OutlinedButton(onClick = { s.pauseQueue(dev.finassist.core.BlockReason.PAUSED_BY_USER) }) { Text("Pause sending") }
             }
         }
         HorizontalDivider()
@@ -242,6 +263,9 @@ fun UploadScreen(s: AppState) {
                         if (UploadLabels.canRetryServer(e)) OutlinedButton(onClick = {
                             s.act({ s.app.api.retryUpload(e.uploadId!!) }) { scope.launch { s.onQueue { s.app.queue.markServerRetried(e.sha256) }; s.pumpQueue() } }
                         }) { Text("Retry processing") }
+                        if (UploadLabels.needsUndatedConfirmation(e)) OutlinedButton(onClick = {
+                            scope.launch { s.onQueue { s.app.queue.confirmUndated(e.sha256) }; s.pumpQueue() }
+                        }) { Text("Send without date") }
                         if (UploadLabels.canRetryLocal(e)) OutlinedButton(onClick = {
                             scope.launch { s.onQueue { s.app.queue.retryLocal(e.sha256) }; s.pumpQueue() }
                         }) { Text("Retry upload") }
@@ -282,28 +306,32 @@ private fun ReviewCard(s: AppState, item: Map<String, Any?>, done: () -> Unit) {
                 "missing_fields" -> "Some details could not be read: ${item.list("problem_fields").joinToString()}"
                 "confirm_import" -> "Confirm this ${ex.str("doc_type") ?: "slip"} before it is recorded"
                 "possible_duplicate" -> "This may be a payment you already have"
+                "receipt_link" -> "This receipt may belong to a payment you already have"
                 else -> reason ?: "Review"
             }, fontWeight = FontWeight.Bold)
             Field("Amount (as printed)", amount, { amount = it }, number = true)
             Field("Date (as printed)", date, { date = it })
             Field("Time", time, { time = it })
             Field("Other party", payee, { payee = it })
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(enabled = !s.busy, onClick = {
-                    // Only fields the user changed are sent; the server re-validates everything.
-                    val changed = linkedMapOf<String, Any?>()
-                    if (amount != (ex.str("amount_text") ?: "")) changed["amount_text"] = amount
-                    if (date != (ex.str("date_text") ?: "")) changed["date_text"] = date
-                    if (time != (ex.str("time_text") ?: "")) changed["time_text"] = time.ifBlank { null }
-                    if (payee != (ex.str("payee") ?: "")) changed["payee"] = payee
-                    val decision = if (reason == "possible_duplicate") "distinct" else "accept"
-                    s.act({ s.app.api.resolveReview(item.str("id")!!, decision, changed.ifEmpty { null }) }) { done() }
-                }) { Text(if (reason == "possible_duplicate") "Different payment" else "Confirm") }
-                if (reason == "possible_duplicate") OutlinedButton(onClick = {
-                    s.act({ s.app.api.resolveReview(item.str("id")!!, "duplicate_of") }) { done() }
-                }) { Text("Same payment") }
-                OutlinedButton(onClick = { s.act({ s.app.api.resolveReview(item.str("id")!!, "not_a_transaction") }) { done() } }) { Text("Not a transaction") }
+            val candidates = item.list("candidates").objs()
+            candidates.forEach { c ->
+                Text("Existing record: ${Money.format(c.long("amount_satang") ?: 0)} · ${c.str("occurred_date")} · ${c.str("payee_display") ?: ""} · ${c.str("source")}")
             }
+            // Only the decisions the server allows for this item; a receipt or a likely duplicate never gets "record as new".
+            ReviewActions.forItem(item).forEach { a ->
+                OutlinedButton(enabled = !s.busy && (!a.needsCandidate || candidates.size == 1), modifier = Modifier.fillMaxWidth(), onClick = {
+                    val changed = linkedMapOf<String, Any?>()
+                    if (a.decision == "accept" || a.decision == "distinct") { // only fields the user changed; the server re-validates
+                        if (amount != (ex.str("amount_text") ?: "")) changed["amount_text"] = amount
+                        if (date != (ex.str("date_text") ?: "")) changed["date_text"] = date
+                        if (time != (ex.str("time_text") ?: "")) changed["time_text"] = time.ifBlank { null }
+                        if (payee != (ex.str("payee") ?: "")) changed["payee"] = payee
+                    }
+                    val txnId = if (a.needsCandidate) candidates.single().str("txn_id") else null
+                    s.act({ s.app.api.resolveReview(item.str("id")!!, a.decision, changed.ifEmpty { null }, txnId) }) { done() }
+                }) { Text(a.label) }
+            }
+            if (candidates.size > 1) Text("Several possible matches — choosing one is not supported in this version.")
         }
     }
 }

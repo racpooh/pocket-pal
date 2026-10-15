@@ -60,7 +60,7 @@ Concretely:
 - Revoke from the same screen with one action; API `DELETE /v1/consents/{scope}`.
 - Retention defaults (proposed, team to confirm): uploaded images deleted 30 days after the record is confirmed or on request; extracted fields kept with the transaction; chat history 90 days unless consent removed; audit events 1 year without image content.
 - Deletion requests produce an audit event and a purge job; backups expire per provider retention (disclosed).
-- On-device filtering is a client responsibility; the backend rejects uploads without an active `photo_processing` grant whose date range covers the image's capture date. **Gap (CP3a):** when the client sends no `captured_at` (a manually picked photo whose provider exposes no date), the range check cannot apply; the user picked that photo explicitly. Album scanning (CP3b) always sends the date.
+- On-device filtering is a client responsibility; the backend rejects uploads without an active `photo_processing` grant whose date range covers the image's capture date. Without `captured_at` the range cannot be checked, so the server refuses (`422 CAPTURE_DATE_REQUIRED`) unless the user confirmed that photo (`confirmed_undated`, audited); the app asks per photo. Album scanning (CP3b) never sets the flag.
 
 ## 6. Android client (CP3a) — controls and what is proven
 
@@ -72,6 +72,9 @@ Concretely:
 | Session at rest | Android Keystore AES-256-GCM; ciphertext in private prefs; backup/transfer excluded | code only — **not run on a device yet** |
 | Session expiry / logout | 401 clears the token and returns to sign-in; logout revokes server-side and clears the local token even offline; old token afterwards → `SESSION_EXPIRED` | `CoreSelfTest` (2 tests); E2E last step |
 | Consent separation | OS permission (none needed for Photo Picker in CP3a), photo processing, auto-import are three separate controls; queue blocks on `CONSENT_REQUIRED` and after withdrawal | `CoreSelfTest` queue tests; E2E steps 6–7, 21 |
+| Queue bound to one account (CP3a review #1) | entries carry their account; bind via `GET /v1/me` before anything runs; another account → previous photos discarded; uploads carry `expected_owner_id`, server refuses mismatches | core `#1` tests; `test_upload_for_another_account_is_refused_and_stores_nothing`; E2E account-switch step |
+| Pause takes effect mid-batch (#2) | thread-safe `requestPause` checked before every request | core `#2` test (two threads) |
+| Review decisions decided by the server (#3) | `allowed_decisions` + `candidates`; others refused (`DECISION_NOT_ALLOWED`) | `test_receipt_review_offers_link_not_accept_and_link_adds_no_spending`; core `#3`; E2E receipt step |
 | Exactly-once upload intent | content hash per image; state persisted before each send; restart re-sends → server answers `duplicate_image` | `CoreSelfTest` (dedup, crash/restart); E2E steps 8–10, 14 |
 | No images/personal data in repo/evidence | images only in app-private storage until confirmed; evidence contains steps and statuses, never images, tokens or e-mails | evidence folder checked by grep (0 tokens/e-mails) |
 | Upload retry after server failure | `POST /v1/uploads/{id}/retry`: only from `extract_failed`/`cancelled_consent`, same consent + date-range gates, one live job | `test_retry_*` (backend) ; E2E step 15 |

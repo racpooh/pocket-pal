@@ -75,3 +75,40 @@ token is rejected (`SESSION_EXPIRED`).
 ## What the owner needs to run (Mac + S23)
 `android/README.md` → "Build and run on the Mac" and the 14-line device checklist. Results (and synthetic-only
 screenshots) go to `evidence/runs/<UTC>-cp3a-device/`; Claude then updates `06`/`09` with what actually passed.
+
+
+---
+
+## Codex CP3a review → fixes (15 Oct 2026, ~21:20 ICT)
+
+Codex did not close CP3a: three P1 findings, plus the requirement to build and run the app on Android. Answers to
+the five questions adopted: no default provider ✔; undated photos must be confirmed per photo, separately from
+automatic scanning; discarding queued photos must also cover session expiry and account switch; retry after
+re-consent ✔ (latest grant/range re-checked); Kotlin/Compose ✔ (D3a accepted).
+
+| # | Finding | Fix | Tests |
+|---|---|---|---|
+| 1 [P1] | Queue not bound to an account: after A's session expired, B's sign-in resumed A's photos with B's token | Every entry records its account; the queue is bound to one owner (`GET /v1/me` after every sign-in and at app start, before anything is shown or sent); binding to a different account **discards** the previous account's entries and local copies; an unbound queue sends nothing and cannot enqueue; logout clears and unbinds. Defence in depth: each upload sends `expected_owner_id`, the server refuses a mismatch (`409 OWNER_MISMATCH`, nothing stored) | core: `#1 owner: A's photos are discarded …` (A expires with 2 photos → restart → B binds → 0 sent, 0 shown, 0 local copies; each request names its account), `#1 owner: same account … keeps its queue; unbound queue sends nothing`; backend: `test_upload_for_another_account_is_refused_and_stores_nothing`, `test_me_returns_only_the_session_owner`; E2E: account switch step (C expires with 2 queued → D signs in on the same phone → C and D both have 0 uploads), OWNER_MISMATCH step |
+| 2 [P1] | Pause waited for the whole batch (same single-thread executor) | `UploadQueue.requestPause()` is thread-safe (volatile) and checked before **every** request; the UI calls it immediately (pause button, consent withdrawal, logout, session end) and then persists the pause on the queue thread | core: `#2 pause requested while the first upload is in flight → the second never starts` (two real threads, latch inside the first request) |
+| 3 [P1] | Receipt review offered "Confirm" (= `accept`, a new expense) instead of linking | Server returns `allowed_decisions` and `candidates` (amount, date, payee, source of the existing record) per review item and **refuses** other decisions (`409 DECISION_NOT_ALLOWED`); a supplied `txn_id` must be one of the candidates. `receipt_link` → attach / different purchase / not a transaction; `possible_duplicate` → same payment / different / not a transaction. The app renders only `ReviewActions.forItem(item)` and shows the candidate | backend: `test_receipt_review_offers_link_not_accept_and_link_adds_no_spending` (accept refused, non-candidate refused, link adds no spending); core: `#3 review actions follow the server …`; E2E: receipt step (no accept offered; attach; transaction count unchanged) |
+| A2 | Undated photo skipped the consent range check | Server: no `captured_at` → `422 CAPTURE_DATE_REQUIRED` unless `confirmed_undated=true` (audited `undated_confirmed`). App: photos without a date are held back and listed in a dialog ("N photos have no date … send anyway?"); a queued one that hits the error shows "Send without date". Album scanning (CP3b) never sets the flag | backend: `test_undated_photo_needs_explicit_confirmation`; core: `undated photo: … only an explicit confirm sends it`; E2E undated step |
+
+Mutation checks (fix removed → test fails): owner discard (1 core test), pause flag (1), review actions offering
+`accept` (1), server decision check (1), server owner check (1), server undated check (1).
+
+Also found: two new backend tests left queued extraction jobs that a later test's worker picked up (the worker
+claims across owners) → 2 unrelated failures in one run. Fixed by draining in those tests. That failed run's folder
+was deleted in the build sandbox before syncing (it was never shared); disclosed here instead.
+
+### Results
+| Run | Evidence | Result |
+|---|---|---|
+| Backend full suite (x86_64, PG 16.15; DB enabled) | `evidence/runs/20261015T141505Z-cp3a-fix-backend` | 257 passed, skipped 0 |
+| Client core self-tests + E2E vs real backend (x86_64) | `evidence/runs/20261015T140955Z-cp3a-fix-client-e2e-cloud` | 22/22, 26/26 |
+| Backend full suite, Linux ARM64 VM on the owner's Mac (not native macOS), PG 18.4 | `evidence/runs/20261015T141840Z-cp3a-fix-backend-device-pg18-arm64` | 257 passed, skipped 0 |
+| Client core self-tests + E2E in the same VM (Java 11 jar compiled here from the same sources) | `evidence/runs/20261015T141923Z-cp3a-fix-client-e2e-device-pg18-arm64` | 22/22, 26/26 |
+
+### Android build: still not done by Claude
+Both environments here still cannot reach Google Maven / the Android SDK. The `app` module was re-parsed after the
+changes (only unresolved-Android-symbol cascades remain). **The owner's Gradle build on the Mac is the first
+compile of the app module**; compile errors from it come back to Claude to fix before the device checklist.

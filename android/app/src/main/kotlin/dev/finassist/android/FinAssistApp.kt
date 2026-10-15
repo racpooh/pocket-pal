@@ -24,11 +24,4 @@ class FinAssistApp : Application() {
         queueStore = PrefsQueueStore(this)
         queue = UploadQueue(queueStore, blobs, ApiUploadAdapter(api))
     }
-
-    /** Logout discards unsent local copies and the queue, so the next account on this phone starts clean. */
-    fun resetQueue() {
-        queueStore.save("""{"blocked":null,"entries":[]}""")
-        blobs.deleteAll()
-        queue = UploadQueue(queueStore, blobs, ApiUploadAdapter(api))
-    }
 }

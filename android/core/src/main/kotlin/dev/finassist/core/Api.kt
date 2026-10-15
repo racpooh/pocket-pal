@@ -124,8 +124,18 @@ class ApiClient(
     fun revokeConsent(scope: String): Map<String, Any?> = obj(call("DELETE", "/consents/${q(scope)}"))
 
     // ---------- uploads / review ----------
-    fun upload(bytes: ByteArray, mime: String, capturedAtIso: String?): UploadResult {
-        val fields = if (capturedAtIso != null) listOf("captured_at" to capturedAtIso) else emptyList()
+    /** The signed-in account id, used to bind the local upload queue to its owner. */
+    fun me(): String = obj(call("GET", "/me")).str("user_id") ?: throw ApiException(500, "BAD_RESPONSE", "No user id.")
+
+    /**
+     * expectedOwnerId: the account the image was queued for; the server refuses a mismatch (OWNER_MISMATCH).
+     * confirmedUndated: the user explicitly confirmed sending this photo although it has no capture date.
+     */
+    fun upload(bytes: ByteArray, mime: String, capturedAtIso: String?, expectedOwnerId: String? = null, confirmedUndated: Boolean = false): UploadResult {
+        val fields = mutableListOf<Pair<String, String>>()
+        if (capturedAtIso != null) fields += "captured_at" to capturedAtIso
+        if (expectedOwnerId != null) fields += "expected_owner_id" to expectedOwnerId
+        if (confirmedUndated) fields += "confirmed_undated" to "true"
         // Generic file name: the original name (often a timestamp or app name) is not sent.
         val (status, body) = call("POST", "/uploads", rawBody = Multipart.build(fields, "image", "image", mime, bytes))
         @Suppress("UNCHECKED_CAST") val m = body as? Map<String, Any?> ?: emptyMap()

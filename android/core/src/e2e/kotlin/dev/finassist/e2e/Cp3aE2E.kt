@@ -58,7 +58,8 @@ fun main(args: Array<String>) {
         a.signup(emailA, pw)
         try { a.login(emailA, "wrong password!!"); false } catch (e: SessionExpiredException) { tokensA.get() == null }
     }
-    step("login stores a session token", "signed in") { a.login(emailA, pw); a.isSignedIn }
+    step("login stores a session token; queue bound to the account from GET /me", "signed in, owner bound") {
+        a.login(emailA, pw); q.bindOwner(a.me()); a.isSignedIn && q.owner != null }
     step("setup: profile, balance ฿15,000, five pockets", "plan has money left ฿10,000 after rent") {
         a.putProfile(2_000_000, "monthly", "2026-11-01", listOf(mapOf("name" to "Rent", "amount_satang" to 500_000L, "due_day" to 30L)))
         a.addBalance(a.accounts()[0].str("id")!!, 1_500_000)
@@ -84,8 +85,8 @@ fun main(args: Array<String>) {
         q.enqueue(nonFixture, "image/png", captured)
         q.snapshot().size == 6
     }
-    step("app restart: a new queue instance from the persisted state keeps all entries", "6 entries, none lost") {
-        q = UploadQueue(store, blobs, ApiUploadAdapter(a)); q.snapshot().size == 6
+    step("app restart: a new queue instance from the persisted state keeps all entries and its owner", "6 entries, same owner") {
+        val o = q.owner; q = UploadQueue(store, blobs, ApiUploadAdapter(a)); q.snapshot().size == 6 && q.owner == o
     }
     step("send: every entry uploaded exactly once; local copies removed", "6 sent, 0 local blobs") {
         q.runOnce(); q.snapshot().all { it.state == LocalState.SENT } && blobs.m.isEmpty() && a.uploads().size == 6
@@ -127,6 +128,53 @@ fun main(args: Array<String>) {
         "txns=${txns.size} sources=${txns.map { it.str("source") }.toSet()} unclassified_groups=${unc.size} money_left=${a.plan().obj("cashflow")!!.long("discretionary_satang")}"
     }
 
+    step("undated photo: refused until the user confirms that photo; then sent with the confirmation", "CAPTURE_DATE_REQUIRED → imported") {
+        val e = q.enqueue(slip("slip_009_transfer_out.png"), "image/png", null)
+        q.runOnce()
+        val asked = UploadLabels.needsUndatedConfirmation(q.snapshot().first { it.sha256 == e.sha256 })
+        q.confirmUndated(e.sha256); q.runOnce()
+        asked && waitUntil { q.refresh(); q.snapshot().first { it.sha256 == e.sha256 }.serverStatus in UploadQueue.TERMINAL_SERVER }
+    }
+    step("receipt for a purchase already recorded: review offers attach/different only; attaching adds no spending", "no accept; spending unchanged") {
+        val gtRows = File(slipsDir, "ground_truth.jsonl").readLines().filter { it.isNotBlank() }.map { Json.obj(it) }
+        val rec = gtRows.first { r -> r.str("doc_type") == "receipt" && r.list("group_tags").any { it.toString().startsWith("same_purchase_as") } }
+        val pair = rec.list("group_tags").first { it.toString().startsWith("same_purchase_as") }.toString().substringAfter(":")
+        q.enqueue(slip(pair), "image/png", captured); q.runOnce(); waitUntil { q.refresh(); !q.hasWork }
+        val spendBefore = a.transactions().size
+        q.enqueue(slip(rec.str("file")!!), "image/png", captured); q.runOnce(); waitUntil { q.refresh(); !q.hasWork }
+        val item = a.reviewItems().list("items").objs().first { it.str("reason") == "receipt_link" }
+        val actions = ReviewActions.forItem(item)
+        val cand = item.list("candidates").objs().single()
+        a.resolveReview(item.str("id")!!, "link_receipt", txnId = cand.str("txn_id"))
+        actions.none { it.decision == "accept" } && actions.first().decision == "link_receipt" && a.transactions().size == spendBefore
+    }
+
+    // ---- account switch after a session ended with photos still queued (Codex CP3a #1) ----
+    step("C's session ends with 2 photos queued; D signs in on the same phone → C's photos are neither shown nor sent", "0 uploads for C and D") {
+        val tokens = MemoryTokenStore()
+        val c = ApiClient(base, transport, tokens, true)
+        val emailC = "c-${UUID.randomUUID().toString().take(8)}@example.test"; c.signup(emailC, pw); c.login(emailC, pw)
+        c.grantConsent("photo_processing", "v1", mapOf("scan_from" to "2026-07-01"))
+        val st = object : QueueStore { var v: String? = null; override fun load() = v; override fun save(json: String) { v = json } }
+        val bl = object : BlobStore { val m = HashMap<String, ByteArray>(); override fun put(key: String, bytes: ByteArray) { m[key] = bytes }
+            override fun get(key: String) = m[key]; override fun delete(key: String) { m.remove(key) } }
+        val qc = UploadQueue(st, bl, ApiUploadAdapter(c)).also { it.bindOwner(c.me()) }
+        qc.enqueue(slip("slip_032_transfer_out.png"), "image/png", captured); qc.enqueue(slip("slip_033_transfer_out.png"), "image/png", captured)
+        val cToken = tokens.get()
+        ApiClient(base, transport, MemoryTokenStore().apply { set(cToken) }, true).logout()  // session ends server-side (e.g. expiry)
+        qc.runOnce()                                                                          // → SIGNED_OUT, nothing sent
+        val blockedAfterExpiry = qc.blocked == BlockReason.SIGNED_OUT
+        val emailD = "d-${UUID.randomUUID().toString().take(8)}@example.test"; c.signup(emailD, pw); c.login(emailD, pw)
+        c.grantConsent("photo_processing", "v1", mapOf("scan_from" to "2026-07-01"))
+        val discarded = qc.bindOwner(c.me()); qc.runOnce()
+        val cUploads = ApiClient(base, transport, MemoryTokenStore(), true).let { it.login(emailC, pw); it.uploads().size }
+        blockedAfterExpiry && discarded == 2 && qc.snapshot().isEmpty() && bl.m.isEmpty() && c.uploads().isEmpty() && cUploads == 0
+    }
+    step("server refuses an upload that names another account (defence in depth)", "409 OWNER_MISMATCH") {
+        try { a.upload(slip("slip_034_transfer_out.png"), "image/png", captured, expectedOwnerId = UUID.randomUUID().toString()); false }
+        catch (e: ApiException) { e.code == "OWNER_MISMATCH" }
+    }
+
     // ---- second user: no auto-import consent → every slip waits for confirmation ----
     val b = ApiClient(base, transport, MemoryTokenStore(), debugBuild = true)
     val emailB = "b-${UUID.randomUUID().toString().take(8)}@example.test"
@@ -134,7 +182,7 @@ fun main(args: Array<String>) {
         b.signup(emailB, pw); b.login(emailB, pw)
         b.putProfile(2_000_000, "monthly", "2026-11-01", emptyList()); b.addBalance(b.accounts()[0].str("id")!!, 500_000)
         b.grantConsent("photo_processing", "v1", mapOf("scan_from" to "2026-07-01"))
-        val up = b.upload(slip("slip_009_transfer_out.png"), "image/png", captured)
+        val up = b.upload(slip("slip_009_transfer_out.png"), "image/png", captured, expectedOwnerId = b.me())
         waitUntil { b.uploadDetail(up.uploadId).str("status") == "needs_review" } && run {
             val item = b.reviewItems().list("items").objs().first { it.str("upload_id") == up.uploadId }
             item.str("reason") == "confirm_import" && b.resolveReview(item.str("id")!!, "accept").str("txn_id") != null }
