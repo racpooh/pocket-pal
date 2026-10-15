@@ -289,42 +289,130 @@ def _check_applicable(conn, owner_id, kind: str, p: dict, *, lock: bool) -> dict
         if existing:
             base.update(base_plan_id=existing["id"], base_plan_version=existing["version"])
     elif kind == "goal_update":
-        g = conn.execute(f"select id,version from goal where owner_id=%s and id=%s{fu}", (owner_id, p["goal_id"])).fetchone()
+        g = conn.execute(f"select id,version,status,target_satang,deadline,contribution_satang_per_period from goal where owner_id=%s and id=%s{fu}",
+                         (owner_id, p["goal_id"])).fetchone()
         if not g:
             raise _nf()
+        if g["status"] != "active":
+            raise ApiError(409, "GOAL_NOT_ACTIVE", "Only an active goal can be changed.")
+        if all(p.get(k) is None or str(p[k]) == str(g[k]) for k in ("target_satang", "deadline", "contribution_satang_per_period")):
+            raise ApiError(400, "NO_CHANGE", "The proposal does not change the goal.")
+        _deadline_in_future(conn, owner_id, p.get("deadline"))
         base.update(base_goal_version=g["version"])
+    elif kind == "goal_create":
+        _deadline_in_future(conn, owner_id, p["deadline"])
     return base
 
 
-def create_proposal(conn, owner_id, kind: str, payload: dict, created_by: str, assumptions: list[dict] | None = None) -> dict:
-    """T2: writes a pending proposal only. Never mutates plans or goals."""
+def _deadline_in_future(conn, owner_id, deadline) -> None:
+    if deadline is not None and date.fromisoformat(str(deadline)) <= today_for(user_tz(conn, owner_id)):
+        raise ApiError(400, "VALIDATION_FAILED", "The goal deadline must be after today.", fields=[{"path": "deadline", "issue": "not_in_future"}])
+
+
+def _insert_proposal(conn, owner_id, kind: str, p: dict, base: dict, created_by: str, assumptions: list[dict], *,
+                     edited_from=None, extra: dict | None = None) -> dict:
+    """Insert a pending proposal with its approval card. The watermark is read BEFORE the card is computed, so a
+    ledger change committed in between makes the proposal stale at approval instead of approving an outdated card."""
+    from finassist.services import cards
+
+    wm = current_watermark(conn, owner_id)
+    ph = _hash(kind, p)
+    now = now_utc()
+    card = cards.build_card(conn, owner_id, kind, p, payload_hash_hex=ph.hex(), created_by=created_by, assumptions=assumptions,
+                            computed_at=now, edited_from=str(edited_from) if edited_from else None, extra=extra)
+    row = conn.execute(
+        """insert into proposal(owner_id,kind,payload,payload_hash,base_plan_id,base_plan_version,base_goal_version,
+                                base_data_watermark,created_by,status,expires_at,card,card_hash,edited_from)
+           values (%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s,%s,%s,%s) returning *""",
+        (owner_id, kind, Jsonb(p), ph, base["base_plan_id"], base["base_plan_version"], base["base_goal_version"],
+         wm, created_by, now + PROPOSAL_TTL, Jsonb(card), cards.card_hash(card), edited_from)).fetchone()
+    audit(conn, owner_id, created_by, "proposal_create", "proposal", row["id"],
+          details={"kind": kind, "edited_from": str(edited_from) if edited_from else None,
+                   "warnings": [w["code"] for w in card["warnings"]]})
+    return row
+
+
+def create_proposal(conn, owner_id, kind: str, payload: dict, created_by: str, assumptions: list[dict] | None = None,
+                    extra: dict | None = None) -> dict:
+    """T2: writes a pending proposal (with its card) only. Never mutates plans or goals."""
     p = _validate_payload(kind, payload)
     with conn.transaction():
         base = _check_applicable(conn, owner_id, kind, p, lock=False)
-        row = conn.execute(
-            """insert into proposal(owner_id,kind,payload,payload_hash,base_plan_id,base_plan_version,base_goal_version,
-                                    base_data_watermark,created_by,status,expires_at)
-               values (%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s) returning id,kind,payload,payload_hash,status,expires_at""",
-            (owner_id, kind, Jsonb(p), _hash(kind, p), base["base_plan_id"], base["base_plan_version"], base["base_goal_version"],
-             current_watermark(conn, owner_id), created_by, now_utc() + PROPOSAL_TTL)).fetchone()
-        audit(conn, owner_id, created_by, "proposal_create", "proposal", row["id"], details={"kind": kind})
-    return proposal_card(row, assumptions or [])
+        row = _insert_proposal(conn, owner_id, kind, p, base, created_by, assumptions or [], extra=extra)
+    return proposal_view(row)
 
 
-def proposal_card(row: dict, assumptions: list[dict]) -> dict:
-    return {"type": "proposal", "proposal_id": str(row["id"]), "kind": row["kind"], "payload": row["payload"],
-            "payload_hash": "sha256:" + bytes(row["payload_hash"]).hex(), "status": row["status"],
-            "expires_at": row["expires_at"], "assumptions": assumptions, "actions": ["approve", "edit", "cancel"]}
+def proposal_view(row: dict) -> dict:
+    """What the client renders and later sends back. Everything here is read from the stored row, so a reload
+    returns the same card; only `status`/`actions` reflect the current time."""
+    status = row["status"]
+    if status == "pending" and row["expires_at"] <= now_utc():
+        status = "expired"
+    pid = str(row["id"])
+    actions = []
+    if status == "pending" and row["card"] is not None:
+        actions = [
+            {"action": "approve", "method": "POST", "path": f"/v1/proposals/{pid}/approve",
+             "body": {"payload_hash": "sha256:" + bytes(row["payload_hash"]).hex(), "card_hash": "sha256:" + bytes(row["card_hash"]).hex()},
+             "requires_header": "Idempotency-Key"},
+            {"action": "edit", "method": "POST", "path": f"/v1/proposals/{pid}/edit",
+             "note": "creates a new proposal with a new card; this one becomes superseded and cannot be approved"},
+            {"action": "cancel", "method": "POST", "path": f"/v1/proposals/{pid}/cancel"},
+        ]
+    return {"type": "proposal", "proposal_id": pid, "kind": row["kind"], "status": status, "created_by": row["created_by"],
+            "created_at": row["created_at"], "expires_at": row["expires_at"], "decided_at": row["decided_at"],
+            "payload": row["payload"], "payload_hash": "sha256:" + bytes(row["payload_hash"]).hex(),
+            "card_hash": ("sha256:" + bytes(row["card_hash"]).hex()) if row["card_hash"] is not None else None,
+            "card": row["card"], "superseded_by": str(row["superseded_by"]) if row["superseded_by"] else None,
+            "edited_from": str(row["edited_from"]) if row["edited_from"] else None, "actions": actions}
 
 
 def get_proposal(conn, owner_id, pid) -> dict:
-    row = conn.execute("select id,kind,payload,payload_hash,status,expires_at from proposal where owner_id=%s and id=%s", (owner_id, pid)).fetchone()
+    row = conn.execute("select * from proposal where owner_id=%s and id=%s", (owner_id, pid)).fetchone()
     if not row:
         raise _nf()
-    return proposal_card(row, [])
+    return proposal_view(row)
 
 
-def approve(conn, owner_id, pid, payload_hash: str) -> tuple[int, dict]:
+def list_proposals(conn, owner_id, status: str | None = None, limit: int = 20) -> list[dict]:
+    q = "select * from proposal where owner_id=%s"
+    args: list = [owner_id]
+    if status == "pending":
+        q += " and status='pending' and expires_at > %s"; args.append(now_utc())
+    elif status:
+        q += " and status=%s"; args.append(status)
+    q += " order by created_at desc, id limit %s"; args.append(min(limit, 100))
+    return [proposal_view(r) for r in conn.execute(q, args).fetchall()]
+
+
+def edit_proposal(conn, owner_id, pid, payload_hash: str, new_payload: dict) -> tuple[int, dict]:
+    """Edit = new proposal, new card, new hashes; the old one is superseded in the same transaction, so no approval
+    request for the old id or old hashes can apply the edited content (FI-33)."""
+    with conn.transaction():
+        old = conn.execute("select * from proposal where owner_id=%s and id=%s for update", (owner_id, pid)).fetchone()
+        if not old:
+            raise _nf()
+        if old["status"] != "pending":
+            return 409, _err("PROPOSAL_NOT_PENDING", f"This proposal is {old['status']}.",
+                             {"status": old["status"], "superseded_by": str(old["superseded_by"]) if old["superseded_by"] else None})
+        if old["expires_at"] <= now_utc():
+            conn.execute("update proposal set status='expired', decided_at=%s where id=%s", (now_utc(), pid))
+            return 410, _err("PROPOSAL_EXPIRED", "This proposal expired; ask again for a fresh one.", {})
+        if payload_hash.removeprefix("sha256:") != bytes(old["payload_hash"]).hex():
+            return 409, _err("PROPOSAL_MISMATCH", "The proposal you edited differs from this one.", {})
+        p = _validate_payload(old["kind"], new_payload)
+        if canonical_json(p) == canonical_json(old["payload"]):
+            raise ApiError(400, "NO_CHANGE", "The edited proposal is the same as the original.")
+        base = _check_applicable(conn, owner_id, old["kind"], p, lock=False)
+        row = _insert_proposal(conn, owner_id, old["kind"], p, base, "user",
+                               [{"kind": "edited_by_user", "text": "You edited an earlier proposal; amounts were recalculated."}],
+                               edited_from=old["id"])
+        conn.execute("update proposal set status='superseded', superseded_by=%s, decided_at=%s where id=%s", (row["id"], now_utc(), pid))
+        audit(conn, owner_id, "user", "proposal_edit", "proposal", pid, details={"new_proposal_id": str(row["id"])})
+    return 201, proposal_view(row)
+
+
+def approve(conn, owner_id, pid, payload_hash: str, card_hash: str) -> tuple[int, dict]:
     """T3, user only. Must run inside the idempotency wrapper's transaction."""
     pr = conn.execute("select * from proposal where owner_id=%s and id=%s for update", (owner_id, pid)).fetchone()
     if not pr:
@@ -340,6 +428,9 @@ def approve(conn, owner_id, pid, payload_hash: str) -> tuple[int, dict]:
     if payload_hash.removeprefix("sha256:") != bytes(pr["payload_hash"]).hex():
         audit(conn, owner_id, "user", "proposal_approve", "proposal", pid, result="rejected", details={"why": "hash_mismatch"})
         return 409, _err("PROPOSAL_MISMATCH", "What you approved differs from this proposal.", {})
+    if pr["card_hash"] is not None and card_hash.removeprefix("sha256:") != bytes(pr["card_hash"]).hex():
+        audit(conn, owner_id, "user", "proposal_approve", "proposal", pid, result="rejected", details={"why": "card_mismatch"})
+        return 409, _err("PROPOSAL_MISMATCH", "The card you approved differs from this proposal's card. Reload it.", {})
     p = pr["payload"]
     try:
         base = _check_applicable(conn, owner_id, pr["kind"], p, lock=True)
@@ -349,19 +440,15 @@ def approve(conn, owner_id, pid, payload_hash: str) -> tuple[int, dict]:
         return 409, _err("PROPOSAL_STALE", "This proposal no longer fits your current budget.", {"reason": e.code})
     stale = (str(base["base_plan_id"]) != str(pr["base_plan_id"]) if (base["base_plan_id"] or pr["base_plan_id"]) else False) \
         or base["base_plan_version"] != pr["base_plan_version"] or base["base_goal_version"] != pr["base_goal_version"] \
-        or current_watermark(conn, owner_id) != pr["base_data_watermark"]
+        or current_watermark(conn, owner_id) != pr["base_data_watermark"] or pr["card"] is None
     if stale:
         conn.execute("update proposal set status='stale', decided_at=%s where id=%s", (now_utc(), pid))
-        repl = conn.execute(
-            """insert into proposal(owner_id,kind,payload,payload_hash,base_plan_id,base_plan_version,base_goal_version,
-                                    base_data_watermark,created_by,status,expires_at)
-               values (%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s) returning id""",
-            (owner_id, pr["kind"], Jsonb(p), pr["payload_hash"], base["base_plan_id"], base["base_plan_version"],
-             base["base_goal_version"], current_watermark(conn, owner_id), pr["created_by"], now_utc() + PROPOSAL_TTL)).fetchone()
+        assumptions = (pr["card"] or {}).get("assumptions", [])
+        repl = _insert_proposal(conn, owner_id, pr["kind"], p, base, pr["created_by"], assumptions)
         conn.execute("update proposal set superseded_by=%s where id=%s", (repl["id"], pid))
         audit(conn, owner_id, "user", "proposal_approve", "proposal", pid, result="rejected", details={"why": "stale"})
         return 409, _err("PROPOSAL_STALE", "Your data changed since this proposal was made. Review the refreshed one.",
-                         {"replacement_proposal_id": str(repl["id"])})
+                         {"replacement_proposal_id": str(repl["id"]), "replacement": proposal_view(repl)})
     result = _apply(conn, owner_id, pr["kind"], p)
     conn.execute("update proposal set status='applied', decided_at=%s where id=%s", (now_utc(), pid))
     bump_watermark(conn, owner_id)
@@ -438,11 +525,11 @@ def suggest_budget_plan(conn, owner_id, buffer_satang: int = 0) -> dict:
         allocations[first] += alloc.unallocated_satang
     payload = {"period_start": ctx["today"].isoformat(), "period_end": inp.next_income_date.isoformat(),
                "buffer_satang": buffer_satang, "allocations": allocations}
-    card = create_proposal(conn, owner_id, "budget_plan", payload, "agent",
-                           assumptions=[{"kind": "percentage_base", "text": "Percentages are of money left after bills, essentials, savings and buffer until your next income."}])
-    card["calculation"] = {"function": "allocate_bps", "version": cf.CALC_VERSION, "discretionary_satang": res.discretionary_satang,
-                           "lines": [asdict(ln) for ln in res.lines]}
-    return card
+    calc = {"function": "allocate_bps", "version": cf.CALC_VERSION, "discretionary_satang": res.discretionary_satang,
+            "lines": [asdict(ln) for ln in res.lines]}
+    return create_proposal(conn, owner_id, "budget_plan", payload, "agent",
+                           assumptions=[{"kind": "percentage_base", "text": "Percentages are of money left after bills, essentials, savings and buffer until your next income."}],
+                           extra={"calculation": calc})
 
 
 def goal_feasibility(conn, owner_id, target_satang: int, saved_satang: int, deadline: date, capacity_per_event_satang: int | None = None) -> dict:
@@ -513,15 +600,10 @@ def propose_tradeoff(conn, owner_id, pocket_id: str, increase_satang: int) -> di
         new = cf.tradeoff_increase(alloc, spent, pocket_id, increase_satang)
     except ValueError as e:
         raise ApiError(400, "TRADEOFF_NOT_POSSIBLE", str(e)) from None
-    predicted = sum(v["spent_predicted_satang"] for v in st.values())
     payload = {"period_start": plan["period_start"].isoformat(), "period_end": plan["period_end"].isoformat(),
                "buffer_satang": plan["buffer_satang"], "allocations": new}
     assumptions = [{"kind": "tradeoff", "text": "Taken from other pockets in proportion to what is still unspent in each."}]
-    if predicted:
-        assumptions.append({"kind": "predicted_category", "text": f"Unspent amounts include {predicted} satang of spending whose category was guessed."})
-    card = create_proposal(conn, owner_id, "budget_plan", payload, "agent", assumptions)
-    card["changes"] = [{"pocket": st[k]["name"], "before_satang": alloc[k], "after_satang": new[k]} for k in alloc if alloc[k] != new[k]]
-    return card
+    return create_proposal(conn, owner_id, "budget_plan", payload, "agent", assumptions)
 
 
 def spending_report(conn, owner_id, start: date, end: date) -> dict:

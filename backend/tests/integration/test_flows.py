@@ -176,9 +176,9 @@ def test_affordability_has_no_side_effects(client, db):
 def test_budget_plan_reconciles(client):
     u = User(client).onboard()
     card = u.req("POST", "/plan/suggest").json()
-    disc = card["calculation"]["discretionary_satang"]
+    disc = card["card"]["extra"]["calculation"]["discretionary_satang"]
     assert sum(card["payload"]["allocations"].values()) == disc  # FI-16: allocations + unallocated == discretionary
-    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]})
+    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     assert r.status_code == 200
     pockets = u.req("GET", "/plan").json()["pockets"]
     assert sum(p["allocation_satang"] for p in pockets if p["pocket_id"]) == disc
@@ -191,7 +191,7 @@ def test_reallocation_conserves_total_and_creates_no_expense(client):
     total = sum(p["allocation_satang"] for p in plan["pockets"] if p["pocket_id"])
     card = u.req("POST", "/proposals", json={"kind": "reallocate", "payload": {
         "plan_id": plan["plan"]["id"], "from_pocket": u.pockets["Food"], "to_pocket": u.pockets["Shopping"], "amount_satang": 50_000}}).json()
-    assert u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]}).status_code == 200
+    assert u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]}).status_code == 200
     plan2 = u.req("GET", "/plan").json()
     assert sum(p["allocation_satang"] for p in plan2["pockets"] if p["pocket_id"]) == total
     assert u.req("GET", "/transactions").json() == []
@@ -224,7 +224,7 @@ def test_tradeoff_proposal_conserves_and_requires_approval(client):
     assert card.status_code == 201, card.text
     card = card.json()
     assert {p["name"]: p["allocation_satang"] for p in u.req("GET", "/plan").json()["pockets"] if p["pocket_id"]} == before
-    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]})
+    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     assert r.status_code == 200, r.text
     after = {p["name"]: p["allocation_satang"] for p in u.req("GET", "/plan").json()["pockets"] if p["pocket_id"]}
     assert sum(after.values()) == sum(before.values())

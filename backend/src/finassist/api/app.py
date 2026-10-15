@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import FastAPI, Request
@@ -25,6 +26,9 @@ def build_chat_model(settings: Settings):
 
 def create_app(settings: Settings | None = None, *, db=None, storage=None, chat_model=None) -> FastAPI:
     settings = settings or get_settings()
+    from finassist.logsafe import install_redaction
+
+    install_redaction()
     app = FastAPI(title="FinAssist backend (prototype)", version=__version__)
     app.state.settings = settings
     if db is None and settings.database_url:
@@ -79,8 +83,9 @@ def _start_embedded_worker(app: FastAPI, settings: Settings) -> None:
             try:
                 with worker_db.connect() as conn:
                     outcome = run_once(conn, app.state.storage, provider)
-            except Exception:
-                outcome = None  # logged by the platform; never crash the API
+            except Exception as e:
+                logging.getLogger("finassist.worker").error("worker loop error exc=%s", type(e).__name__, exc_info=e)
+                outcome = None  # never crash the API
             if not outcome:
                 time.sleep(1.0)
 

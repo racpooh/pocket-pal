@@ -1,0 +1,912 @@
+{
+ "1_move_all_food_to_shopping": {
+  "type": "proposal",
+  "proposal_id": "6489d9fb-3c98-4c1c-9c39-d0520e76a55e",
+  "kind": "reallocate",
+  "status": "pending",
+  "created_by": "user",
+  "created_at": "2026-10-15T19:01:55.888429+07:00",
+  "expires_at": "2026-10-15T13:30:00+07:00",
+  "decided_at": null,
+  "payload": {
+   "plan_id": "33558cd0-f18c-442a-9887-87d57dac32b5",
+   "to_pocket": "a341d572-8ddd-4541-8ad1-001936c838ea",
+   "from_pocket": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+   "amount_satang": 375000
+  },
+  "payload_hash": "sha256:1051e6c26978178ca5f7a5f6409839b31a1096ece6e125bf7cec7145fa6d4c60",
+  "card_hash": "sha256:ab47e6b67cbc2a88e2d551373726a73b389f3e4e15214f380fccf54ea780c50e",
+  "card": {
+   "kind": "reallocate",
+   "period": {
+    "start": "2026-10-15",
+    "end_exclusive": "2026-11-01"
+   },
+   "policy": {
+    "status": "provisional product policy for the prototype; not a competition requirement; team to confirm",
+    "version": "card-policy@0.1",
+    "stale_balance_days": 3,
+    "large_move_min_share_of_all_unspent_bps": 2500,
+    "low_remaining_max_share_of_allocation_bps": 1000,
+    "large_move_min_share_of_pocket_remaining_bps": 5000
+   },
+   "schema": "approval-card@1",
+   "changes": [
+    {
+     "name": "Food",
+     "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+     "delta_satang": -375000,
+     "remaining_after_satang": 0,
+     "spent_confirmed_satang": 25000,
+     "spent_predicted_satang": 0,
+     "allocation_after_satang": 25000,
+     "remaining_before_satang": 375000,
+     "allocation_before_satang": 400000
+    },
+    {
+     "name": "Shopping",
+     "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+     "delta_satang": 375000,
+     "remaining_after_satang": 525000,
+     "spent_confirmed_satang": 0,
+     "spent_predicted_satang": 0,
+     "allocation_after_satang": 525000,
+     "remaining_before_satang": 150000,
+     "allocation_before_satang": 150000
+    }
+   ],
+   "effects": {
+    "goals": {
+     "changed": false,
+     "reason_code": "POCKET_MOVE_DOES_NOT_CHANGE_MONEY_LEFT"
+    },
+    "buffer": {
+     "after_satang": 0,
+     "before_satang": 0
+    },
+    "money_left": {
+     "after_satang": 1000000,
+     "before_satang": 1000000,
+     "daily_allowance_after_satang": 58823,
+     "daily_allowance_before_satang": 58823
+    },
+    "commitments": {
+     "after": {
+      "bills_satang": 0,
+      "savings_satang": 0,
+      "essentials_satang": 500000
+     },
+     "before": {
+      "bills_satang": 0,
+      "savings_satang": 0,
+      "essentials_satang": 500000
+     },
+     "changed": false
+    },
+    "unspent_budget": {
+     "fits": true,
+     "after_satang": 975000,
+     "before_satang": 975000,
+     "money_left_after_satang": 1000000
+    }
+   },
+   "summary": {
+    "code": "REALLOCATE",
+    "text": "Move ฿3,750.00 of budget from Food to Shopping."
+   },
+   "transfer": {
+    "to": {
+     "name": "Shopping",
+     "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+     "remaining_after_satang": 525000,
+     "remaining_before_satang": 150000
+    },
+    "from": {
+     "name": "Food",
+     "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+     "remaining_after_satang": 0,
+     "remaining_before_satang": 375000
+    },
+    "amount_satang": 375000
+   },
+   "warnings": [
+    {
+     "code": "MOVES_ALL_REMAINING",
+     "text": "Food would have nothing left to spend until your next income (฿3,750.00 unspent now).",
+     "params": {
+      "pocket": "Food",
+      "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+      "remaining_before_satang": 375000
+     },
+     "severity": "high"
+    }
+   ],
+   "created_by": "user",
+   "assumptions": [],
+   "computed_at": "2026-10-15T06:00:00+00:00",
+   "edited_from": null,
+   "uncertainty": [],
+   "not_computed": [],
+   "payload_hash": "sha256:1051e6c26978178ca5f7a5f6409839b31a1096ece6e125bf7cec7145fa6d4c60",
+   "balance_as_of": "2026-10-15T13:00:00+07:00",
+   "days_until_income": 17
+  },
+  "superseded_by": null,
+  "edited_from": null,
+  "actions": [
+   {
+    "action": "approve",
+    "method": "POST",
+    "path": "/v1/proposals/6489d9fb-3c98-4c1c-9c39-d0520e76a55e/approve",
+    "body": {
+     "payload_hash": "sha256:1051e6c26978178ca5f7a5f6409839b31a1096ece6e125bf7cec7145fa6d4c60",
+     "card_hash": "sha256:ab47e6b67cbc2a88e2d551373726a73b389f3e4e15214f380fccf54ea780c50e"
+    },
+    "requires_header": "Idempotency-Key"
+   },
+   {
+    "action": "edit",
+    "method": "POST",
+    "path": "/v1/proposals/6489d9fb-3c98-4c1c-9c39-d0520e76a55e/edit",
+    "note": "creates a new proposal with a new card; this one becomes superseded and cannot be approved"
+   },
+   {
+    "action": "cancel",
+    "method": "POST",
+    "path": "/v1/proposals/6489d9fb-3c98-4c1c-9c39-d0520e76a55e/cancel"
+   }
+  ]
+ },
+ "2_small_move_100": {
+  "type": "proposal",
+  "proposal_id": "1a40afa8-1d54-43f5-a305-d7bbb863c1ca",
+  "kind": "reallocate",
+  "status": "pending",
+  "created_by": "user",
+  "created_at": "2026-10-15T19:01:55.934281+07:00",
+  "expires_at": "2026-10-15T13:30:00+07:00",
+  "decided_at": null,
+  "payload": {
+   "plan_id": "33558cd0-f18c-442a-9887-87d57dac32b5",
+   "to_pocket": "a341d572-8ddd-4541-8ad1-001936c838ea",
+   "from_pocket": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+   "amount_satang": 10000
+  },
+  "payload_hash": "sha256:58f7c4009933973a1c723760afe122fa8ecb0b4d7793bfedf8c9059d80e311b4",
+  "card_hash": "sha256:d57e6d15ecfe1cb830bc683630a2cb3edac128cafe42cf4ed5800205340920e9",
+  "card": {
+   "kind": "reallocate",
+   "period": {
+    "start": "2026-10-15",
+    "end_exclusive": "2026-11-01"
+   },
+   "policy": {
+    "status": "provisional product policy for the prototype; not a competition requirement; team to confirm",
+    "version": "card-policy@0.1",
+    "stale_balance_days": 3,
+    "large_move_min_share_of_all_unspent_bps": 2500,
+    "low_remaining_max_share_of_allocation_bps": 1000,
+    "large_move_min_share_of_pocket_remaining_bps": 5000
+   },
+   "schema": "approval-card@1",
+   "changes": [
+    {
+     "name": "Food",
+     "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+     "delta_satang": -10000,
+     "remaining_after_satang": 365000,
+     "spent_confirmed_satang": 25000,
+     "spent_predicted_satang": 0,
+     "allocation_after_satang": 390000,
+     "remaining_before_satang": 375000,
+     "allocation_before_satang": 400000
+    },
+    {
+     "name": "Shopping",
+     "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+     "delta_satang": 10000,
+     "remaining_after_satang": 160000,
+     "spent_confirmed_satang": 0,
+     "spent_predicted_satang": 0,
+     "allocation_after_satang": 160000,
+     "remaining_before_satang": 150000,
+     "allocation_before_satang": 150000
+    }
+   ],
+   "effects": {
+    "goals": {
+     "changed": false,
+     "reason_code": "POCKET_MOVE_DOES_NOT_CHANGE_MONEY_LEFT"
+    },
+    "buffer": {
+     "after_satang": 0,
+     "before_satang": 0
+    },
+    "money_left": {
+     "after_satang": 1000000,
+     "before_satang": 1000000,
+     "daily_allowance_after_satang": 58823,
+     "daily_allowance_before_satang": 58823
+    },
+    "commitments": {
+     "after": {
+      "bills_satang": 0,
+      "savings_satang": 0,
+      "essentials_satang": 500000
+     },
+     "before": {
+      "bills_satang": 0,
+      "savings_satang": 0,
+      "essentials_satang": 500000
+     },
+     "changed": false
+    },
+    "unspent_budget": {
+     "fits": true,
+     "after_satang": 975000,
+     "before_satang": 975000,
+     "money_left_after_satang": 1000000
+    }
+   },
+   "summary": {
+    "code": "REALLOCATE",
+    "text": "Move ฿100.00 of budget from Food to Shopping."
+   },
+   "transfer": {
+    "to": {
+     "name": "Shopping",
+     "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+     "remaining_after_satang": 160000,
+     "remaining_before_satang": 150000
+    },
+    "from": {
+     "name": "Food",
+     "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+     "remaining_after_satang": 365000,
+     "remaining_before_satang": 375000
+    },
+    "amount_satang": 10000
+   },
+   "warnings": [],
+   "created_by": "user",
+   "assumptions": [],
+   "computed_at": "2026-10-15T06:00:00+00:00",
+   "edited_from": null,
+   "uncertainty": [],
+   "not_computed": [],
+   "payload_hash": "sha256:58f7c4009933973a1c723760afe122fa8ecb0b4d7793bfedf8c9059d80e311b4",
+   "balance_as_of": "2026-10-15T13:00:00+07:00",
+   "days_until_income": 17
+  },
+  "superseded_by": null,
+  "edited_from": null,
+  "actions": [
+   {
+    "action": "approve",
+    "method": "POST",
+    "path": "/v1/proposals/1a40afa8-1d54-43f5-a305-d7bbb863c1ca/approve",
+    "body": {
+     "payload_hash": "sha256:58f7c4009933973a1c723760afe122fa8ecb0b4d7793bfedf8c9059d80e311b4",
+     "card_hash": "sha256:d57e6d15ecfe1cb830bc683630a2cb3edac128cafe42cf4ed5800205340920e9"
+    },
+    "requires_header": "Idempotency-Key"
+   },
+   {
+    "action": "edit",
+    "method": "POST",
+    "path": "/v1/proposals/1a40afa8-1d54-43f5-a305-d7bbb863c1ca/edit",
+    "note": "creates a new proposal with a new card; this one becomes superseded and cannot be approved"
+   },
+   {
+    "action": "cancel",
+    "method": "POST",
+    "path": "/v1/proposals/1a40afa8-1d54-43f5-a305-d7bbb863c1ca/cancel"
+   }
+  ]
+ },
+ "3_edit_of_example_1_to_1000": {
+  "type": "proposal",
+  "proposal_id": "4e14f1a3-9125-4fc7-9026-868828b0bf0e",
+  "kind": "reallocate",
+  "status": "pending",
+  "created_by": "user",
+  "created_at": "2026-10-15T19:01:55.958880+07:00",
+  "expires_at": "2026-10-15T13:30:00+07:00",
+  "decided_at": null,
+  "payload": {
+   "plan_id": "33558cd0-f18c-442a-9887-87d57dac32b5",
+   "to_pocket": "a341d572-8ddd-4541-8ad1-001936c838ea",
+   "from_pocket": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+   "amount_satang": 100000
+  },
+  "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+  "card_hash": "sha256:01867244a7e1523125fe9506876dafe677e958da987cb995b5d8e4b3deb6a611",
+  "card": {
+   "kind": "reallocate",
+   "period": {
+    "start": "2026-10-15",
+    "end_exclusive": "2026-11-01"
+   },
+   "policy": {
+    "status": "provisional product policy for the prototype; not a competition requirement; team to confirm",
+    "version": "card-policy@0.1",
+    "stale_balance_days": 3,
+    "large_move_min_share_of_all_unspent_bps": 2500,
+    "low_remaining_max_share_of_allocation_bps": 1000,
+    "large_move_min_share_of_pocket_remaining_bps": 5000
+   },
+   "schema": "approval-card@1",
+   "changes": [
+    {
+     "name": "Food",
+     "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+     "delta_satang": -100000,
+     "remaining_after_satang": 275000,
+     "spent_confirmed_satang": 25000,
+     "spent_predicted_satang": 0,
+     "allocation_after_satang": 300000,
+     "remaining_before_satang": 375000,
+     "allocation_before_satang": 400000
+    },
+    {
+     "name": "Shopping",
+     "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+     "delta_satang": 100000,
+     "remaining_after_satang": 250000,
+     "spent_confirmed_satang": 0,
+     "spent_predicted_satang": 0,
+     "allocation_after_satang": 250000,
+     "remaining_before_satang": 150000,
+     "allocation_before_satang": 150000
+    }
+   ],
+   "effects": {
+    "goals": {
+     "changed": false,
+     "reason_code": "POCKET_MOVE_DOES_NOT_CHANGE_MONEY_LEFT"
+    },
+    "buffer": {
+     "after_satang": 0,
+     "before_satang": 0
+    },
+    "money_left": {
+     "after_satang": 1000000,
+     "before_satang": 1000000,
+     "daily_allowance_after_satang": 58823,
+     "daily_allowance_before_satang": 58823
+    },
+    "commitments": {
+     "after": {
+      "bills_satang": 0,
+      "savings_satang": 0,
+      "essentials_satang": 500000
+     },
+     "before": {
+      "bills_satang": 0,
+      "savings_satang": 0,
+      "essentials_satang": 500000
+     },
+     "changed": false
+    },
+    "unspent_budget": {
+     "fits": true,
+     "after_satang": 975000,
+     "before_satang": 975000,
+     "money_left_after_satang": 1000000
+    }
+   },
+   "summary": {
+    "code": "REALLOCATE",
+    "text": "Move ฿1,000.00 of budget from Food to Shopping."
+   },
+   "transfer": {
+    "to": {
+     "name": "Shopping",
+     "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+     "remaining_after_satang": 250000,
+     "remaining_before_satang": 150000
+    },
+    "from": {
+     "name": "Food",
+     "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+     "remaining_after_satang": 275000,
+     "remaining_before_satang": 375000
+    },
+    "amount_satang": 100000
+   },
+   "warnings": [],
+   "created_by": "user",
+   "assumptions": [
+    {
+     "kind": "edited_by_user",
+     "text": "You edited an earlier proposal; amounts were recalculated."
+    }
+   ],
+   "computed_at": "2026-10-15T06:00:00+00:00",
+   "edited_from": "6489d9fb-3c98-4c1c-9c39-d0520e76a55e",
+   "uncertainty": [],
+   "not_computed": [],
+   "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+   "balance_as_of": "2026-10-15T13:00:00+07:00",
+   "days_until_income": 17
+  },
+  "superseded_by": null,
+  "edited_from": "6489d9fb-3c98-4c1c-9c39-d0520e76a55e",
+  "actions": [
+   {
+    "action": "approve",
+    "method": "POST",
+    "path": "/v1/proposals/4e14f1a3-9125-4fc7-9026-868828b0bf0e/approve",
+    "body": {
+     "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+     "card_hash": "sha256:01867244a7e1523125fe9506876dafe677e958da987cb995b5d8e4b3deb6a611"
+    },
+    "requires_header": "Idempotency-Key"
+   },
+   {
+    "action": "edit",
+    "method": "POST",
+    "path": "/v1/proposals/4e14f1a3-9125-4fc7-9026-868828b0bf0e/edit",
+    "note": "creates a new proposal with a new card; this one becomes superseded and cannot be approved"
+   },
+   {
+    "action": "cancel",
+    "method": "POST",
+    "path": "/v1/proposals/4e14f1a3-9125-4fc7-9026-868828b0bf0e/cancel"
+   }
+  ]
+ },
+ "4_goal_create_overcommits_plan": {
+  "type": "proposal",
+  "proposal_id": "9d2a1497-3916-45a8-8845-e61af2fcf10f",
+  "kind": "goal_create",
+  "status": "pending",
+  "created_by": "user",
+  "created_at": "2026-10-15T19:01:56.019363+07:00",
+  "expires_at": "2026-10-15T13:30:00+07:00",
+  "decided_at": null,
+  "payload": {
+   "name": "Laptop",
+   "deadline": "2027-01-31",
+   "saved_satang": 0,
+   "target_satang": 3000000,
+   "contribution_satang_per_period": 200000
+  },
+  "payload_hash": "sha256:394c5432ad2b734c275628fc15efc71569fbe1eef1ab0c76ca881bd2fa3a51c3",
+  "card_hash": "sha256:cd79ae5820b8dfbdf80bf91c020728b9963482f7c00543b9a183cbf9cb40704f",
+  "card": {
+   "goal": {
+    "name": "Laptop",
+    "saved_satang": 0
+   },
+   "kind": "goal_create",
+   "policy": {
+    "status": "provisional product policy for the prototype; not a competition requirement; team to confirm",
+    "version": "card-policy@0.1",
+    "stale_balance_days": 3,
+    "large_move_min_share_of_all_unspent_bps": 2500,
+    "low_remaining_max_share_of_allocation_bps": 1000,
+    "large_move_min_share_of_pocket_remaining_bps": 5000
+   },
+   "schema": "approval-card@1",
+   "changes": [
+    {
+     "after": 3000000,
+     "field": "target_satang",
+     "before": null
+    },
+    {
+     "after": "2027-01-31",
+     "field": "deadline",
+     "before": null
+    },
+    {
+     "after": 200000,
+     "field": "contribution_satang_per_period",
+     "before": null
+    }
+   ],
+   "effects": {
+    "buffer": {
+     "after_satang": 0,
+     "before_satang": 0
+    },
+    "this_goal": {
+     "required_per_event_satang": 1000000,
+     "contribution_covers_required": false,
+     "contribution_per_event_satang": 200000,
+     "contribution_events_until_deadline": 3
+    },
+    "money_left": {
+     "after_satang": 800000,
+     "before_satang": 1000000,
+     "daily_allowance_after_satang": 47058,
+     "daily_allowance_before_satang": 58823
+    },
+    "commitments": {
+     "after": {
+      "bills_satang": 0,
+      "savings_satang": 200000,
+      "essentials_satang": 500000
+     },
+     "before": {
+      "bills_satang": 0,
+      "savings_satang": 0,
+      "essentials_satang": 500000
+     },
+     "changed": true
+    },
+    "unspent_budget": {
+     "fits": false,
+     "after_satang": 975000,
+     "before_satang": 975000,
+     "money_left_after_satang": 800000
+    }
+   },
+   "summary": {
+    "code": "GOAL_CREATE",
+    "text": "Create goal 'Laptop': save ฿30,000.00 by 2027-01-31."
+   },
+   "warnings": [
+    {
+     "code": "PLAN_EXCEEDS_MONEY_LEFT_AFTER",
+     "text": "Your pocket budgets (฿9,750.00 unspent) would exceed the ฿8,000.00 left after this saving. Reduce pockets after approving.",
+     "params": {
+      "unspent_satang": 975000,
+      "money_left_satang": 800000
+     },
+     "severity": "high"
+    },
+    {
+     "code": "GOAL_CONTRIBUTION_BELOW_REQUIRED",
+     "text": "฿2,000.00 per income is not enough; ฿10,000.00 is needed to reach the target by 2027-01-31.",
+     "params": {
+      "required_per_event_satang": 1000000
+     },
+     "severity": "medium"
+    }
+   ],
+   "created_by": "user",
+   "assumptions": [],
+   "computed_at": "2026-10-15T06:00:00+00:00",
+   "edited_from": null,
+   "uncertainty": [],
+   "not_computed": [],
+   "payload_hash": "sha256:394c5432ad2b734c275628fc15efc71569fbe1eef1ab0c76ca881bd2fa3a51c3",
+   "balance_as_of": "2026-10-15T13:00:00+07:00",
+   "days_until_income": 17
+  },
+  "superseded_by": null,
+  "edited_from": null,
+  "actions": [
+   {
+    "action": "approve",
+    "method": "POST",
+    "path": "/v1/proposals/9d2a1497-3916-45a8-8845-e61af2fcf10f/approve",
+    "body": {
+     "payload_hash": "sha256:394c5432ad2b734c275628fc15efc71569fbe1eef1ab0c76ca881bd2fa3a51c3",
+     "card_hash": "sha256:cd79ae5820b8dfbdf80bf91c020728b9963482f7c00543b9a183cbf9cb40704f"
+    },
+    "requires_header": "Idempotency-Key"
+   },
+   {
+    "action": "edit",
+    "method": "POST",
+    "path": "/v1/proposals/9d2a1497-3916-45a8-8845-e61af2fcf10f/edit",
+    "note": "creates a new proposal with a new card; this one becomes superseded and cannot be approved"
+   },
+   {
+    "action": "cancel",
+    "method": "POST",
+    "path": "/v1/proposals/9d2a1497-3916-45a8-8845-e61af2fcf10f/cancel"
+   }
+  ]
+ },
+ "5_stale_replacement_recomputed": {
+  "original": {
+   "type": "proposal",
+   "proposal_id": "94806728-a6be-4591-afa5-14b9fc923ad2",
+   "kind": "reallocate",
+   "status": "pending",
+   "created_by": "user",
+   "created_at": "2026-10-15T19:01:56.066110+07:00",
+   "expires_at": "2026-10-15T13:30:00+07:00",
+   "decided_at": null,
+   "payload": {
+    "plan_id": "33558cd0-f18c-442a-9887-87d57dac32b5",
+    "to_pocket": "a341d572-8ddd-4541-8ad1-001936c838ea",
+    "from_pocket": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+    "amount_satang": 100000
+   },
+   "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+   "card_hash": "sha256:79508ca65c1737448e18ca8889657f8abb177a1bb0f01a0b314266d0e891f2a9",
+   "card": {
+    "kind": "reallocate",
+    "period": {
+     "start": "2026-10-15",
+     "end_exclusive": "2026-11-01"
+    },
+    "policy": {
+     "status": "provisional product policy for the prototype; not a competition requirement; team to confirm",
+     "version": "card-policy@0.1",
+     "stale_balance_days": 3,
+     "large_move_min_share_of_all_unspent_bps": 2500,
+     "low_remaining_max_share_of_allocation_bps": 1000,
+     "large_move_min_share_of_pocket_remaining_bps": 5000
+    },
+    "schema": "approval-card@1",
+    "changes": [
+     {
+      "name": "Food",
+      "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+      "delta_satang": -100000,
+      "remaining_after_satang": 275000,
+      "spent_confirmed_satang": 25000,
+      "spent_predicted_satang": 0,
+      "allocation_after_satang": 300000,
+      "remaining_before_satang": 375000,
+      "allocation_before_satang": 400000
+     },
+     {
+      "name": "Shopping",
+      "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+      "delta_satang": 100000,
+      "remaining_after_satang": 250000,
+      "spent_confirmed_satang": 0,
+      "spent_predicted_satang": 0,
+      "allocation_after_satang": 250000,
+      "remaining_before_satang": 150000,
+      "allocation_before_satang": 150000
+     }
+    ],
+    "effects": {
+     "goals": {
+      "changed": false,
+      "reason_code": "POCKET_MOVE_DOES_NOT_CHANGE_MONEY_LEFT"
+     },
+     "buffer": {
+      "after_satang": 0,
+      "before_satang": 0
+     },
+     "money_left": {
+      "after_satang": 1000000,
+      "before_satang": 1000000,
+      "daily_allowance_after_satang": 58823,
+      "daily_allowance_before_satang": 58823
+     },
+     "commitments": {
+      "after": {
+       "bills_satang": 0,
+       "savings_satang": 0,
+       "essentials_satang": 500000
+      },
+      "before": {
+       "bills_satang": 0,
+       "savings_satang": 0,
+       "essentials_satang": 500000
+      },
+      "changed": false
+     },
+     "unspent_budget": {
+      "fits": true,
+      "after_satang": 975000,
+      "before_satang": 975000,
+      "money_left_after_satang": 1000000
+     }
+    },
+    "summary": {
+     "code": "REALLOCATE",
+     "text": "Move ฿1,000.00 of budget from Food to Shopping."
+    },
+    "transfer": {
+     "to": {
+      "name": "Shopping",
+      "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+      "remaining_after_satang": 250000,
+      "remaining_before_satang": 150000
+     },
+     "from": {
+      "name": "Food",
+      "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+      "remaining_after_satang": 275000,
+      "remaining_before_satang": 375000
+     },
+     "amount_satang": 100000
+    },
+    "warnings": [],
+    "created_by": "user",
+    "assumptions": [],
+    "computed_at": "2026-10-15T06:00:00+00:00",
+    "edited_from": null,
+    "uncertainty": [],
+    "not_computed": [],
+    "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+    "balance_as_of": "2026-10-15T13:00:00+07:00",
+    "days_until_income": 17
+   },
+   "superseded_by": null,
+   "edited_from": null,
+   "actions": [
+    {
+     "action": "approve",
+     "method": "POST",
+     "path": "/v1/proposals/94806728-a6be-4591-afa5-14b9fc923ad2/approve",
+     "body": {
+      "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+      "card_hash": "sha256:79508ca65c1737448e18ca8889657f8abb177a1bb0f01a0b314266d0e891f2a9"
+     },
+     "requires_header": "Idempotency-Key"
+    },
+    {
+     "action": "edit",
+     "method": "POST",
+     "path": "/v1/proposals/94806728-a6be-4591-afa5-14b9fc923ad2/edit",
+     "note": "creates a new proposal with a new card; this one becomes superseded and cannot be approved"
+    },
+    {
+     "action": "cancel",
+     "method": "POST",
+     "path": "/v1/proposals/94806728-a6be-4591-afa5-14b9fc923ad2/cancel"
+    }
+   ]
+  },
+  "replacement": {
+   "type": "proposal",
+   "proposal_id": "a7a126c6-9231-4c60-a6d0-2b1dcc6b2170",
+   "kind": "reallocate",
+   "status": "pending",
+   "created_by": "user",
+   "created_at": "2026-10-15 19:01:56.123497+07:00",
+   "expires_at": "2026-10-15 13:30:00+07:00",
+   "decided_at": null,
+   "payload": {
+    "plan_id": "33558cd0-f18c-442a-9887-87d57dac32b5",
+    "to_pocket": "a341d572-8ddd-4541-8ad1-001936c838ea",
+    "from_pocket": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+    "amount_satang": 100000
+   },
+   "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+   "card_hash": "sha256:d03a6a0d798874a86bf5138ef400c3dfaacad262885348c8cae91458c182e4c0",
+   "card": {
+    "kind": "reallocate",
+    "period": {
+     "start": "2026-10-15",
+     "end_exclusive": "2026-11-01"
+    },
+    "policy": {
+     "status": "provisional product policy for the prototype; not a competition requirement; team to confirm",
+     "version": "card-policy@0.1",
+     "stale_balance_days": 3,
+     "large_move_min_share_of_all_unspent_bps": 2500,
+     "low_remaining_max_share_of_allocation_bps": 1000,
+     "large_move_min_share_of_pocket_remaining_bps": 5000
+    },
+    "schema": "approval-card@1",
+    "changes": [
+     {
+      "name": "Food",
+      "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+      "delta_satang": -100000,
+      "remaining_after_satang": -25000,
+      "spent_confirmed_satang": 325000,
+      "spent_predicted_satang": 0,
+      "allocation_after_satang": 300000,
+      "remaining_before_satang": 75000,
+      "allocation_before_satang": 400000
+     },
+     {
+      "name": "Shopping",
+      "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+      "delta_satang": 100000,
+      "remaining_after_satang": 250000,
+      "spent_confirmed_satang": 0,
+      "spent_predicted_satang": 0,
+      "allocation_after_satang": 250000,
+      "remaining_before_satang": 150000,
+      "allocation_before_satang": 150000
+     }
+    ],
+    "effects": {
+     "goals": {
+      "changed": false,
+      "reason_code": "POCKET_MOVE_DOES_NOT_CHANGE_MONEY_LEFT"
+     },
+     "buffer": {
+      "after_satang": 0,
+      "before_satang": 0
+     },
+     "money_left": {
+      "after_satang": 700000,
+      "before_satang": 700000,
+      "daily_allowance_after_satang": 41176,
+      "daily_allowance_before_satang": 41176
+     },
+     "commitments": {
+      "after": {
+       "bills_satang": 0,
+       "savings_satang": 0,
+       "essentials_satang": 500000
+      },
+      "before": {
+       "bills_satang": 0,
+       "savings_satang": 0,
+       "essentials_satang": 500000
+      },
+      "changed": false
+     },
+     "unspent_budget": {
+      "fits": true,
+      "after_satang": 700000,
+      "before_satang": 675000,
+      "money_left_after_satang": 700000
+     }
+    },
+    "summary": {
+     "code": "REALLOCATE",
+     "text": "Move ฿1,000.00 of budget from Food to Shopping."
+    },
+    "transfer": {
+     "to": {
+      "name": "Shopping",
+      "pocket_id": "a341d572-8ddd-4541-8ad1-001936c838ea",
+      "remaining_after_satang": 250000,
+      "remaining_before_satang": 150000
+     },
+     "from": {
+      "name": "Food",
+      "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+      "remaining_after_satang": -25000,
+      "remaining_before_satang": 75000
+     },
+     "amount_satang": 100000
+    },
+    "warnings": [
+     {
+      "code": "MOVES_ALL_REMAINING",
+      "text": "Food would have nothing left to spend until your next income (฿750.00 unspent now).",
+      "params": {
+       "pocket": "Food",
+       "pocket_id": "dc734af8-ad62-422e-adbf-ef84afc9c292",
+       "remaining_before_satang": 75000
+      },
+      "severity": "high"
+     }
+    ],
+    "created_by": "user",
+    "assumptions": [],
+    "computed_at": "2026-10-15T06:00:00+00:00",
+    "edited_from": null,
+    "uncertainty": [],
+    "not_computed": [],
+    "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+    "balance_as_of": "2026-10-15T13:00:00+07:00",
+    "days_until_income": 17
+   },
+   "superseded_by": null,
+   "edited_from": null,
+   "actions": [
+    {
+     "action": "approve",
+     "method": "POST",
+     "path": "/v1/proposals/a7a126c6-9231-4c60-a6d0-2b1dcc6b2170/approve",
+     "body": {
+      "payload_hash": "sha256:8289301c3fa14ce0100104a7b6b945c4542d4e97856783c2721e3b58d33fa814",
+      "card_hash": "sha256:d03a6a0d798874a86bf5138ef400c3dfaacad262885348c8cae91458c182e4c0"
+     },
+     "requires_header": "Idempotency-Key"
+    },
+    {
+     "action": "edit",
+     "method": "POST",
+     "path": "/v1/proposals/a7a126c6-9231-4c60-a6d0-2b1dcc6b2170/edit",
+     "note": "creates a new proposal with a new card; this one becomes superseded and cannot be approved"
+    },
+    {
+     "action": "cancel",
+     "method": "POST",
+     "path": "/v1/proposals/a7a126c6-9231-4c60-a6d0-2b1dcc6b2170/cancel"
+    }
+   ]
+  }
+ }
+}

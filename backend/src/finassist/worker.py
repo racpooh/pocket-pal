@@ -32,6 +32,9 @@ def main(poll_s: float = 1.0) -> None:
         raise ConfigError("FINASSIST_WORKER_DATABASE_URL or FINASSIST_DATABASE_URL is required")
     db, storage, _ = Database(url.get_secret_value()), make_storage(s), provider
     logging.basicConfig(level=logging.INFO)
+    from finassist.logsafe import install_redaction
+
+    install_redaction()
     while True:
         with db.connect() as conn:
             outcome = run_once(conn, storage, provider)

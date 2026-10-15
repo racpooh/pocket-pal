@@ -228,10 +228,27 @@ def _purge_object(conn, storage, owner_id, upload_id, key: str) -> bool:
 
 
 def delete_all_imported(conn, storage: LocalStorage, owner_id) -> dict:
-    ids = [r["id"] for r in conn.execute("select id from upload where owner_id=%s and status<>'deleted'", (owner_id,)).fetchall()]
+    """R2.7 /data/delete. Deletes every upload and its records, and retries the image purge of uploads that were
+    deleted earlier but whose stored image is not confirmed gone. Reports pending purges instead of claiming
+    everything is erased. Each upload is its own transaction; a repeated call resumes and is safe."""
+    ids = [r["id"] for r in conn.execute(
+        "select id from upload where owner_id=%s and (status<>'deleted' or object_key is not null) order by created_at, id",
+        (owner_id,)).fetchall()]
+    purge = {"done": 0, "pending_retry": 0, "not_needed": 0}
+    removed, pending_ids = 0, []
     for i in ids:
-        delete_upload(conn, storage, owner_id, i)
-    return {"uploads_deleted": len(ids)}
+        r = delete_upload(conn, storage, owner_id, i)
+        purge[r["image_purge"]] += 1
+        removed += r["records_removed"]
+        if r["image_purge"] == "pending_retry":
+            pending_ids.append(str(i))
+    left = conn.execute("select count(*) n from upload where owner_id=%s and object_key is not null", (owner_id,)).fetchone()["n"]
+    with conn.transaction():
+        audit(conn, owner_id, "user", "data_delete", "user", owner_id,
+              details={"uploads": len(ids), "records_removed": removed, "images_pending": left})
+    return {"uploads_processed": len(ids), "records_removed": removed, "image_purge": purge,
+            "images_pending_purge": left, "pending_upload_ids": pending_ids,
+            "complete": left == 0}
 
 
 # ---------------- worker ----------------

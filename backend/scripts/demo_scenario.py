@@ -121,7 +121,7 @@ def main() -> int:
     call("consent auto-import", "POST", "/consents", A, json={"scope": "auto_import", "version": "v1"}, expect=201)
     # 3. plan
     card = call("suggest plan (T2 proposal)", "POST", "/plan/suggest", A, expect=201)
-    call("approve plan (T3)", "POST", f"/proposals/{card['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": card["payload_hash"]})
+    call("approve plan (T3)", "POST", f"/proposals/{card['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     # 4. imports
     rows = gt_rows()
     pair = next(r for r in rows if any(t.startswith("distinct_same_amount_as") for t in r["group_tags"]))
@@ -154,9 +154,9 @@ def main() -> int:
     chat = call("chat", "POST", "/chat/messages", A, json={"text": "Can I afford a ฿1,500 jacket? If needed, move money from Food."})
     for cd in [x for x in chat.get("cards", []) if x.get("type") == "proposal"]:
         k = str(uuid.uuid4())
-        call("approve agent proposal", "POST", f"/proposals/{cd['proposal_id']}/approve", A, idem=k, json={"payload_hash": cd["payload_hash"]}, expect=(200, 409))
-        call("double-click replay (same key)", "POST", f"/proposals/{cd['proposal_id']}/approve", A, idem=k, json={"payload_hash": cd["payload_hash"]}, expect=(200, 409))
-        call("repeat approval (new key)", "POST", f"/proposals/{cd['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": cd["payload_hash"]}, expect=409)
+        call("approve agent proposal", "POST", f"/proposals/{cd['proposal_id']}/approve", A, idem=k, json={"payload_hash": cd["payload_hash"], "card_hash": cd["card_hash"]}, expect=(200, 409))
+        call("double-click replay (same key)", "POST", f"/proposals/{cd['proposal_id']}/approve", A, idem=k, json={"payload_hash": cd["payload_hash"], "card_hash": cd["card_hash"]}, expect=(200, 409))
+        call("repeat approval (new key)", "POST", f"/proposals/{cd['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": cd["payload_hash"], "card_hash": cd["card_hash"]}, expect=409)
     # 7. security probes
     t0 = next(t for t in call("A's transactions", "GET", "/transactions", A) if t["upload_id"])
     call("B reads A's upload (blocked)", "GET", f"/uploads/{t0['upload_id']}/image", B, expect=404)
@@ -187,7 +187,7 @@ def main() -> int:
 
 def _redact(obj):
     if isinstance(obj, dict):
-        return {k: ("<redacted>" if k in ("token", "payload_hash") else _redact(v)) for k, v in obj.items()}
+        return {k: ("<redacted>" if k in ("token", "payload_hash", "card_hash") else _redact(v)) for k, v in obj.items()}
     if isinstance(obj, list):
         return [_redact(x) for x in obj]
     return obj

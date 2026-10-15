@@ -108,7 +108,7 @@ def main() -> int:
     for name, cats in (("Food", ["food"]), ("Shopping", ["shopping"]), ("Transport", ["transport"]), ("Other", ["other", "bills", "entertainment"])):
         call(f"pocket {name}", "POST", "/pockets", A, json={"name": name, "categories": cats})
     _, card = call("suggest plan", "POST", "/plan/suggest", A)
-    call("user approves plan", "POST", f"/proposals/{card['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": card["payload_hash"]})
+    call("user approves plan", "POST", f"/proposals/{card['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     for i, (amt, cat, payee) in enumerate([(25_000, "food", "Demo Noodle"), (18_000, "food", "Demo Cafe"), (60_000, "shopping", "Demo Mall"),
                                            (4_000, "transport", "MetroLink Transit"), (12_000, None, "ร้านป้าสมาน")]):
         body = {"kind": "expense", "amount_satang": amt, "occurred_date": "2026-10-15", "occurred_at": f"2026-10-15T{14 + i}:00:00+07:00", "payee": payee}
@@ -159,19 +159,19 @@ def main() -> int:
     control("proposal is pending until the user acts", pr["status"] == "pending", {"source": source, "kind": pr["kind"], "created_by": pr["created_by"]})
 
     code_b, _ = call("user B tries to read A's proposal", "GET", f"/proposals/{p['proposal_id']}", B)
-    code_b2, _ = call("user B tries to approve A's proposal", "POST", f"/proposals/{p['proposal_id']}/approve", B, idem=str(uuid.uuid4()), json={"payload_hash": p["payload_hash"]})
+    code_b2, _ = call("user B tries to approve A's proposal", "POST", f"/proposals/{p['proposal_id']}/approve", B, idem=str(uuid.uuid4()), json={"payload_hash": p["payload_hash"], "card_hash": p["card_hash"]})
     control("cross-user read/approve blocked and state unchanged", code_b == 404 and code_b2 == 404 and q("select status from proposal where id=%s", p["proposal_id"])[0]["status"] == "pending",
             {"read": code_b, "approve": code_b2})
 
-    code_m, _ = call("approve with altered hash", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": "sha256:" + "0" * 64})
+    code_m, _ = call("approve with altered hash", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": "sha256:" + "0" * 64, "card_hash": p["card_hash"]})
     control("approval bound to exact payload (altered hash rejected)", code_m == 409 and q("select status from proposal where id=%s", p["proposal_id"])[0]["status"] == "pending", {"status": code_m})
 
     before = allocations()
     key = str(uuid.uuid4())
-    code1, r1 = call("user approves via API", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=key, json={"payload_hash": p["payload_hash"]})
+    code1, r1 = call("user approves via API", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=key, json={"payload_hash": p["payload_hash"], "card_hash": p["card_hash"]})
     after = allocations()
-    code2, r2 = call("double-click replay (same key)", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=key, json={"payload_hash": p["payload_hash"]})
-    code3, _ = call("repeat approval (new key)", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": p["payload_hash"]})
+    code2, r2 = call("double-click replay (same key)", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=key, json={"payload_hash": p["payload_hash"], "card_hash": p["card_hash"]})
+    code3, _ = call("repeat approval (new key)", "POST", f"/proposals/{p['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": p["payload_hash"], "card_hash": p["card_hash"]})
     control("user approval applied once; totals conserved", code1 == 200 and sum(after.values()) == sum(before.values()) and after != before,
             {"before": before, "after": after})
     control("replay returns stored result; repeat rejected; no second effect", code2 == code1 and r2 == r1 and code3 == 409 and allocations() == after,
@@ -188,7 +188,7 @@ def main() -> int:
     call("data changes (new expense)", "POST", "/transactions", A, idem=str(uuid.uuid4()),
          json={"kind": "expense", "amount_satang": 3_000, "occurred_date": "2026-10-15", "occurred_at": "2026-10-15T20:00:00+07:00", "category": "food"})
     before = allocations()
-    code_s, body_s = call("approve stale proposal", "POST", f"/proposals/{sc['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": sc["payload_hash"]})
+    code_s, body_s = call("approve stale proposal", "POST", f"/proposals/{sc['proposal_id']}/approve", A, idem=str(uuid.uuid4()), json={"payload_hash": sc["payload_hash"], "card_hash": sc["card_hash"]})
     control("stale proposal rejected with a replacement; no change applied",
             code_s == 409 and (body_s or {}).get("error", {}).get("code") == "PROPOSAL_STALE" and allocations() == before
             and q("select status from proposal where id=%s", sc["proposal_id"])[0]["status"] == "stale",

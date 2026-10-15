@@ -145,7 +145,7 @@ def run_tool(conn, owner_id, name: str, args: dict, cards: list[dict]) -> dict:
         if name == "propose_tradeoff":
             card = budget.propose_tradeoff(conn, owner_id, _pocket_id(conn, owner_id, a.pocket), _thb(a.increase_thb))
             cards.append(card)
-            return {"proposal_created": card["proposal_id"], "changes": card["changes"], "requires_user_approval": True}
+            return _proposal_result(card)
         if name == "propose_reallocation":
             plan = budget.current_plan(conn, owner_id, core.today_for(core.user_tz(conn, owner_id)))
             if not plan:
@@ -154,11 +154,11 @@ def run_tool(conn, owner_id, name: str, args: dict, cards: list[dict]) -> dict:
                 "plan_id": str(plan["id"]), "from_pocket": _pocket_id(conn, owner_id, a.from_pocket),
                 "to_pocket": _pocket_id(conn, owner_id, a.to_pocket), "amount_satang": _thb(a.amount_thb)}, "agent")
             cards.append(card)
-            return {"proposal_created": card["proposal_id"], "requires_user_approval": True}
+            return _proposal_result(card)
         if name == "propose_budget_plan":
             card = budget.suggest_budget_plan(conn, owner_id)
             cards.append(card)
-            return {"proposal_created": card["proposal_id"], "allocations": card["payload"]["allocations"], "requires_user_approval": True}
+            return _proposal_result(card)
         if name == "propose_goal":
             target, saved = _thb(a.target_thb), (_thb(a.saved_thb) if a.saved_thb else 0)
             f = budget.goal_feasibility(conn, owner_id, target, saved, a.deadline)
@@ -166,19 +166,28 @@ def run_tool(conn, owner_id, name: str, args: dict, cards: list[dict]) -> dict:
                 "name": a.name, "target_satang": target, "saved_satang": saved, "deadline": a.deadline.isoformat(),
                 "contribution_satang_per_period": f["required_per_event_satang"]}, "agent",
                 assumptions=[{"kind": "feasibility", "text": "feasible" if f["feasible"] else "not feasible at current capacity"}])
-            card["feasibility"] = f
             cards.append(card)
-            return {"proposal_created": card["proposal_id"], "feasibility": f, "requires_user_approval": True}
+            return {**_proposal_result(card), "feasibility": f}
     except ApiError as e:
         return {"error": e.code, "message": e.message, "details": e.details}
     return {"error": "unhandled"}
 
 
+def _proposal_result(card: dict) -> dict:
+    """What the model sees of a proposal: the deterministic card's summary, changes and warnings (never computed by
+    the model). The model is told the user must approve in the app."""
+    c = card["card"]
+    return {"proposal_created": card["proposal_id"], "requires_user_approval": True, "summary": c["summary"]["text"],
+            "changes": c.get("changes", []), "warnings": [{"code": w["code"], "text": w["text"]} for w in c["warnings"]],
+            "uncertainty": [u["text"] for u in c["uncertainty"]]}
+
+
 def chat(conn, owner_id, text: str, model: ChatModel) -> dict:
-    keep = core.active_consent(conn, owner_id, "chat_history_retention") is not None
+    grant = core.active_consent(conn, owner_id, "chat_history_retention")
+    keep = grant is not None
     history: list[dict] = []
     if keep:
-        for r in conn.execute("select role,content from chat_message where owner_id=%s order by created_at desc limit 12", (owner_id,)).fetchall()[::-1]:
+        for r in conn.execute("select role,content from chat_message where owner_id=%s order by created_at desc, (role='user') limit 12", (owner_id,)).fetchall()[::-1]:
             if r["role"] in ("user", "assistant") and isinstance(r["content"], dict) and r["content"].get("text"):
                 history.append({"role": r["role"], "content": r["content"]["text"]})
     messages = history + [{"role": "user", "content": text}]
@@ -203,8 +212,13 @@ def chat(conn, owner_id, text: str, model: ChatModel) -> dict:
         messages.append({"role": "user", "content": results})
         reply = turn.text
     with conn.transaction():
-        if keep:
+        # Re-check under a share lock: the model call can take seconds, and a revocation in that window deletes
+        # history (core.revoke_consent takes FOR UPDATE). Without this, the turn would be stored after revocation.
+        now_grant = core.active_consent(conn, owner_id, "chat_history_retention", lock="share")
+        still = keep and now_grant is not None and now_grant["id"] == grant["id"]  # same grant as when the turn started
+        if keep and still:
             conn.execute("insert into chat_message(owner_id,role,content) values (%s,'user',%s)", (owner_id, Jsonb({"text": text})))
             conn.execute("insert into chat_message(owner_id,role,content) values (%s,'assistant',%s)", (owner_id, Jsonb({"text": reply})))
-        audit(conn, owner_id, "agent", "chat_turn", "chat", None, details={"tools": tools_used, "model": model_id, "cards": len(cards)})
+        audit(conn, owner_id, "agent", "chat_turn", "chat", None, details={"tools": tools_used, "model": model_id, "cards": len(cards),
+                                                                    "history_stored": bool(keep and still)})
     return {"reply": reply, "cards": cards, "tools_used": tools_used, "model": model_id}

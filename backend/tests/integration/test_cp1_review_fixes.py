@@ -104,7 +104,7 @@ def test_f1_check_is_repeated_at_approval(client):
     card = u.req("POST", "/proposals", json={"kind": "reallocate", "payload": {"plan_id": plan["plan"]["id"], "from_pocket": u.pockets["Food"],
                                                                              "to_pocket": u.pockets["Shopping"], "amount_satang": 50_000}}).json()
     _spend(u, _pockets(u)["Food"], "food")  # Food fully spent after the proposal was made
-    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]})
+    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     assert r.status_code == 409
     details = r.json()["error"]["details"]
     # Re-checked under lock at approval: the move would now create spendable money → refused, no replacement offered.

@@ -5,10 +5,12 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 import psycopg
 from psycopg.types.json import Jsonb
+from pydantic import BaseModel, Field, ValidationError
 
 from finassist.api.errors import ApiError
 from finassist.domain.classify import is_intermediary, normalize_payee
@@ -215,27 +217,103 @@ def create_manual_txn(conn, owner_id, body: dict) -> tuple[int, dict]:
     return 201, row
 
 
+class _TxnChangesModel(BaseModel):
+    model_config = {"extra": "forbid"}
+    amount_satang: int | None = Field(default=None, gt=0, le=10**12)
+    occurred_date: date | None = None
+    occurred_at: datetime | None = None
+    kind: Literal["expense", "income"] | None = None
+    payment_status: Literal["completed", "pending", "failed"] | None = None
+    payee_display: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=200)
+    category: str | None = Field(default=None, max_length=40)
+
+
+def parse_txn_changes(changes: dict) -> dict:
+    """Typed, closed set of user corrections (R3.2). Values are validated here, not by DB errors."""
+    if not changes:
+        raise ApiError(400, "VALIDATION_FAILED", "No changes given.")
+    try:
+        m = _TxnChangesModel.model_validate(changes)
+    except ValidationError as e:
+        raise ApiError(400, "VALIDATION_FAILED", "Some changes are invalid.",
+                       fields=[{"path": ".".join(map(str, x["loc"])), "issue": x["type"]} for x in e.errors()]) from None
+    out = {k: getattr(m, k) for k in changes}
+    for k in ("amount_satang", "occurred_date", "kind", "payment_status", "category"):
+        if k in out and out[k] is None:
+            raise ApiError(400, "VALIDATION_FAILED", "This field cannot be cleared.", fields=[{"path": k, "issue": "required"}])
+    if out.get("occurred_at") is not None and out["occurred_at"].tzinfo is None:
+        raise ApiError(400, "VALIDATION_FAILED", "occurred_at must include a timezone offset.", fields=[{"path": "occurred_at", "issue": "naive"}])
+    return out
+
+
 def patch_txn(conn, owner_id, txn_id, version: int, changes: dict) -> dict:
-    allowed = {"amount_satang", "occurred_date", "occurred_at", "kind", "payee_display", "description", "payment_status"}
-    bad = set(changes) - allowed
-    if bad:
-        raise ApiError(400, "VALIDATION_FAILED", "Unsupported fields.", fields=[{"path": f, "issue": "not_editable"} for f in sorted(bad)])
+    """R3.2 corrections. Keeps the ledger invariants: refunds never exceed their source (FI-14), transfer legs stay
+    equal and keep their kind (FI-13), a bill-linked payment keeps the amount/kind/status that settled the bill
+    (FI-20/21), occurred_date stays the local date of occurred_at (FI-5). Any change bumps the data watermark, so
+    pending proposals become stale (SI-3)."""
+    ch = parse_txn_changes(changes)
+    tz = user_tz(conn, owner_id)
     with conn.transaction():
-        cur = conn.execute("select version from txn where owner_id=%s and id=%s and deleted_at is null for update", (owner_id, txn_id)).fetchone()
+        lock_owner_ledger(conn, owner_id)
+        cur = conn.execute("""select id,version,kind,amount_satang,occurred_at,occurred_date,refund_of,transfer_group_id,payment_status
+                              from txn where owner_id=%s and id=%s and deleted_at is null for update""", (owner_id, txn_id)).fetchone()
         if not cur:
             raise _nf()
         if cur["version"] != version:
             raise ApiError(409, "VERSION_CONFLICT", "This record changed; reload it.")
-        sets = ", ".join(f"{k}=%s" for k in changes)
-        extra = ", amount_state='confirmed'" if "amount_satang" in changes else ""
-        extra += ", direction_state='confirmed'" if "kind" in changes else ""
-        if "payee_display" in changes:
-            sets += ", payee_key=%s"
-            changes = {**changes, "_pk": normalize_payee(changes["payee_display"])}
-        conn.execute(f"update txn set {sets}{extra}, version=version+1 where owner_id=%s and id=%s",
-                     (*changes.values(), owner_id, txn_id))
+        linked_bill = conn.execute("select bill_id from bill_payment_link where owner_id=%s and txn_id=%s", (owner_id, txn_id)).fetchone()
+        has_refunds = conn.execute("select coalesce(sum(amount_satang),0) s from txn where owner_id=%s and refund_of=%s and deleted_at is null",
+                                   (owner_id, txn_id)).fetchone()["s"]
+        if cur["transfer_group_id"] and ({"amount_satang", "kind"} & set(ch)):
+            raise ApiError(409, "TXN_LINKED", "This is one leg of a transfer; edit the transfer as a whole.", details={"link": "transfer"})
+        if "kind" in ch and ch["kind"] != cur["kind"]:
+            if cur["kind"] not in ("expense", "income") or has_refunds or linked_bill:
+                raise ApiError(409, "TXN_LINKED", "This record's type cannot change while it is linked.",
+                               details={"link": "bill" if linked_bill else ("refund" if has_refunds else cur["kind"])})
+        if linked_bill and (("amount_satang" in ch and ch["amount_satang"] != cur["amount_satang"])
+                            or ch.get("payment_status", "completed") != "completed"):
+            raise ApiError(409, "TXN_LINKED_TO_BILL", "This payment settles a bill; its amount and status must stay as they are.",
+                           details={"bill_id": str(linked_bill["bill_id"])})
+        if "amount_satang" in ch:
+            if has_refunds > ch["amount_satang"]:
+                raise ApiError(400, "VALIDATION_FAILED", "Refunds already recorded exceed the new amount.",
+                               fields=[{"path": "amount_satang", "issue": "below_refunded"}])
+            if cur["refund_of"]:
+                src = conn.execute("select amount_satang from txn where owner_id=%s and id=%s", (owner_id, cur["refund_of"])).fetchone()
+                others = conn.execute("""select coalesce(sum(amount_satang),0) s from txn where owner_id=%s and refund_of=%s
+                                         and id<>%s and deleted_at is null""", (owner_id, cur["refund_of"], txn_id)).fetchone()["s"]
+                if others + ch["amount_satang"] > src["amount_satang"]:
+                    raise ApiError(400, "VALIDATION_FAILED", "Refunds would exceed the original amount.",
+                                   fields=[{"path": "amount_satang", "issue": "refund_exceeds_source"}])
+        if "occurred_at" in ch and ch["occurred_at"] is not None:
+            d = local_date(ch["occurred_at"], tz)
+            if "occurred_date" in ch and ch["occurred_date"] != d:
+                raise ApiError(400, "VALIDATION_FAILED", "occurred_date must be the local date of occurred_at.",
+                               fields=[{"path": "occurred_date", "issue": "inconsistent"}])
+            ch["occurred_date"] = d
+        elif "occurred_date" in ch and "occurred_at" not in ch and cur["occurred_at"] is not None \
+                and local_date(cur["occurred_at"], tz) != ch["occurred_date"]:
+            raise ApiError(400, "VALIDATION_FAILED", "Change the time too (or clear it) when moving a timed record to another day.",
+                           fields=[{"path": "occurred_at", "issue": "inconsistent"}])
+        cols: dict = {}
+        for k, v in ch.items():
+            if k == "category":
+                if not conn.execute("select 1 from category where code=%s", (v,)).fetchone():
+                    raise ApiError(400, "VALIDATION_FAILED", "Unknown category.", fields=[{"path": "category", "issue": "unknown"}])
+                cols.update(category_code=v, category_state="confirmed", category_source="user")
+            elif k == "payee_display":
+                cols.update(payee_display=v, payee_key=normalize_payee(v))
+            else:
+                cols[k] = v
+        if "amount_satang" in ch:
+            cols["amount_state"] = "confirmed"
+        if "kind" in ch:
+            cols["direction_state"] = "confirmed"
+        sets = ", ".join(f"{k}=%s" for k in cols)
+        conn.execute(f"update txn set {sets}, version=version+1 where owner_id=%s and id=%s", (*cols.values(), owner_id, txn_id))
         bump_watermark(conn, owner_id)
-        audit(conn, owner_id, "user", "txn_correct", "txn", txn_id, details={"fields": sorted(k for k in changes if not k.startswith("_"))})
+        audit(conn, owner_id, "user", "txn_correct", "txn", txn_id, details={"fields": sorted(ch)})
     return get_txn(conn, owner_id, txn_id)
 
 

@@ -165,7 +165,7 @@ class User:
 
     def approve_plan(self) -> dict:
         card = self.req("POST", "/plan/suggest").json()
-        r = self.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]})
+        r = self.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
         assert r.status_code == 200, r.text
         return card
 

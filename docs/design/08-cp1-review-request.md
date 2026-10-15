@@ -20,6 +20,7 @@ Scope implemented since CP0 and the points where an independent review is most u
 - Thresholds (`N_MIN`, `P_MIN`, phash distance, recurring tolerance) are placeholders, not tuned.
 
 ## Not covered by any test yet
+(Superseded: CP2 below closes these five gaps; real-model items remain open.)
 `/data/delete` route, `PATCH /transactions` beyond version conflict, `goal_update` proposals, chat history retention on/off, app-level log redaction, real-model extraction and agent runs.
 
 ---
@@ -35,7 +36,7 @@ Scope implemented since CP0 and the points where an independent review is most u
 | Fail closed | Unknown provider or `anthropic` without key → `ConfigError` in API startup, worker and scripts; `fake` must be chosen explicitly; `/chat` returns 503 when no real model is configured. | `tests/unit/test_config_fail_closed.py` (6 passed) |
 | Cost controls | `UsageMeter`: pre-call worst-case check (estimated input + max output) against `FINASSIST_BUDGET_USD` (default $1) including spend recorded by earlier runs in `evidence/usage_ledger.jsonl`; request cap 120; max output 400 (extraction) / 700 (chat); SDK retries 0; non-retryable errors (auth, permission/billing, unknown model, bad request) stop the run. Prices from the official pricing page on 15 Oct: Haiku 5.5 $0.10/$0.50, Sonnet 5.5 $2/$10 per MTok (≤100k-token prompts). | same test file |
 | Model access check | **Blocked in the Cowork VM.** Its egress proxy answers `401 text/plain` to any request carrying `x-api-key` to api.anthropic.com (a bogus key gets the same response; a request without a key reaches Anthropic and gets its JSON 401). Not an Anthropic auth/billing error. No billed call was made; spend so far **$0.00**. We did not try to route around the proxy. | — |
-| Full suite on the owner's machine (Linux VM, Python 3.12.14, Postgres 18.4 via `scripts/local_pg.py`) | 186 passed, 0 failed (two earlier attempts failed on a helper-script bug, kept with NOTE.md) | `evidence/runs/20261015T081812Z-cp1d-device-pg18` |
+| Full suite on the owner's machine (Linux ARM64 (aarch64, glibc 2.35) VM of the Cowork workspace on the owner's Mac — not native macOS; Python 3.12.14, Postgres 18.4 via `scripts/local_pg.py`) | 186 passed, 0 failed (two earlier attempts failed on a helper-script bug, kept with NOTE.md) | `evidence/runs/20261015T081812Z-cp1d-device-pg18` |
 | Full suite in the build sandbox (Python 3.12.3, Postgres 16.15) | 186 passed (one earlier attempt errored because the sandbox Postgres had stopped; NOTE.md) | `evidence/runs/20261015T081619Z-cp1d-cloud-all` |
 | Decision | Run real-model steps from the owner's own terminal: `backend/scripts/run_real_checkpoint.sh` (config → smoke 5 → full 40 → agent demo; stops at first failure). | — |
 | Agent demo script dry run (scripted model, no API) | 14/14 deterministic controls passed: chat changes nothing by itself, no approval by the agent actor (audit), cross-user 404 with state unchanged, altered hash rejected, single application + conserved totals, replay/repeat, exactly one user approval in audit, stale → replacement with no change. **This proves the checks run, not model behaviour.** | `evidence/runs/*-agent-dryrun-scripted/` (uses_mocks: ScriptedChatModel) |
@@ -63,7 +64,7 @@ Real extraction accuracy; real agent behaviour; redacted real slips (not in this
 
 ---
 
-## Results — real-model run by the owner (15 Oct 2026, 16:05–16:08 ICT, owner's Mac, Python 3.13)
+## Results — real-model run by the owner (15 Oct 2026, 16:05–16:08 ICT, owner's own macOS terminal, Python 3.13)
 
 Command: `cd backend && bash scripts/run_real_checkpoint.sh`. Code: no commits; content hash `d3975ace61b9d6a3` (recorded in the manifests). Config: provider `anthropic`; model access check resolved `claude-haiku-5-5` and `claude-sonnet-5-5`; budget $1.00, output caps 400/700, retries 0. Data: synthetic only.
 
@@ -138,7 +139,7 @@ Open review items in the passing runs: 1 receipt link (receipt+slip pair), 2 mis
 Honest reading: on this set the protection against importing the misread date works; the model still misreads that date (v0.2 date accuracy 39/40). The replay proves pipeline behaviour on 40 recorded outputs + 1 simulated case, not general accuracy.
 
 ### Evidence
-Full suite: **202 passed** (`evidence/runs/20261015T093021Z-cp1f-review-fixes`, Postgres 16.15, API/worker under RLS roles). Same suite on the owner's machine VM: **202 passed** (`evidence/runs/20261015T093209Z-cp1f-device-pg18`, Postgres 18.4). New migration: `db/migrations/0003_cp1_review_fixes.sql`.
+Full suite: **202 passed** (`evidence/runs/20261015T093021Z-cp1f-review-fixes`, Postgres 16.15, API/worker under RLS roles). Same suite in the Linux ARM64 (aarch64, glibc 2.35) VM of the Cowork workspace on the owner's Mac — not native macOS: **202 passed** (`evidence/runs/20261015T093209Z-cp1f-device-pg18`, Postgres 18.4). New migration: `db/migrations/0003_cp1_review_fixes.sql`.
 
 ### Still open
 Known false-positive mode of rule #5 (two real payments with near-sequential refs and equal amounts → one review question); real slips; Android client; deployment. The approval card should warn on large reallocations (observed in the agent demo).
@@ -151,12 +152,88 @@ Known false-positive mode of rule #5 (two real payments with near-sequential ref
 |---|---|---|---|
 | R1 [P1] | Raising the buffer with unchanged pockets skipped the money check (e.g. 1,000 available, 1,000 allocated, buffer 0→500 accepted) | The "not worse" shortcut now also requires the same period and a buffer that is not raised; otherwise the full BP-1 check runs with the new buffer | `test_r1_raising_buffer_alone_is_checked` (Codex's example; shrinking a pocket to make room is accepted), `test_r1_period_change_goes_through_full_check` |
 | R2 [P1] | Purge jobs went `dead` after 5 storage failures and nothing retried them; a repeat DELETE returned 404 | Purge has its own policy: never `dead`, capped backoff ≤1 h, `image_purge_overdue` audit every 5 failures. Legacy dead purge jobs are revived by the worker (only when no live job exists for that upload). A repeat `DELETE` is idempotent (200, `repeat: true`) and re-queues + retries the purge | `test_r2_purge_survives_more_than_five_failures` (8 failures → storage recovers → purged), `test_r2_legacy_dead_purge_is_revived_and_repeat_delete_recovers` |
-| R3 [P2] | A job left `running` by a crashed worker was never reclaimed | Migration `0004_job_leases.sql`: `lease_token`. Claim also takes `running` jobs whose lease expired (audited `job_lease_expired`); every worker write (`done`, retry, dead, persist) is conditional on the token; a stale worker writes nothing (`stale_lease`). Extraction crash loops stop at 5 attempts → `dead` + `extract_failed` | `test_r3_crashed_worker_lease_is_reclaimed_and_stale_worker_cannot_write` (one txn, job `done`, attempts 2), `test_r3_crashed_purge_is_reclaimed`, `test_r3_extraction_crash_loop_stops_after_max_attempts` |
+| R3 [P2] | A job left `running` by a crashed worker was never reclaimed | Migration `0004_job_leases.sql`: `lease_token`. Claim also takes `running` jobs whose lease expired (audited `job_lease_expired`); every job-state write by the worker (`done`, retry, dead, extraction persist) is conditional on the token; a stale worker writes nothing (`stale_lease`). **One deliberate exception:** `_purge_object()` (called by the purge worker and directly by `DELETE /uploads/{id}`, which has no lease) closes the purge job by owner+upload, not by token, and clears `object_key` only `WHERE object_key = <the key it deleted>`. This is safe because the purge is idempotent: the store treats a missing object as deleted, so whichever caller confirms the deletion first leaves the same end state, and a second caller's update matches zero rows. A stale purge worker can therefore only ever finish a purge that really happened; it cannot resurrect a key or mark an unfinished purge done. Extraction crash loops stop at 5 attempts → `dead` + `extract_failed` | `test_r3_crashed_worker_lease_is_reclaimed_and_stale_worker_cannot_write` (one txn, job `done`, attempts 2), `test_r3_crashed_purge_is_reclaimed`, `test_r3_extraction_crash_loop_stops_after_max_attempts` |
 
 Also fixed while testing: the stale-lease check originally applied only while the job was `running`, so a stale worker arriving after the job was `done` could overwrite it to `cancelled` — now any token mismatch writes nothing. `delete_upload` now runs in one transaction (it previously released the row lock between the check and the update).
 
 Mutation checks: R1 old shortcut → 2 tests fail; purge dying at 5 → 1 fails; no lease reclaim → 3 fail; no stale-lease check → 1 fails.
 
-Evidence: full suite **209 passed** (`evidence/runs/20261015T094412Z-cp1g-rereview-fixes`, Postgres 16.15; same 209 on the owner's Mac VM, Postgres 18.4: `20261015T094715Z-cp1g-device-pg18`); ledger replay re-run `20261015T094459Z-replay-v02-adv-r2` PASS (28/29 counted once, 0 double counts, total difference 0). No model calls.
+Evidence: full suite **209 passed** (`evidence/runs/20261015T094412Z-cp1g-rereview-fixes`, Postgres 16.15; same 209 in the Linux ARM64 (aarch64, glibc 2.35) VM of the Cowork workspace on the owner's Mac — not native macOS, Postgres 18.4: `20261015T094715Z-cp1g-device-pg18`); ledger replay re-run `20261015T094459Z-replay-v02-adv-r2` PASS (28/29 counted once, 0 double counts, total difference 0). No model calls.
 
 Deferred (agreed): approval-card warning for large reallocations.
+
+
+---
+
+## CP2 — approval card contract + untested gaps (15 Oct 2026, ~19:05 ICT) → please review
+
+Codex accepted R1–R3. This round: (1) wording fixes, (2) backend contract for the approval card, (3) close the gaps
+listed above under "Not covered by any test yet". No deploy, no paid model calls, synthetic data only.
+
+### 1. Wording fixed
+- Every "Postgres 18.4 on the owner's machine" run was in the **Linux ARM64 (aarch64, glibc 2.35) VM of the Cowork workspace on the owner's Mac, not native macOS** (platform string in each manifest). The real-model run (16:05 ICT) was the owner's own macOS terminal; that line now says so.
+- Lease-token scope (R3 row above and `01`): all job-state writes by the worker are token-conditional, **except `_purge_object()`** by design — explained in the R3 row (idempotent delete; key cleared only `WHERE object_key = <deleted key>`).
+
+### 2. Approval card — contract (`05 §5`, invariants FI-31..FI-35 in `02 §8`)
+- Computed by `services/cards.py` (deterministic, no model) when the proposal is inserted; watermark read **before** computing, so a concurrent ledger change → stale at approval.
+- Stored in `proposal.card` + `card_hash` (migration `0005_approval_cards.sql`); trigger `proposal_guard` rejects any change to payload/hashes/card/bases/expiry and any status change out of a final state.
+- Approval body is now `{payload_hash, card_hash}` (both required). Stale approval → 409 with `details.replacement` = full view with a **recomputed** card.
+- `POST /proposals/{id}/edit {payload_hash, payload}` → 201 new proposal (`edited_from`), old → `superseded` in the same transaction. `GET /proposals?status=pending` for reload.
+- Content: summary, per-pocket before/after (allocation, spent confirmed/predicted, remaining), transfer amount and source remaining after, money left / buffer / bills / essentials / savings before/after, unspent vs money left (BP-1 view), goal effects only when computable (otherwise a reason code), warnings, uncertainty, assumptions, `not_computed`, expiry and actions.
+- Warning thresholds `card-policy@0.1` — **provisional product policy, not a competition requirement** (team to confirm): `MOVES_ALL_REMAINING` (left goes from >0 to ≤0, high); `LARGE_MOVE` (≥50 % of the pocket's unspent, or ≥25 % of all unspent, medium); `POCKET_LOW_AFTER` (<10 % of allocation left, medium); `BUFFER_REDUCED`; `GOAL_BECOMES_INFEASIBLE`; `GOAL_CONTRIBUTION_BELOW_REQUIRED`; `PLAN_EXCEEDS_MONEY_LEFT_AFTER` (high); `CAUSES_SHORTAGE` (high); `SUGGESTED_BY_ASSISTANT` (info). Warnings never block approval.
+- Agent: the tool result is a summary of the stored card (summary, changes, warning codes/texts, uncertainty); the model computes none of it.
+
+Example (synthetic, `evidence/runs/20261015T120156Z-card-examples/cards.json`, case 1 — "move all Food to Shopping"; ฿250 food spent at 12:00, before the 13:00 balance entry):
+```json
+{"summary": {"code": "REALLOCATE", "text": "Move ฿3,750.00 of budget from Food to Shopping."},
+ "changes": [
+  {"name": "Food", "allocation_before_satang": 400000, "allocation_after_satang": 25000, "spent_confirmed_satang": 25000,
+   "spent_predicted_satang": 0, "remaining_before_satang": 375000, "remaining_after_satang": 0},
+  {"name": "Shopping", "allocation_before_satang": 150000, "allocation_after_satang": 525000,
+   "remaining_before_satang": 150000, "remaining_after_satang": 525000}],
+ "transfer": {"amount_satang": 375000, "from": {"name": "Food", "remaining_after_satang": 0}},
+ "effects": {"money_left": {"before_satang": 1000000, "after_satang": 1000000},
+             "buffer": {"before_satang": 0, "after_satang": 0},
+             "commitments": {"changed": false, "before": {"bills_satang": 0, "essentials_satang": 500000, "savings_satang": 0}},
+             "unspent_budget": {"before_satang": 975000, "after_satang": 975000, "money_left_after_satang": 1000000, "fits": true},
+             "goals": {"changed": false, "reason_code": "POCKET_MOVE_DOES_NOT_CHANGE_MONEY_LEFT"}},
+ "warnings": [{"code": "MOVES_ALL_REMAINING", "severity": "high",
+               "text": "Food would have nothing left to spend until your next income (฿3,750.00 unspent now)."}],
+ "uncertainty": [], "days_until_income": 17, "policy": {"version": "card-policy@0.1", "status": "provisional product policy …"}}
+```
+Same file: ฿100 top-up (no warnings), edit of case 1 to ฿1,000 (new id, old superseded, old approval 409), goal that over-commits the plan (`PLAN_EXCEEDS_MONEY_LEFT_AFTER`), stale approval with recomputed replacement. 11/11 checks in the manifest.
+
+### 3. Gaps closed (tests in `test_cp2_gaps.py`; each targets a failure path)
+| Gap | What the tests prove | Real defects found and fixed |
+|---|---|---|
+| `/data/delete` + pending purge | store failing → records removed, images still on disk reported `complete:false`, `images_pending_purge`, ids; repeat resumes to `complete:true`; third call no-op; manual entries and other users untouched; audit per call | it skipped uploads already `deleted` but not purged, and returned only a count (could not show "not yet erased") |
+| `goal_update` via proposal | card shows savings/money-left change; nothing changes until approval; applies once; second proposal on old goal version → stale; foreign goal 404; no-op, past deadline, zero target, archived goal rejected | past deadlines and no-op updates were accepted |
+| chat-history retention | off → nothing stored; on → stored and used as history; revoke → deleted and not used; **revocation during the model call → turn not stored**; revoke+re-grant during a call → not stored | the turn was stored after a revocation that happened during the model call; history order was undefined for rows with the same timestamp |
+| `PATCH /transactions` | amount → totals, pocket spent, money left change; pending proposal becomes stale; date across the balance anchor (FI-8) and out of the period; category moves spending between pockets; invalid values → 400 not 500; bill-linked payment keeps amount/status/kind; refund limits both ways; transfer legs locked | values were not validated (negative amount → DB error 500; `kind` could become `transfer_in` without a group or break refund/bill links). Also added: `category` in PATCH (same validation as `/category`) |
+| app-log redaction | unhandled error: client gets no text; log has request id, route, exception type, stack frames; no email, token, bank ref, DSN password or Thai payee name; pattern filter for third-party lines | the 500 handler logged nothing (comment claimed redacted logging); no redaction layer existed |
+
+Mutation checks (each fix removed → its test fails): card-hash check (1 test), immutability trigger (1), edit not superseding (1), stale replacement reusing the old card (1), `MOVES_ALL_REMAINING` rule (3), chat consent re-check (1), `/data/delete` skipping unpurged (1), PATCH bill guard (1), PATCH value validation (2), logging exception messages (1), goal deadline check (1).
+
+### Results
+| Run | Evidence | Result |
+|---|---|---|
+| Full suite, build sandbox (x86_64, Python 3.12.3, Postgres 16.15, API/worker under RLS roles) | `20261015T120215Z-cp2-cards-gaps` | 236 passed (209 + 13 card + 14 gap tests) |
+| Full suite, Linux ARM64 VM on the owner's Mac (Python 3.12.14, Postgres 18.4) | `20261015T120443Z-cp2-device-pg18-arm64` | 236 passed |
+| Card examples (synthetic, no model) | `20261015T120156Z-card-examples` | 11/11 checks |
+| Sandbox API scenario (fake extractor, scripted chat) | `20261015T120158Z-demo-fake-cp2` | 47 steps, 0 unexpected |
+| Agent controls dry run (scripted model) | `20261015T120205Z-agent-dryrun-scripted-cp2` | 14/14 |
+| Ledger replay of recorded real outputs | `20261015T120337Z-replay-v02-adv-cp2` | PASS, unchanged (28/29 counted once, 0 double counts) |
+
+### Limits (not claimed)
+- Test counts measure regression coverage, not competition score or model quality. Extraction is FAKE and chat is SCRIPTED in all suites above.
+- No UI: the card is a backend contract; texts are English templates (Thai copy is a client/UI task).
+- Log redaction is proven for the app's own handlers and the pattern filter; a deployed server's uvicorn/GCP logging config is not verified.
+- `/data/delete` is per-upload transactions (resumable, not atomic across uploads); scope `all` not implemented; GCS not exercised (local store only).
+
+### Decisions for Codex
+1. `card_hash` required on approval (breaking for old clients; all callers updated). OK, or keep it optional?
+2. Warnings non-blocking; goal changes may leave pocket budgets above money left (FI-34, warned `PLAN_EXCEEDS_MONEY_LEFT_AFTER`). Block instead?
+3. Thresholds `card-policy@0.1` above.
+4. Strict watermark staleness still applies: any ledger change stales every pending proposal (card example 5). Acceptable for the demo?
+5. Edit has no Idempotency-Key; a double submit gets 409 with `superseded_by` (the client can follow it). OK?
+6. PATCH on a bill-linked payment rejects amount/status/kind changes (409) instead of unlinking automatically. OK?

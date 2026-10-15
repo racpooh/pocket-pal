@@ -304,6 +304,12 @@ def propose(body: ProposalIn, o=Depends(owner), conn=Depends(_conn)):
     return _out(201, budget.create_proposal(conn, o, body.kind, body.payload, "user"))
 
 
+@router.get("/proposals")
+def list_props(o=Depends(owner), conn=Depends(_conn), status: Literal["pending", "applied", "stale", "superseded", "cancelled", "expired"] | None = None,
+               limit: int = Query(20, ge=1, le=100)):
+    return _out(200, budget.list_proposals(conn, o, status, limit))
+
+
 @router.get("/proposals/{pid}")
 def get_prop(pid: str, o=Depends(owner), conn=Depends(_conn)):
     return _out(200, budget.get_proposal(conn, o, _uuid(pid)))
@@ -312,12 +318,26 @@ def get_prop(pid: str, o=Depends(owner), conn=Depends(_conn)):
 class ApproveIn(BaseModel):
     model_config = {"extra": "forbid"}
     payload_hash: str = Field(max_length=80)
+    card_hash: str = Field(max_length=80)  # binds the approval to the card the user saw (FI-32)
 
 
 @router.post("/proposals/{pid}/approve")
 def approve(pid: str, body: ApproveIn, o=Depends(owner), conn=Depends(_conn), key: str | None = IdemKey):
     p = _uuid(pid)
-    code, resp = idempotent(conn, o, key, f"POST /proposals/{p}/approve", body.model_dump(), lambda c: budget.approve(c, o, p, body.payload_hash))
+    code, resp = idempotent(conn, o, key, f"POST /proposals/{p}/approve", body.model_dump(),
+                            lambda c: budget.approve(c, o, p, body.payload_hash, body.card_hash))
+    return _out(code, resp)
+
+
+class EditIn(BaseModel):
+    model_config = {"extra": "forbid"}
+    payload_hash: str = Field(max_length=80)  # of the proposal being edited
+    payload: dict
+
+
+@router.post("/proposals/{pid}/edit")
+def edit(pid: str, body: EditIn, o=Depends(owner), conn=Depends(_conn)):
+    code, resp = budget.edit_proposal(conn, o, _uuid(pid), body.payload_hash, body.payload)
     return _out(code, resp)
 
 

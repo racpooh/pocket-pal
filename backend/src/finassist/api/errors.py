@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import traceback
 import uuid
 from typing import Any
 
@@ -9,6 +11,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+log = logging.getLogger("finassist.api")
 
 
 class ApiError(Exception):
@@ -65,5 +70,13 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception):
-        # Do not leak exception text (could contain data); log separately with redaction (CP1).
+        # The client gets no exception text. The log line carries the request id, route template, exception type and
+        # stack frames, and still passes through finassist.logsafe redaction on the handler.
+        request_id = getattr(request.state, "request_id", None)
+        route = getattr(request.scope.get("route"), "path", "?")
+        # Exception *messages* are never logged (they can carry row values or free text such as payee names that no
+        # pattern can recognise); the stack frames (file, line, code) are enough to find the bug.
+        frames = "".join(traceback.format_tb(exc.__traceback__))
+        log.error("unhandled request_id=%s method=%s route=%s exc=%s\n%s", request_id, request.method, route,
+                  type(exc).__name__, frames)
         return _envelope(request, 500, "INTERNAL", "Something went wrong.", retryable=True)

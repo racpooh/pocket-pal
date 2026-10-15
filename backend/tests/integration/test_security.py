@@ -46,7 +46,7 @@ def test_sec_own_cross_user_access_is_404_everywhere(client, db, storage, provid
     for method, path, kw in checks:
         r = b.req(method, path, **kw)
         assert r.status_code == 404, (method, path, r.status_code, r.text)
-    r = b.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]})
+    r = b.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     assert r.status_code == 404
     # B's lists never contain A's rows
     assert b.req("GET", "/transactions").json() == []
@@ -86,7 +86,7 @@ def _alloc(u: User, name: str) -> int:
 def test_sec_apr_hash_mismatch_rejected(client):
     u = User(client).onboard()
     card = _realloc_card(u)
-    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": "sha256:" + "0" * 64})
+    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": "sha256:" + "0" * 64, "card_hash": card["card_hash"]})
     assert r.status_code == 409 and r.json()["error"]["code"] == "PROPOSAL_MISMATCH"
 
 
@@ -96,12 +96,12 @@ def test_sec_apr_stale_after_data_change_returns_replacement(client):
     food = _alloc(u, "Food")
     u.req("POST", "/transactions", idem=True, json={"kind": "expense", "amount_satang": 5_000, "occurred_date": "2026-10-15",
                                                      "occurred_at": "2026-10-15T14:00:00+07:00"})
-    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]})
+    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     assert r.status_code == 409 and r.json()["error"]["code"] == "PROPOSAL_STALE"
     assert _alloc(u, "Food") == food
     repl = r.json()["error"]["details"]["replacement_proposal_id"]
     rc = u.req("GET", f"/proposals/{repl}").json()
-    assert u.req("POST", f"/proposals/{repl}/approve", idem=True, json={"payload_hash": rc["payload_hash"]}).status_code == 200
+    assert u.req("POST", f"/proposals/{repl}/approve", idem=True, json={"payload_hash": rc["payload_hash"], "card_hash": rc["card_hash"]}).status_code == 200
     assert _alloc(u, "Food") == food - 10_000
 
 
@@ -109,7 +109,7 @@ def test_sec_apr_expired(client, monkeypatch):
     u = User(client).onboard()
     card = _realloc_card(u)
     monkeypatch.setenv("FINASSIST_FIXED_NOW", "2026-10-15T07:00:00+00:00")  # +60 min > 30 min TTL
-    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]})
+    r = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]})
     assert r.status_code == 410
 
 
@@ -118,13 +118,13 @@ def test_sec_apr_replay_and_repeat(client):
     card = _realloc_card(u)
     food = _alloc(u, "Food")
     key = str(uuid.uuid4())
-    body = {"payload_hash": card["payload_hash"]}
+    body = {"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]}
     r1 = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, key=key, json=body)
     r2 = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, key=key, json=body)  # replay (double click)
     assert r1.status_code == r2.status_code == 200 and r1.json() == r2.json()
     r3 = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json=body)  # new key, same proposal
     assert r3.status_code == 409 and r3.json()["error"]["code"] == "PROPOSAL_ALREADY_APPLIED"
-    r4 = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, key=key, json={"payload_hash": "sha256:" + "1" * 64})
+    r4 = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, key=key, json={"payload_hash": "sha256:" + "1" * 64, "card_hash": card["card_hash"]})
     assert r4.status_code == 422
     assert _alloc(u, "Food") == food - 10_000  # applied exactly once
 
@@ -139,7 +139,7 @@ def test_sec_apr_concurrent_approvals_apply_once(client, app):
 
     def go():
         with TestClient(app) as c:
-            r = c.post(f"/v1/proposals/{card['proposal_id']}/approve", json={"payload_hash": card["payload_hash"]},
+            r = c.post(f"/v1/proposals/{card['proposal_id']}/approve", json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]},
                        headers={**u.h, "Idempotency-Key": str(uuid.uuid4())})
             results.append(r.status_code)
 
@@ -295,7 +295,7 @@ def test_sec_agent_proposes_user_approves(client, db):
         out = agent.chat(conn, u_owner(db, u), "move 100 baht from food to shopping", model)
     card = [c for c in out["cards"] if c["type"] == "proposal"][0]
     assert _alloc(u, "Food") == food  # agent alone changed nothing
-    assert u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"]}).status_code == 200
+    assert u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True, json={"payload_hash": card["payload_hash"], "card_hash": card["card_hash"]}).status_code == 200
     assert _alloc(u, "Food") == food - 10_000
 
 

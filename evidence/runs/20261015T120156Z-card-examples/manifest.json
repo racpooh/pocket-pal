@@ -1,0 +1,60 @@
+{
+  "run_id": "20261015T120156Z-card-examples",
+  "kind": "approval-card examples",
+  "fixed_now": "2026-10-15T06:00:00+00:00",
+  "uses_mocks": [],
+  "model_identifiers": [],
+  "model_calls": 0,
+  "data": "synthetic profile and manual transactions only",
+  "checks": [
+    {
+      "check": "food remaining is ฿3,750 after ฿250 spent",
+      "ok": true
+    },
+    {
+      "check": "card warns MOVES_ALL_REMAINING (high)",
+      "ok": true
+    },
+    {
+      "check": "source remaining after = 0",
+      "ok": true
+    },
+    {
+      "check": "reload returns the identical card and hash",
+      "ok": true
+    },
+    {
+      "check": "card_hash = sha256(canonical card)",
+      "ok": true
+    },
+    {
+      "check": "฿100 top-up has no warnings",
+      "ok": true
+    },
+    {
+      "check": "edit → new id, old superseded",
+      "ok": true
+    },
+    {
+      "check": "old approval cannot apply (409 PROPOSAL_NOT_PENDING)",
+      "ok": true
+    },
+    {
+      "check": "goal card warns PLAN_EXCEEDS_MONEY_LEFT_AFTER",
+      "ok": true
+    },
+    {
+      "check": "stale approval → 409 with recomputed replacement card",
+      "ok": true
+    },
+    {
+      "check": "edited proposal is stale too after new spending (strict watermark)",
+      "ok": true
+    }
+  ],
+  "all_ok": true,
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-6.18.44-fc-v114-x86_64-with-glibc2.39"
+  }
+}
