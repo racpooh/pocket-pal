@@ -89,7 +89,7 @@ See `04-import-and-classification.md`. SQL over the user's own confirmed rows pl
 
 ### 3.8 Proposal → approval → atomic execution
 - `proposal(owner_id, kind, payload jsonb, payload_hash, base_plan_version, base_data_watermark, status, expires_at, created_by)` — created by the agent or by direct user edits.
-- Approve = `POST /proposals/{id}/approve {payload_hash}` + `Idempotency-Key`, authenticated user only. One DB transaction: lock proposal → check owner/status/expiry/hash → check `plan.version == base_plan_version` and `data_watermark == base_data_watermark` → apply → bump version → mark applied → audit. Any mismatch → `409 PROPOSAL_STALE` with a freshly computed replacement proposal.
+- Approve = `POST /proposals/{id}/approve {payload_hash, card_hash}` + `Idempotency-Key`, authenticated user only. One DB transaction: **lock order (Codex CP2 #2): per-owner ledger advisory lock → `owner_watermark` row `FOR UPDATE`** (every ledger writer takes the same advisory lock first and bumps that row in its own transaction, so an uncommitted writer blocks the approval and a later writer waits for it) → lock proposal → check owner/status/expiry/hash → check `plan.version == base_plan_version` and `data_watermark == base_data_watermark` → apply → bump version → mark applied → audit. Any mismatch → `409 PROPOSAL_STALE` with a freshly computed replacement proposal.
 - Edit never mutates a proposal; it creates a new one and supersedes the old.
 
 ### 3.9 Background jobs, retry and audit

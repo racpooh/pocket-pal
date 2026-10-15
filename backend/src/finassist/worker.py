@@ -22,6 +22,19 @@ def build_provider(settings):
     return FakeExtractionProvider()
 
 
+def run_step(db, storage, provider) -> str | None:
+    """One worker iteration. Never raises: errors are logged without exception messages (they may contain slip
+    text or row values) and the loop continues. Used by the standalone worker and the API's embedded worker."""
+    from finassist.logsafe import log_exception
+
+    try:
+        with db.connect() as conn:
+            return run_once(conn, storage, provider)
+    except Exception as e:  # noqa: BLE001 - a worker loop must survive any single job failure
+        log_exception(log, "worker_step_error", e)
+        return None
+
+
 def main(poll_s: float = 1.0) -> None:
     s = get_settings()
     provider = build_provider(s)  # raises ConfigError first if the provider is misconfigured
@@ -36,8 +49,7 @@ def main(poll_s: float = 1.0) -> None:
 
     install_redaction()
     while True:
-        with db.connect() as conn:
-            outcome = run_once(conn, storage, provider)
+        outcome = run_step(db, storage, provider)
         if outcome:
             log.info("job outcome=%s", outcome)  # no ids, amounts or content in logs
         else:

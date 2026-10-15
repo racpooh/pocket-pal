@@ -14,7 +14,7 @@ from finassist.domain import cashflow as cf
 from finassist.domain import goals as goals_d
 from finassist.domain.allocation import Share, allocate_bps, reallocate
 from finassist.domain.ledger import BalanceObservation, Txn, projected_balance, spending
-from finassist.infra import audit, bump_watermark, canonical_json, current_watermark, sha256
+from finassist.infra import audit, bump_watermark, canonical_json, current_watermark, lock_owner_for_approval, sha256
 from finassist.services.core import _nf, now_utc, today_for, user_tz
 
 PROPOSAL_TTL = timedelta(minutes=30)
@@ -413,7 +413,9 @@ def edit_proposal(conn, owner_id, pid, payload_hash: str, new_payload: dict) -> 
 
 
 def approve(conn, owner_id, pid, payload_hash: str, card_hash: str) -> tuple[int, dict]:
-    """T3, user only. Must run inside the idempotency wrapper's transaction."""
+    """T3, user only. Must run inside the idempotency wrapper's transaction. The ledger lock + watermark row lock
+    are taken first and held until commit, so no ledger change can commit between the checks below and _apply."""
+    wm = lock_owner_for_approval(conn, owner_id)
     pr = conn.execute("select * from proposal where owner_id=%s and id=%s for update", (owner_id, pid)).fetchone()
     if not pr:
         raise _nf()
@@ -440,7 +442,7 @@ def approve(conn, owner_id, pid, payload_hash: str, card_hash: str) -> tuple[int
         return 409, _err("PROPOSAL_STALE", "This proposal no longer fits your current budget.", {"reason": e.code})
     stale = (str(base["base_plan_id"]) != str(pr["base_plan_id"]) if (base["base_plan_id"] or pr["base_plan_id"]) else False) \
         or base["base_plan_version"] != pr["base_plan_version"] or base["base_goal_version"] != pr["base_goal_version"] \
-        or current_watermark(conn, owner_id) != pr["base_data_watermark"] or pr["card"] is None
+        or wm != pr["base_data_watermark"] or pr["card"] is None
     if stale:
         conn.execute("update proposal set status='stale', decided_at=%s where id=%s", (now_utc(), pid))
         assumptions = (pr["card"] or {}).get("assumptions", [])

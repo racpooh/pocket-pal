@@ -1,9 +1,9 @@
 # HANDOFF — read this first
 
-## TL;DR (15 Oct 2026, ~19:10 ICT, CP2 — approval-card contract + CP1 gaps closed, waiting for Codex review)
+## TL;DR (15 Oct 2026, ~20:15 ICT, CP2 — Codex CP2 findings #1–#3 fixed, waiting for Codex re-review)
 - Internal acceptance deadline: **16 Oct 2026** (team review). Official submission: 20 Oct 22:59 ICT.
 - Decisions D1–D8 answered (`docs/design/00 §Decisions`). Provider: Anthropic (Haiku extraction, Sonnet chat). Deploy proposal: GCP (not executed).
-- Codex accepted CP1 round-2 fixes (R1–R3). CP2 review request: `docs/design/08` section "CP2".
+- Codex accepted CP1 round-2 fixes (R1–R3) and the CP2 card design; its three CP2 findings (transfer leg status, approval vs concurrent ledger change, worker log messages) are fixed: `docs/design/08` section "Codex CP2 review → fixes". Latest suite `20261015T130541Z-cp2b-review-fixes`: 245 passed; same 245 in the Linux ARM64 VM on the owner's Mac, PG 18.4 (`20261015T130810Z-cp2b-device-pg18-arm64`).
 
 ### Status
 | Area | Implemented | Tested (evidence) | Not verified |
@@ -18,7 +18,7 @@
 All suites use FAKE extraction and SCRIPTED chat; test counts are regression coverage, not a competition score.
 
 ## Next steps
-1. Codex review of `docs/design/08` CP2 (6 decisions listed there). No paid runs needed.
+1. Codex re-review of `docs/design/08` "Codex CP2 review → fixes". No paid runs needed.
 2. Team: confirm card warning thresholds (`card-policy@0.1`) or change them.
 3. After CP2 closes: redacted real slips (D7, private, not in Git), Android client spike, GCP deployment (paid, after approval).
 4. Update `06` and this file after each run.

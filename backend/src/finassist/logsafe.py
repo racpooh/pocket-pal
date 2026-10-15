@@ -48,6 +48,17 @@ class RedactingFilter(logging.Filter):
         return True
 
 
+def log_exception(logger: logging.Logger, event: str, exc: BaseException, **context) -> None:
+    """Log an exception WITHOUT its message: event, context, exception type and stack frames (file, line, code).
+    Messages can carry row values or free text (payee names, OCR text) that no pattern can recognise, so they are
+    never logged by our own code. Context values must be ids or codes, never content."""
+    import traceback
+
+    ctx = " ".join(f"{k}={v}" for k, v in context.items())
+    frames = "".join(traceback.format_tb(exc.__traceback__))
+    logger.error("%s %s exc=%s\n%s", event, ctx, type(exc).__name__, frames)
+
+
 _FILTER = RedactingFilter()
 LOGGERS = ("", "uvicorn", "uvicorn.error", "uvicorn.access", "finassist")
 

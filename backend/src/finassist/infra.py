@@ -97,6 +97,17 @@ def lock_owner_ledger(conn: psycopg.Connection, owner_id) -> None:
     conn.execute("select pg_advisory_xact_lock(hashtextextended(%s::text, 7))", (str(owner_id),))
 
 
+def lock_owner_for_approval(conn: psycopg.Connection, owner_id) -> int:
+    """SI-3 (Codex CP2 #2): make "check proposal against data → apply" a section no ledger change can interleave.
+    Lock order is the same as every ledger writer: (1) the per-owner ledger advisory lock, (2) the owner_watermark
+    row. Every ledger change bumps that row inside its own transaction, so a writer that has not committed holds the
+    row and this call waits for it (then sees the new value → stale); a writer that starts later waits for the
+    approval to commit. Returns the locked watermark value."""
+    lock_owner_ledger(conn, owner_id)
+    conn.execute("insert into owner_watermark(owner_id,value) values (%s,0) on conflict (owner_id) do nothing", (owner_id,))
+    return conn.execute("select value from owner_watermark where owner_id=%s for update", (owner_id,)).fetchone()["value"]
+
+
 def idempotent(conn: psycopg.Connection, owner_id, key: str | None, scope: str, body: Any,
                fn: Callable[[psycopg.Connection], tuple[int, Any]]) -> tuple[int, Any]:
     """SI-4. Runs fn inside one transaction with the idempotency record.

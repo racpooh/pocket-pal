@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import uuid
 
 from fastapi import FastAPI, Request
@@ -69,8 +68,7 @@ def _start_embedded_worker(app: FastAPI, settings: Settings) -> None:
     import threading
     import time
 
-    from finassist.services.imports import run_once
-    from finassist.worker import build_provider
+    from finassist.worker import build_provider, run_step
 
     from finassist.infra import Database
 
@@ -80,13 +78,7 @@ def _start_embedded_worker(app: FastAPI, settings: Settings) -> None:
 
     def loop() -> None:
         while not stop.is_set():
-            try:
-                with worker_db.connect() as conn:
-                    outcome = run_once(conn, app.state.storage, provider)
-            except Exception as e:
-                logging.getLogger("finassist.worker").error("worker loop error exc=%s", type(e).__name__, exc_info=e)
-                outcome = None  # never crash the API
-            if not outcome:
+            if not run_step(worker_db, app.state.storage, provider):  # logs errors without exception messages
                 time.sleep(1.0)
 
     @app.on_event("startup")

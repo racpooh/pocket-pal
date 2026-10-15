@@ -237,3 +237,29 @@ Mutation checks (each fix removed → its test fails): card-hash check (1 test),
 4. Strict watermark staleness still applies: any ledger change stales every pending proposal (card example 5). Acceptable for the demo?
 5. Edit has no Idempotency-Key; a double submit gets 409 with `superseded_by` (the client can follow it). OK?
 6. PATCH on a bill-linked payment rejects amount/status/kind changes (409) instead of unlinking automatically. OK?
+
+
+---
+
+## Codex CP2 review → fixes (15 Oct 2026, ~20:10 ICT)
+
+Codex: card storage, hash binding and edit-as-new-proposal accepted; three findings. Answers to the six decisions
+adopted as proposed (keep `card_hash` required; goal over-commit allowed with a clear warning and never shown as
+balanced; provisional thresholds; strict watermark kept; edit without idempotency key acceptable with
+`superseded_by`; bill-linked payment stays locked).
+
+| # | Finding | Fix | Regression tests (`test_cp2_review_fixes.py`) |
+|---|---|---|---|
+| 1 [P1] | Status of one transfer leg could change alone (`failed` out-leg + `completed` in-leg = money from nowhere); the same held for time changes and deleting one leg | PATCH of `payment_status` / `occurred_at` / `occurred_date` on a leg updates every leg of the group in the same transaction (legs locked by id after the ledger lock); DELETE of a leg deletes the transfer; amount/kind edits stay refused. Migration `0006_transfer_group_consistency.sql`: deferred constraint trigger rejects at commit any transaction that leaves legs different or deletes one alone (any code path) | `test_r1_status_change_on_one_leg_moves_both_and_total_is_unchanged` (balances of both accounts before/after; total unchanged), `test_r1_time_change_on_one_leg_moves_both`, `test_r1_deleting_one_leg_deletes_the_transfer`, `test_r1_database_rejects_a_one_leg_change_from_any_code_path` |
+| 2 [P1] | Approve read the watermark without a lock; a ledger change could commit between the check and `_apply` | `infra.lock_owner_for_approval`: approve first takes the per-owner ledger advisory lock, then `owner_watermark` `FOR UPDATE`, and holds both to commit; the stale check uses the locked value. Every ledger writer bumps that row in its own transaction, so: uncommitted writer → approval waits, then sees the new value → `PROPOSAL_STALE` with a recomputed replacement; writer starting during an approval → waits until it commits. Lock order (ledger lock → rows → watermark) is the same for writers and approvals | two-connection tests with controlled timing: `test_r2_uncommitted_ledger_change_blocks_approval_then_makes_it_stale[manual_expense|bill]` (bills take no advisory lock — covered by the row lock), `test_r2_ledger_change_waits_for_an_approval_in_progress` (approval paused inside `_apply`; writer cannot commit until release; watermark order approve → expense) |
+| 3 [P2] | Embedded worker logged `exc_info` (exception message) | `logsafe.log_exception`: event, ids/codes, exception type and stack frames, never the message. One `worker.run_step` used by both the standalone worker (which previously crashed on a DB error and printed the traceback with message) and the API's embedded worker; the API 500 handler uses the same helper | `test_r3_worker_step_logs_type_and_frames_but_not_the_message` (Thai payee, Thai memo, email, bank ref in the message → none in the log; loop survives), `test_r3_embedded_worker_uses_the_safe_step` |
+
+Mutation checks: no group propagation in PATCH → 2 fail; delete one leg only → 1 fails; trigger removed → 1 fails;
+approval reading the watermark without lock → 3 fail; worker logging `exc_info` → 1 fails. Removing only the
+advisory lock from `lock_owner_for_approval` (keeping the row lock) fails **no** test: the watermark row lock alone
+gives the exclusion; the advisory lock is kept for one lock order across writers and approvals (not proven by a test).
+
+Note on the log test: stack frames include source lines, so a test that raised with a literal message would show it;
+in production the message comes from data, not from the raising line.
+
+Results: full suite **245 passed** (`evidence/runs/20261015T130541Z-cp2b-review-fixes`, x86_64, Python 3.12.3, Postgres 16.15). Same 245 in the Linux ARM64 VM on the owner's Mac (not native macOS), Python 3.12.14, Postgres 18.4: `evidence/runs/20261015T130810Z-cp2b-device-pg18-arm64`. No model calls, no deploy, synthetic data only.

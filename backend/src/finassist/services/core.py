@@ -247,6 +247,9 @@ def parse_txn_changes(changes: dict) -> dict:
     return out
 
 
+TRANSFER_SHARED_FIELDS = ("payment_status", "occurred_at", "occurred_date")
+
+
 def patch_txn(conn, owner_id, txn_id, version: int, changes: dict) -> dict:
     """R3.2 corrections. Keeps the ledger invariants: refunds never exceed their source (FI-14), transfer legs stay
     equal and keep their kind (FI-13), a bill-linked payment keeps the amount/kind/status that settled the bill
@@ -267,6 +270,14 @@ def patch_txn(conn, owner_id, txn_id, version: int, changes: dict) -> dict:
                                    (owner_id, txn_id)).fetchone()["s"]
         if cur["transfer_group_id"] and ({"amount_satang", "kind"} & set(ch)):
             raise ApiError(409, "TXN_LINKED", "This is one leg of a transfer; edit the transfer as a whole.", details={"link": "transfer"})
+        other_legs: list = []
+        if cur["transfer_group_id"]:
+            # Codex CP2 #1: status and time are properties of the transfer, not of one leg. Changing them on one leg
+            # alone would count only the other leg (money appearing from nowhere). Lock the other legs (same order as
+            # any other writer: ledger lock → rows by id) and change them in the same transaction.
+            other_legs = [r["id"] for r in conn.execute(
+                """select id from txn where owner_id=%s and transfer_group_id=%s and id<>%s and deleted_at is null
+                   order by id for update""", (owner_id, cur["transfer_group_id"], txn_id)).fetchall()]
         if "kind" in ch and ch["kind"] != cur["kind"]:
             if cur["kind"] not in ("expense", "income") or has_refunds or linked_bill:
                 raise ApiError(409, "TXN_LINKED", "This record's type cannot change while it is linked.",
@@ -312,21 +323,35 @@ def patch_txn(conn, owner_id, txn_id, version: int, changes: dict) -> dict:
             cols["direction_state"] = "confirmed"
         sets = ", ".join(f"{k}=%s" for k in cols)
         conn.execute(f"update txn set {sets}, version=version+1 where owner_id=%s and id=%s", (*cols.values(), owner_id, txn_id))
+        shared = {k: v for k, v in cols.items() if k in TRANSFER_SHARED_FIELDS}
+        if other_legs and shared:
+            conn.execute(f"update txn set {', '.join(f'{k}=%s' for k in shared)}, version=version+1 where owner_id=%s and id = any(%s)",
+                         (*shared.values(), owner_id, other_legs))
         bump_watermark(conn, owner_id)
-        audit(conn, owner_id, "user", "txn_correct", "txn", txn_id, details={"fields": sorted(ch)})
+        audit(conn, owner_id, "user", "txn_correct", "txn", txn_id,
+              details={"fields": sorted(ch), "transfer_legs_updated": len(other_legs) if shared else 0})
     return get_txn(conn, owner_id, txn_id)
 
 
 def delete_txn(conn, owner_id, txn_id) -> None:
+    """Soft delete. A transfer leg is deleted together with its other leg (Codex CP2 #1: one leg alone would make
+    money appear or vanish)."""
     with conn.transaction():
-        r = conn.execute("update txn set deleted_at=%s, bank_ref_norm=null where owner_id=%s and id=%s and deleted_at is null returning id",
-                         (now_utc(), owner_id, txn_id)).fetchone()
-        if not r:
+        lock_owner_ledger(conn, owner_id)
+        cur = conn.execute("select id,transfer_group_id from txn where owner_id=%s and id=%s and deleted_at is null for update",
+                           (owner_id, txn_id)).fetchone()
+        if not cur:
             raise _nf()
-        conn.execute("delete from bill_payment_link where owner_id=%s and txn_id=%s", (owner_id, txn_id))
+        ids = [txn_id]
+        if cur["transfer_group_id"]:
+            ids += [r["id"] for r in conn.execute("""select id from txn where owner_id=%s and transfer_group_id=%s and id<>%s
+                                                     and deleted_at is null order by id for update""",
+                                                  (owner_id, cur["transfer_group_id"], txn_id)).fetchall()]
+        conn.execute("update txn set deleted_at=%s, bank_ref_norm=null where owner_id=%s and id = any(%s)", (now_utc(), owner_id, ids))
+        conn.execute("delete from bill_payment_link where owner_id=%s and txn_id = any(%s)", (owner_id, ids))
         conn.execute("update bill set status='unpaid' where owner_id=%s and status='paid' and id not in (select bill_id from bill_payment_link where owner_id=%s)", (owner_id, owner_id))
         bump_watermark(conn, owner_id)
-        audit(conn, owner_id, "user", "txn_delete", "txn", txn_id)
+        audit(conn, owner_id, "user", "txn_delete", "txn", txn_id, details={"legs": len(ids)})
 
 
 def set_category(conn, owner_id, txn_id, category: str, set_payee_default: bool) -> dict:
