@@ -1,0 +1,23 @@
+/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/platformdirs/api.py:459: RuntimeDirWarning: XDG_RUNTIME_DIR is not set, falling back to /sessions/rcw-01chrzru2bxushmom3zurhrq/tmp/runtime-1005
+  return Path(self.user_runtime_dir)
+psql: error: connection to server on socket "/sessions/rcw-01chrzru2bxushmom3zurhrq/.cache/finassist/pgdata/.s.PGSQL.5432" failed: Connection refused
+	Is the server running locally and accepting connections on that socket?
+Traceback (most recent call last):
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 112, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 95, in main
+    url = a.database_url or _local_pg()
+                            ^^^^^^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 36, in _local_pg
+    if DEV_DB not in srv.psql("select datname from pg_database;"):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/pixeltable_pgserver/postgres_server.py", line 320, in psql
+    stdout = subprocess.check_output(f'{executable} {self.get_uri()}', input=command.encode(), shell=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/pixeltable_pgserver/pginstall18/bin/psql postgresql://postgres:@/postgres?host=/sessions/rcw-01chrzru2bxushmom3zurhrq/.cache/finassist/pgdata' returned non-zero exit status 2.

@@ -166,6 +166,28 @@ def get_upload(conn, owner_id, upload_id) -> dict:
     return {**row, "extraction": ex, "evidence_of": txn}
 
 
+def retry_upload(conn, owner_id, upload_id) -> dict:
+    """Client 'retry' for an upload whose extraction failed, or that was cancelled by a consent revocation and the
+    user has consented again. Same gates as a new upload: active photo consent and its date range."""
+    with conn.transaction():
+        up = conn.execute("select id,status,captured_at from upload where owner_id=%s and id=%s for update", (owner_id, upload_id)).fetchone()
+        if not up or up["status"] == "deleted":
+            raise _nf()
+        if up["status"] not in ("extract_failed", "cancelled_consent"):
+            raise ApiError(409, "NOT_RETRYABLE", f"This upload is {up['status']}; nothing to retry.", details={"status": up["status"]})
+        grant = core.active_consent(conn, owner_id, "photo_processing", lock="share")
+        if not grant:
+            raise ApiError(403, "CONSENT_REQUIRED", "Allow photo processing first.", details={"scope": "photo_processing"})
+        rng = grant["params"] or {}
+        if up["captured_at"] and rng.get("scan_from") and up["captured_at"].date() < date.fromisoformat(rng["scan_from"]):
+            raise ApiError(403, "OUTSIDE_CONSENTED_RANGE", "This photo is outside the date range you allowed.")
+        conn.execute("update upload set status='received', consent_grant_id=%s where id=%s", (grant["id"], upload_id))
+        conn.execute("""insert into job(owner_id,kind,subject_id,consent_grant_id,run_after) values (%s,'extract',%s,%s,%s)
+                        on conflict do nothing""", (owner_id, upload_id, grant["id"], now_utc()))
+        audit(conn, owner_id, "user", "upload_retry", "upload", upload_id, details={"from": up["status"]})
+    return {"upload_id": str(upload_id), "status": "received"}
+
+
 def read_image(conn, storage: LocalStorage, owner_id, upload_id) -> tuple[bytes, str]:
     row = conn.execute("select object_key,mime from upload where owner_id=%s and id=%s and status<>'deleted' and object_key is not null",
                        (owner_id, upload_id)).fetchone()

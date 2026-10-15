@@ -1,0 +1,73 @@
+/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/platformdirs/api.py:459: RuntimeDirWarning: XDG_RUNTIME_DIR is not set, falling back to /sessions/rcw-01chrzru2bxushmom3zurhrq/tmp/runtime-1005
+  return Path(self.user_runtime_dir)
+/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+========================================================================
+TEST MODE: fake extraction with 39 SYNTHETIC fixtures; no model calls.
+Non-fixture images will fail extraction (extract_failed).
+========================================================================
+INFO:     Started server process [12]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+--- Logging error ---
+Traceback (most recent call last):
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/logging/__init__.py", line 1160, in emit
+    msg = self.format(record)
+          ^^^^^^^^^^^^^^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/logging/__init__.py", line 999, in format
+    return fmt.format(record)
+           ^^^^^^^^^^^^^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/logging/__init__.py", line 706, in format
+    s = self.formatMessage(record)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/uvicorn/logging.py", line 99, in formatMessage
+    (
+TypeError: cannot unpack non-iterable NoneType object
+Call stack:
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 112, in <module>
+    raise SystemExit(main())
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 107, in main
+    uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="info")
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/uvicorn/main.py", line 632, in run
+    server.run()
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/uvicorn/server.py", line 86, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/asyncio/base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/asyncio/base_events.py", line 645, in run_forever
+    self._run_once()
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/asyncio/base_events.py", line 1999, in _run_once
+    handle._run()
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 411, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/applications.py", line 1216, in __call__
+    await super().__call__(scope, receive, send)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/telemetry/_asgi.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/starlette/middleware/base.py", line 204, in __call__
+    await response(scope, wrapped_receive, send)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/starlette/middleware/base.py", line 233, in __call__
+    await send(
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/starlette/middleware/errors.py", line 161, in _send
+    await send(message)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 477, in send
+    self.access_logger.info(
+Message: '127.0.0.1:50666 - "GET /v1/health HTTP/1.1" 200'
+Arguments: None
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [12]

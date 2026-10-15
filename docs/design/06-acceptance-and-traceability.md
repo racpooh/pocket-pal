@@ -4,6 +4,8 @@ Status: **Proposed**. "Status" columns reflect what has actually run (see `evide
 
 Columns: **Implemented** = code exists; **Tested** = a test or eval ran and its evidence id is given; **Not verified** = what no evidence covers yet. `cp2` = suite run `20261015T120215Z-cp2-cards-gaps` (236 passed); `cp2b` = `20261015T130541Z-cp2b-review-fixes` (245 passed, after Codex CP2 review); `cp2c` = `20261015T131509Z-cp2c-transfer-pairs` (248 passed, transfer-pair DB guard). A passing test count is not a competition score.
 
+**Checkpoint status:** CP1 accepted by Codex review; **CP2 accepted by Codex review (15 Oct 2026)** after fixes cp2b/cp2c; CP3a submitted for review (see `09`).
+
 ## 1. Traceability matrix (chain: requirement → design → code → test → evidence)
 
 Evidence: latest suite run `20261015T131509Z-cp2c-transfer-pairs` (248 passed, x86_64, PG 16.15); same 248 in the Linux ARM64 VM on the owner's Mac (not native macOS), PG 18.4: `20261015T131712Z-cp2c-device-pg18-arm64`. Previous: `20261015T130541Z-cp2b-review-fixes` / `20261015T130810Z-cp2b-device-pg18-arm64` (245). Before the CP2 review: `20261015T120215Z-cp2-cards-gaps` (236 passed; API and worker as RLS-restricted roles; Python 3.12.3, Postgres 16.15); same 236 in the Linux ARM64 VM on the owner's Mac (not native macOS), Postgres 18.4: `20261015T120443Z-cp2-device-pg18-arm64`. Earlier: `20261015T094412Z-cp1g-rereview-fixes` (209; device `20261015T094715Z-cp1g-device-pg18`, Postgres 18.4, Linux ARM64 VM). Sandbox scenario `20261015T120158Z-demo-fake-cp2` (47 API steps, 0 unexpected).
@@ -45,6 +47,20 @@ Evidence: latest suite run `20261015T131509Z-cp2c-transfer-pairs` (248 passed, x
 | R10.1–R10.6 storage, satang, balance anchor, linking | FI-1..FI-15 | schema `0001_core.sql`, ledger | `tests/db/*`, `test_projected_balance_anchor_rules`, `test_old_slips_do_not_reduce_balance_again` | yes | pass `cp2`; transfer legs change/delete together + DB trigger (FI-13a): `test_r1_*` in `test_cp2_review_fixes.py`, pass `cp2b`; hard delete / lone leg / group move: `test_r1b_*`, pass `cp2c` | — |
 | R11 gamification (optional) | — | `goals.daily_amount_to_recover` only | — | no | — | optional |
 | DC1 album → import/review → insights E2E | — | — | demo `20261015T072919Z-demo-fake-mocks-rls` covers upload → import/review → plan; album part needs client | partial | demo `20261015T120158Z-demo-fake-cp2` (47 API steps, mocks) | album part (client) |
+
+### 1b. Android client (CP3a) — `cp3a-e2e` = `20261015T134438Z-cp3a-client-e2e-cloud` (client core vs real backend, 22/22 steps; core self-tests 17/17); backend `cp3a-be` = `20261015T134610Z-cp3a-backend` (253 passed, DB enabled, skipped 0). Same in the Linux ARM64 VM on the owner's Mac (PG 18.4): backend `20261015T135038Z-cp3a-backend-device-pg18-arm64` (253), client `20261015T135405Z-cp3a-client-e2e-device-pg18-arm64` (17/17, 22/22)
+
+| Req | Design | Code | Tests | Implemented | Tested (evidence) | Not verified |
+|---|---|---|---|---|---|---|
+| R1.1 sign up / sign in / logout / session expiry (client) | SI-1, `05` | `core/Api.kt`, `app/Storage.kt` (Keystore), `AppState` | `CoreSelfTest` (401 clears token, offline logout), E2E 3–4, 22 | yes | core + E2E pass `cp3a-e2e` | app screens and Keystore on a device |
+| R1.2 financial setup from the app | `05` | `SetupScreen`, `ApiClient.putProfile/addBalance/createPocket`, `GET /v1/pockets` | E2E 5; `test_list_pockets_is_owner_scoped` | yes | pass `cp3a-e2e`, `cp3a-be` | screen on a device |
+| R1.3/R9.6 consent separate from OS permission; auto-import separate | SI-5 | `ConsentScreen`, `UploadQueue` blocks | E2E 6–7, 19, 21; `CoreSelfTest` consent block | yes | pass `cp3a-e2e` | screen on a device; OS permission flow (CP3b) |
+| Manual photo selection (fallback) | `android/README.md` | `UploadScreen` (system Photo Picker, JPEG/PNG ≤ 8 MB, DATE_TAKEN when available) | — | yes | **not run** (no device/emulator here) | Photo Picker on S23 |
+| Upload status, retry, duplicate guard, restart | FI-29, SI-4 | `UploadQueue`, `UploadLabels`, `POST /v1/uploads/{id}/retry` | `CoreSelfTest` (8 queue tests), E2E 8–15, `test_retry_*` | yes | pass `cp3a-e2e`, `cp3a-be` | WorkManager/background (CP3b) |
+| Review: edit and confirm | R2.6 | `ReviewScreen`, `ApiClient.resolveReview` | E2E 16–17, 19 | yes | pass `cp3a-e2e` | screen on a device |
+| Ledger: money left, pockets, unclassified, set category | R4.1, R7.4 | `LedgerScreen` | E2E 18 | yes | API values pass `cp3a-e2e` | screen on a device; pocket budgets need a plan (CP3b approval) |
+| No silent fake provider | SI-8 | `settings.py` (no default; fake only dev/test), `/v1/health.test_mode`, TEST MODE banner | `test_provider_must_be_explicit_and_fake_only_in_dev_test`, `test_health_reports_test_mode`, E2E 1 | yes | pass `cp3a-be`, `cp3a-e2e` | banner on a device |
+| HTTPS-only release | SI-11 | `BaseUrlPolicy`, `network_security_config` (debug override local only) | `CoreSelfTest`, E2E 2 | yes | policy pass `cp3a-e2e` | release build on a device |
 
 Mutation checks (manual, 15 Oct): removing the owner filter in `get_proposal`, the watermark staleness check, or the idempotency hash check each made a test fail. Removing only the proposal row lock did **not** (plan row lock + watermark still serialise); removing all three let 10/20 concurrent approvals apply, which the test caught. Removing only the consent re-check did not fail because revocation also cancels the job; removing both did.
 

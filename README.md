@@ -91,3 +91,7 @@ Regenerate synthetic slips: `uv run --with pillow --with qrcode python tools/syn
 
 ## Submission language
 Per competition rules, submissions are in English. Team discussion may be in Thai.
+
+
+## Android client (CP3a)
+See `android/README.md`: stack decision, build on the Mac, run against `backend/scripts/dev_server.py --provider fake` via `adb reverse`, device checklist.

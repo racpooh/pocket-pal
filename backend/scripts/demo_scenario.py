@@ -70,7 +70,8 @@ def main() -> int:
             ChatTurn("You can afford it if you move ฿500 from Food to Shopping. Approve the card to apply it.", [], True, "scripted"),
         ])
         mocks = ["extraction: FakeExtractionProvider returns ground-truth fields", "chat: ScriptedChatModel (fixed tool sequence)"]
-    app = create_app(Settings(database_url=url, storage_dir=str(storage.root)), db=Database(app_url(url)), storage=storage, chat_model=chat_model)
+    app = create_app(Settings(database_url=url, storage_dir=str(storage.root), model_provider=a.provider,
+                             env="test" if a.provider == "fake" else os.environ.get("FINASSIST_ENV", "dev")), db=Database(app_url(url)), storage=storage, chat_model=chat_model)
     c = TestClient(app)
     log: list[dict] = []
 

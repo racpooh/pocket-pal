@@ -1,0 +1,18 @@
+PASS json roundtrip incl. Thai, escapes, nesting, numbers
+PASS money: THB text → satang like the backend; format back
+PASS base URL policy: release HTTPS only; debug cleartext only to the developer machine
+PASS multipart body has one file part and the captured_at field; filename is generic
+PASS api: 401 clears the stored token; error envelope parsed; no token sent when signed out
+PASS api: manual transaction sends an Idempotency-Key; retrying the action can reuse it
+PASS api: logout clears the token even when the server is unreachable
+PASS api: offline becomes NetworkException, 5xx is retryable, 4xx is not
+PASS queue: same image enqueued twice → one entry, one upload; local copy deleted once sent
+PASS queue: restart after a crash mid-upload re-sends; server duplicate answer → still one record
+PASS queue: transient errors back off, then succeed; repeated runs before the backoff do nothing
+PASS queue: gives up after MAX_ATTEMPTS; manual retry restarts
+PASS queue: CONSENT_REQUIRED blocks the whole queue; nothing is sent until resume
+PASS queue: user pause persists across restart and blocks sending
+PASS queue: session expiry stops sending without burning attempts
+PASS queue: permanent 4xx fails only that image and keeps the local copy for an explicit retry/discard
+PASS queue: refresh follows server status to a terminal state; labels
+17/17 passed

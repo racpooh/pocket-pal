@@ -25,6 +25,7 @@ No `AGENTS.md`, code, git history, tests or evidence existed in the repository b
 | D6 | Date-only slip on the balance date = already reflected in the balance | team |
 | D7 | Redacted real slips may be sent to the provider for evaluation | team |
 | D8 | Self-hosted auth (argon2id + opaque session tokens) | team |
+| D3a | Android client: native Kotlin + Jetpack Compose (+ WorkManager in CP3b), minSdk 26, target 35; shared pure-Kotlin `core` module (rationale: `android/README.md`) | Claude proposal (CP3a), pending team/Codex acceptance |
 | — | **Internal acceptance deadline: 16 Oct 2026** (team review). Official submission remains 20 Oct 22:59 ICT | team |
 
 ## Time reality (checked, not assumed)

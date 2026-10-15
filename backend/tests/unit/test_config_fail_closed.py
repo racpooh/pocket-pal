@@ -54,3 +54,23 @@ def test_meter_blocks_before_overspend(tmp_path):
 def test_meter_refuses_unpriced_model():
     with pytest.raises(BudgetExceeded):
         UsageMeter(budget_usd=1, max_requests=1).check("some-new-model", 1, 1)
+
+
+def test_provider_must_be_explicit_and_fake_only_in_dev_test():
+    """CP3a: no silent fake. Unset provider fails; fake is refused in sandbox/production."""
+    with pytest.raises(ConfigError):
+        _s().require_real_provider()
+    for env in ("sandbox", "production"):
+        with pytest.raises(ConfigError):
+            _s(model_provider="fake", env=env).require_real_provider()
+    for env in ("dev", "test"):
+        _s(model_provider="fake", env=env).require_real_provider()
+
+
+def test_health_reports_test_mode():
+    from fastapi.testclient import TestClient
+
+    from finassist.api.app import create_app
+
+    h = TestClient(create_app(_s(model_provider="fake", env="test"))).get("/v1/health").json()
+    assert h["test_mode"] is True and h["env"] == "test"

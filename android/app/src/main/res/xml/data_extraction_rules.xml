@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nothing leaves the device through cloud backup or device transfer: session, queue and image copies stay local. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" /><exclude domain="file" /><exclude domain="database" /><exclude domain="sharedpref" /><exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" /><exclude domain="file" /><exclude domain="database" /><exclude domain="sharedpref" /><exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

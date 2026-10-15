@@ -229,6 +229,11 @@ class PocketIn(BaseModel):
     categories: list[str] = []
 
 
+@router.get("/pockets")
+def pockets(o=Depends(owner), conn=Depends(_conn)):
+    return _out(200, budget.list_pockets(conn, o))
+
+
 @router.post("/pockets")
 def pocket(body: PocketIn, o=Depends(owner), conn=Depends(_conn)):
     return _out(201, budget.create_pocket(conn, o, body.name, body.categories))
@@ -364,6 +369,11 @@ def uploads(o=Depends(owner), conn=Depends(_conn), status: str | None = None):
 @router.get("/uploads/{uid}")
 def get_upload(uid: str, o=Depends(owner), conn=Depends(_conn)):
     return _out(200, imports.get_upload(conn, o, _uuid(uid)))
+
+
+@router.post("/uploads/{uid}/retry")
+def retry_upload(uid: str, o=Depends(owner), conn=Depends(_conn)):
+    return _out(202, imports.retry_upload(conn, o, _uuid(uid)))
 
 
 @router.get("/uploads/{uid}/image")

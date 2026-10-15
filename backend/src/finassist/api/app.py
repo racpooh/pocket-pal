@@ -23,7 +23,7 @@ def build_chat_model(settings: Settings):
     return None
 
 
-def create_app(settings: Settings | None = None, *, db=None, storage=None, chat_model=None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, db=None, storage=None, chat_model=None, extraction_provider=None) -> FastAPI:
     settings = settings or get_settings()
     from finassist.logsafe import install_redaction
 
@@ -51,20 +51,27 @@ def create_app(settings: Settings | None = None, *, db=None, storage=None, chat_
 
     install_error_handlers(app)
 
+    @app.on_event("startup")
+    def _redact_server_logs() -> None:
+        install_redaction()  # again at startup: uvicorn configures its own handlers after the app is created
+
+    test_mode = settings.model_provider == "fake"
+
     @app.get("/v1/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok", "version": __version__}
+    def health() -> dict:
+        # test_mode lets the client show a visible "TEST MODE: fake extraction" banner (never silent).
+        return {"status": "ok", "version": __version__, "test_mode": test_mode, "env": settings.env}
 
     if db is not None:
         from finassist.api.routes import router
 
         app.include_router(router)
     if settings.embedded_worker and db is not None:
-        _start_embedded_worker(app, settings)
+        _start_embedded_worker(app, settings, extraction_provider)
     return app
 
 
-def _start_embedded_worker(app: FastAPI, settings: Settings) -> None:
+def _start_embedded_worker(app: FastAPI, settings: Settings, extraction_provider=None) -> None:
     import threading
     import time
 
@@ -72,7 +79,13 @@ def _start_embedded_worker(app: FastAPI, settings: Settings) -> None:
 
     from finassist.infra import Database
 
-    provider = build_provider(settings)
+    provider = build_provider(settings)  # fails closed on bad config even when a provider is injected
+    if extraction_provider is not None:  # dev/test only: e.g. a fake provider preloaded with synthetic fixtures
+        if settings.model_provider != "fake":
+            from finassist.settings import ConfigError
+
+            raise ConfigError("an injected extraction provider is only allowed with model_provider=fake")
+        provider = extraction_provider
     worker_db = Database((settings.worker_database_url or settings.database_url).get_secret_value())
     stop = threading.Event()
 
@@ -90,11 +103,11 @@ def _start_embedded_worker(app: FastAPI, settings: Settings) -> None:
         stop.set()
 
 
-def _module_app() -> FastAPI:
-    # `uvicorn finassist.api.app:app` entry point. Import-time construction must not crash tooling that only
-    # imports this module, but a misconfigured real provider must stop a real server: uvicorn imports `app`,
-    # so the ConfigError propagates and the server exits with the message.
-    return create_app()
-
-
-app = _module_app()
+def __getattr__(name: str):
+    """`uvicorn finassist.api.app:app` entry point, built on first access (PEP 562). Importing this module (tests,
+    tooling) does not build an app; serving it does, and a missing/invalid provider config then raises ConfigError
+    and the server exits (fail closed, CP3a: there is no default provider)."""
+    if name == "app":
+        globals()["app"] = create_app()
+        return globals()["app"]
+    raise AttributeError(name)

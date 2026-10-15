@@ -17,6 +17,7 @@ ENV_FILES = (str(BACKEND_DIR / ".env"), str(REPO_ROOT / ".env"))  # later files 
 
 REAL_PROVIDERS = ("anthropic",)
 ALL_PROVIDERS = ("fake",) + REAL_PROVIDERS
+FAKE_ALLOWED_ENVS = ("dev", "test")
 
 
 class ConfigError(RuntimeError):
@@ -26,14 +27,14 @@ class ConfigError(RuntimeError):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FINASSIST_", env_file=ENV_FILES, env_file_encoding="utf-8", extra="ignore")
 
-    env: str = "dev"  # dev | test | sandbox
+    env: str = "dev"  # dev | test | sandbox | production; the fake provider is refused outside dev/test
     database_url: SecretStr | None = None  # API role (RLS enforced)
     worker_database_url: SecretStr | None = None  # worker role (finassist_worker membership); falls back to database_url
     storage_dir: str = "./var/uploads"  # dev only; deployed builds use a private bucket (D4)
     storage_backend: str = "local"  # local | gcs
     gcs_bucket: str | None = None
     embedded_worker: bool = False  # run the job loop inside the API process (single Cloud Run service)
-    model_provider: str = "fake"  # fake | anthropic (D2)
+    model_provider: str | None = None  # fake | anthropic (D2). No default: must be chosen explicitly (CP3a)
     extraction_model: str = "claude-haiku-5-5"
     chat_model: str = "claude-sonnet-5-5"
     model_api_key: SecretStr | None = None
@@ -47,6 +48,10 @@ class Settings(BaseSettings):
 
     def require_real_provider(self) -> None:
         """Fail closed: if a real provider is requested, every piece must be present."""
+        if self.model_provider is None:
+            raise ConfigError("FINASSIST_MODEL_PROVIDER is not set; choose 'anthropic', or 'fake' for dev/test only")
+        if self.model_provider == "fake" and self.env not in FAKE_ALLOWED_ENVS:
+            raise ConfigError(f"the fake provider is a test double and is refused in FINASSIST_ENV={self.env!r}")
         if self.model_provider not in ALL_PROVIDERS:
             raise ConfigError(f"unknown FINASSIST_MODEL_PROVIDER={self.model_provider!r}; expected one of {ALL_PROVIDERS}")
         if self.model_provider in REAL_PROVIDERS:
@@ -58,7 +63,7 @@ class Settings(BaseSettings):
     def describe(self) -> dict:
         """Non-secret summary for evidence manifests."""
         key = self.model_api_key.get_secret_value() if self.model_api_key else ""
-        return {"model_provider": self.model_provider, "extraction_model": self.extraction_model, "chat_model": self.chat_model,
+        return {"env": self.env, "model_provider": self.model_provider, "extraction_model": self.extraction_model, "chat_model": self.chat_model,
                 "api_key_present": bool(key), "budget_usd": self.budget_usd, "max_model_requests": self.max_model_requests,
                 "extraction_max_output_tokens": self.extraction_max_output_tokens, "chat_max_output_tokens": self.chat_max_output_tokens,
                 "env_files_considered": [f for f in ENV_FILES if Path(f).exists()]}

@@ -1,0 +1,2 @@
+Error: LinkageError occurred while loading main class dev.finassist.core.CoreSelfTest
+	java.lang.UnsupportedClassVersionError: dev/finassist/core/CoreSelfTest has been compiled by a more recent version of the Java Runtime (class file version 61.0), this version of the Java Runtime only recognizes class file versions up to 55.0

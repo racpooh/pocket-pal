@@ -145,6 +145,15 @@ def affordability(conn, owner_id, amount_satang: int) -> dict:
 
 # ---------------- pockets ----------------
 
+def list_pockets(conn, owner_id) -> list[dict]:
+    rows = conn.execute("""select p.id, p.name, coalesce(array_agg(m.category_code order by m.category_code)
+                                  filter (where m.category_code is not null), '{}') categories
+                           from pocket p left join pocket_category_map m on m.pocket_id=p.id and m.owner_id=p.owner_id
+                           where p.owner_id=%s and p.archived_at is null group by p.id, p.name, p.sort_key
+                           order by p.sort_key, p.name""", (owner_id,)).fetchall()
+    return [{"pocket_id": str(r["id"]), "name": r["name"], "categories": list(r["categories"])} for r in rows]
+
+
 def create_pocket(conn, owner_id, name: str, categories: list[str]) -> dict:
     with conn.transaction():
         p = conn.execute("insert into pocket(owner_id,name) values (%s,%s) returning id,name", (owner_id, name)).fetchone()

@@ -60,7 +60,21 @@ Concretely:
 - Revoke from the same screen with one action; API `DELETE /v1/consents/{scope}`.
 - Retention defaults (proposed, team to confirm): uploaded images deleted 30 days after the record is confirmed or on request; extracted fields kept with the transaction; chat history 90 days unless consent removed; audit events 1 year without image content.
 - Deletion requests produce an audit event and a purge job; backups expire per provider retention (disclosed).
-- On-device filtering is a client responsibility; the backend rejects uploads without an active `photo_processing` grant whose date range covers the image's capture date.
+- On-device filtering is a client responsibility; the backend rejects uploads without an active `photo_processing` grant whose date range covers the image's capture date. **Gap (CP3a):** when the client sends no `captured_at` (a manually picked photo whose provider exposes no date), the range check cannot apply; the user picked that photo explicitly. Album scanning (CP3b) always sends the date.
+
+## 6. Android client (CP3a) — controls and what is proven
+
+| Control | Implementation | Evidence |
+|---|---|---|
+| Model key stays server-side | client has only the backend base URL | code (`android/app`), no key setting exists |
+| Fake extraction never silent | backend has **no default provider** (unset → `ConfigError`); `fake` refused outside `FINASSIST_ENV=dev|test`; `/v1/health` reports `test_mode`; app shows a TEST MODE banner | `test_provider_must_be_explicit_and_fake_only_in_dev_test`, `test_health_reports_test_mode`; E2E step 1 |
+| HTTPS in release | `BaseUrlPolicy` refuses `http://` in release and any non-local `http://` in debug; `network_security_config` cleartext off (debug override: 127.0.0.1/localhost/10.0.2.2 only); redirects not followed | `CoreSelfTest` "base URL policy"; E2E step 2; config files (not run on a device yet) |
+| Session at rest | Android Keystore AES-256-GCM; ciphertext in private prefs; backup/transfer excluded | code only — **not run on a device yet** |
+| Session expiry / logout | 401 clears the token and returns to sign-in; logout revokes server-side and clears the local token even offline; old token afterwards → `SESSION_EXPIRED` | `CoreSelfTest` (2 tests); E2E last step |
+| Consent separation | OS permission (none needed for Photo Picker in CP3a), photo processing, auto-import are three separate controls; queue blocks on `CONSENT_REQUIRED` and after withdrawal | `CoreSelfTest` queue tests; E2E steps 6–7, 21 |
+| Exactly-once upload intent | content hash per image; state persisted before each send; restart re-sends → server answers `duplicate_image` | `CoreSelfTest` (dedup, crash/restart); E2E steps 8–10, 14 |
+| No images/personal data in repo/evidence | images only in app-private storage until confirmed; evidence contains steps and statuses, never images, tokens or e-mails | evidence folder checked by grep (0 tokens/e-mails) |
+| Upload retry after server failure | `POST /v1/uploads/{id}/retry`: only from `extract_failed`/`cancelled_consent`, same consent + date-range gates, one live job | `test_retry_*` (backend) ; E2E step 15 |
 
 ## 5. References (checked 15 Oct 2026)
 
