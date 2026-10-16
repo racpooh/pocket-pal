@@ -203,3 +203,50 @@ Claim limits:
   empty) **before** freezing; this is allowed because no model output for r2 exists yet.
 - Then `check --freeze` writes `freeze.json`, the hashes of labels, selection, prompt, tool schema, parser modules and
   harness. `run` refuses without it, or if any hash changed.
+
+## 6. Round r2 — unseen pilot set (16 Oct 2026, ~19:03 ICT)
+
+- **Setup:**
+  - 5 new images (no SHA-256 overlap with r1, no GPS metadata).
+  - Labels written by the owner before any r2 model output existed; bank_ref fixed to printed references before
+    the freeze.
+  - `freeze.json` written 11:59:24Z.
+  - Extraction `20261016T115933Z-real-slip-r2-extract`, run on the owner's Mac.
+- **Freeze check at score time:** every frozen hash is unchanged (labels, selection, prompt, tool schema, parser
+  modules, harness), and `run.json` carries the same freeze.
+- **Scoring** (`20261016T120301Z-real-slip-r2-score`): run in the owner's Cowork VM on the local private files, with
+  the replay in the separate `realeval` profile. No image was copied to the cloud, no model call was made and the
+  dev DB was not touched.
+
+| | R1 (revised labels v2, written after seeing output) | **R2 (blind labels, unseen set)** |
+|---|---|---|
+| doc_type / amount / date / time / direction / status | 5/5 each | 5/5 each |
+| counterparty exact / contains | 4/5 / 5/5 | 5/5 / 5/5 |
+| bank_ref | not measured (n=0) | **0/5: unresolved, see below** |
+| auto-import right / wrong (unsafe) / review | 5 / 0 / 0 | 5 / 0 / 0 |
+| ledger counted once / double / wrong value / missed silently | 5 / 0 / 0 / 0 | 5 / 0 / 0 / 0 |
+| exact re-upload flagged; simulated near-duplicate not double counted | yes; yes | yes; yes |
+| latency p50 / max | 2.0 s / 2.5 s | 1.9 s / 2.4 s |
+| provider errors | 0 | 0 |
+| estimated cost (token counts × list price; not an invoice) | $0.0019 | $0.0019 |
+
+**bank_ref 0/5 in r2 — baseline kept, cause not yet known.** Looking only at the shapes of the strings (no image was
+viewed):
+- Three references differ at one position, letter versus digit. In one of the three the lengths also differ by one
+  character.
+- Two look like different numbers on the slip: either the model or the label took another reference.
+
+In r1, an image check found the same letter-versus-digit pattern and the model was right there. That is **not** evidence
+for r2. The owner checks on the Mac using the private side-by-side sheet `eval/private/real-r2/REF-CHECK.md`.
+`labels.csv` stays frozen; any correction becomes a separate, labelled revision.
+
+Impact on the ledger: none in this run. A reference is not a critical field. For a later duplicate whose reference
+differs by one character, `refs_similar` (edit distance) sends it to review instead of counting it twice
+(existing tests).
+
+Fix proposals, **after** the owner's check and not implemented:
+- if the label is right: consider a prompt rule for multi-reference slips;
+- if letter/digit confusion is common: add a separate scored metric "reference equal up to O/0, I/1"; do not change
+  dedup or the exact metric.
+
+Limits: 10 images in total, one owner, a few apps. These are pilots and do not support an accuracy claim.
