@@ -88,3 +88,57 @@ Limits: 5 images give counts, not rates; one owner's banks only; nothing here is
   Both stops are recorded privately (`eval/private/real-r1/runs/*/STOPPED.txt`). No public run exists.
 - Next: the owner runs `run` once on the Mac (direct network). Claude then runs `score` (offline, $0) in the VM and
   reports the result.
+
+## 4. Round r1 — extraction done (16 Oct 2026, ~18:01 ICT) and follow-up
+
+Extraction: `20261016T110123Z-real-slip-r1-extract` (private), run by the owner on the Mac after the two VM attempts
+above. 5 requests, 0 provider errors, 11,343 input + 1,499 output tokens.
+- **Estimated cost $0.0019**, computed from the returned token counts × list price. **This is not an invoice amount.**
+- The labels were frozen before the call (sha256 49566c52…); `labels_changed_after_model_run = false`.
+- The public usage-ledger line had `cost_usd: null` because the harness wrote the wrong summary key. This is fixed,
+  and a correction line has been appended (the original line is not edited). The budget reader now treats null as 0
+  instead of crashing.
+
+Three scorings of the **same recorded outputs** (no second model call). All aggregate only, each with a NOTE.md:
+
+| Result (5 slips, pilot) | `…110237Z` baseline (Codex, no pipeline) | `…110650Z` baseline + replay | `…110739Z` after date-parser fix + replay |
+|---|---|---|---|
+| doc_type / amount / direction / status correct | 5 / 5 / 5 / 5 | same | same |
+| date correct | 1 | 1 | **5** |
+| read right → auto-imported | 1 | 1 | **5** |
+| read wrong but sent to review | 4 (parser, not model) | 4 | 0 |
+| read wrong and auto-imported (unsafe) | 0 | 0 | 0 |
+| ledger: counted once / double / wrong value / missed silently | — | 1 / 0 / 0 / 0 (4 held in review) | **5 / 0 / 0 / 0** |
+| exact re-upload flagged; simulated near-duplicate not double counted | — | yes; yes | yes; yes |
+
+**Fix 1: date parser.** The model returned `DD Mon YYYY HH:MM` in English and the date was right, but
+`parse_thai_date` knew only Thai month names, so 4/5 dates failed. Those items went to review: safe, but wrong.
+- Added English month names, accepted in both day-first and month-first order.
+- New tests in `tests/unit/test_classify_dedup_validation.py`:
+  - 8 date forms, including a trailing time;
+  - unknown month words still fail;
+  - an English-date slip is auto-import eligible.
+- Backend suite: 269 passed, skipped 0 (`20261016T110910Z-r1-dateparser-backend-device-pg18-arm64`).
+- Not fixed: `parse_time` ignores AM/PM. This was not seen in r1 and is noted for later.
+
+**bank_ref 0/5, counterparty 1/2, time 4/5 — these are label defects, not model errors.** They were checked against
+two of the images (staged to the cloud workspace only for this check, then deleted) and the private outputs. Per-image
+details are in the private log; this file only lists the kinds of defect:
+1. The labels lost every Thai character at entry: all are "_", in both the original and the date-converted file. This
+   makes the one counterparty "miss" a label artefact, and three counterparties became empty, so they were not scored.
+2. The bank_ref column holds the app name; the reference itself was put in notes.
+3. A transcription difference in the owner's notes reference: the digit zero where the image prints the letter o.
+4. One time label has two digits swapped compared with the image.
+
+In the checked images, the model's reference, counterparty and time equal the printed text. No normalisation or mapping
+bug was found (`normalize_ref` upper-cases, so `o` = `O`).
+
+Labels v1 are **not** edited. The issues and reasons are in the private file `eval/private/real-r1/LABEL-ISSUES-v1.md`.
+- The owner writes `labels.v2.csv` from the images, in UTF-8.
+- `score --labels labels.v2.csv` reports it as a corrected version, `is_frozen_version: false`.
+- Manifests now also carry the validation-code and harness hashes.
+
+Limits: 5 images, one owner, two apps. This is a pilot: counts, not accuracy rates.
+
+Change to the privacy note in §2: Claude viewed two real images for this check. The owner asked for it ("ตรวจภาพ").
+They were staged into the cloud workspace and removed after viewing. Nothing went to Git or public evidence.

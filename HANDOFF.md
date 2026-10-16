@@ -1,6 +1,7 @@
 # HANDOFF — read this first
 
-## TL;DR (16 Oct 2026, ~18:00 ICT — pocket-pal integration mapping ready for Codex (`docs/design/13`, nothing implemented); real-slip r1 baseline NOT run: the VM proxy blocks the API, owner to run `run` on the Mac)
+## TL;DR (16 Oct 2026, ~18:15 ICT — real-slip r1 extraction DONE (5 calls, est. $0.0019, not an invoice); date-parser fix → 5/5 auto-imported correctly in replay; label v1 defects found (Thai lost, bank_ref column); pocket-pal mapping waiting for Codex (`13`))
+- **Real-slip r1:** `docs/design/12` §4. Baseline replay `20261016T110650Z-real-slip-r1-score` (1 counted, 4 held in review because of the parser); after fix `20261016T110739Z-real-slip-r1-score` (5/5 counted once, 0 unsafe, 0 double). Backend 269 passed `20261016T110910Z-r1-dateparser-backend-device-pg18-arm64`. Owner to write labels.v2.csv (UTF-8) from the images.
 - **Environment isolation + real-slip eval:** `docs/design/12-real-slip-eval.md`. Profiles dev (phone) / e2e / test / realeval each have their own cluster, DB, roles, storage, port (`backend/scripts/local_envs.py`; `dev_server.py --profile` now required). Evidence: isolation 15/15 `20261016T082236Z-env-isolation-device-pg18-arm64`; backend 257 passed, skipped 0 `20261016T083337Z-env-isolation-backend-device-pg18-arm64`; harness self-test `20261016T083101Z-real-slip-harness-selftest`. Real round r1 (5 images) prepared in `eval/private/real-r1/` (gitignored); needs owner labels + approval to send to Anthropic ($0.10 cap).
 - Internal acceptance deadline: **16 Oct 2026** (team review). Official submission: 20 Oct 22:59 ICT.
 - **CP2 accepted by Codex review** (after cp2b/cp2c fixes). CP3a review request + fixes: `docs/design/09-cp3a-review-request.md`. D3a (Kotlin/Compose) accepted by Codex.

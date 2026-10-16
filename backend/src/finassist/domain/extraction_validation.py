@@ -22,6 +22,13 @@ _THAI_MONTHS = {
     "มกราคม": 1, "กุมภาพันธ์": 2, "มีนาคม": 3, "เมษายน": 4, "พฤษภาคม": 5, "มิถุนายน": 6,
     "กรกฎาคม": 7, "สิงหาคม": 8, "กันยายน": 9, "ตุลาคม": 10, "พฤศจิกายน": 11, "ธันวาคม": 12,
 }
+# English month names as printed by bank apps in English mode ("16 Oct 2026", "Oct 16, 2026"). Added after the
+# real-slip r1 pilot (16 Oct 2026): 4/5 dates were read correctly by the model but this parser had no English months.
+_EN_MONTHS = {m: i for i, names in enumerate(
+    [("jan", "january"), ("feb", "february"), ("mar", "march"), ("apr", "april"), ("may",), ("jun", "june"),
+     ("jul", "july"), ("aug", "august"), ("sep", "sept", "september"), ("oct", "october"), ("nov", "november"),
+     ("dec", "december")], start=1) for m in names}
+_EN_MONTH_FIRST = re.compile(r"\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{2,4})\b")
 _THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
 _THAI_DATE = re.compile(r"(\d{1,2})\s*(\S+?)\s*(\d{2,4})")
 _NUMERIC_DATE = re.compile(r"\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\b")
@@ -48,6 +55,12 @@ def parse_thai_date(text: str) -> date:
         d, mo, y = (int(g) for g in n.groups())
         return date(_year(y), mo, d)
     m = _THAI_DATE.search(s)
+    mf = _EN_MONTH_FIRST.search(s)
+    day_first_month = m and (m.group(2) in _THAI_MONTHS or m.group(2).rstrip(".,").lower() in _EN_MONTHS
+                             or any(k.rstrip(".") == m.group(2).rstrip(".") for k in _THAI_MONTHS))
+    if not day_first_month and mf and mf.group(1).lower() in _EN_MONTHS:  # "Oct 16, 2026" only if day-first fails
+        mon, d, y = mf.groups()
+        return date(_year(int(y)), _EN_MONTHS[mon.lower()], int(d))
     if not m:
         raise ValueError(f"unrecognised date {text!r}")
     d, mon, y = m.groups()
@@ -55,6 +68,8 @@ def parse_thai_date(text: str) -> date:
     if month is None:
         mon_clean = mon.rstrip(".")
         month = next((v for k, v in _THAI_MONTHS.items() if k.rstrip(".") == mon_clean), None)
+    if month is None:
+        month = _EN_MONTHS.get(mon.rstrip(".,").lower())
     if month is None and mon.isdigit():
         month = int(mon)
     if month is None:

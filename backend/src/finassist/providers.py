@@ -84,7 +84,7 @@ class UsageMeter:
 
         if self.ledger_path and os.path.exists(self.ledger_path):
             with open(self.ledger_path, encoding="utf-8") as f:
-                self.prior_cost_usd = sum(json.loads(x).get("cost_usd", 0.0) for x in f if x.strip())
+                self.prior_cost_usd = sum(json.loads(x).get("cost_usd") or 0.0 for x in f if x.strip())  # null = unknown, never a crash
 
     @staticmethod
     def price(model: str) -> tuple[float, float]:

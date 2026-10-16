@@ -110,6 +110,26 @@ def _raw(**kw):
     return r
 
 
+@pytest.mark.parametrize("text", ["16 Oct 2026", "16 Oct 2026 14:30", "16 Oct. 2026 14:30:05", "16 October 2026",
+                                  "16 OCT 26 09:05", "Oct 16, 2026", "October 16 2026 8:15 PM", "16 ต.ค. 2569 14:30 น."])
+def test_english_and_timestamped_dates(text):
+    """Regression (real-slip r1, 16 Oct 2026): bank apps in English print 'DD Mon YYYY HH:MM'; the parser returned None."""
+    assert parse_thai_date(text) == date(2026, 10, 16)
+
+
+@pytest.mark.parametrize("text", ["16 Foo 2026", "Monday 2026", "16 Octember 2026"])
+def test_unknown_month_words_still_fail(text):
+    with pytest.raises(ValueError):
+        parse_thai_date(text)
+
+
+def test_english_date_slip_is_auto_import_eligible():
+    raw = {"doc_type": "transfer_out", "amount_text": "120.00", "date_text": "16 Oct 2026 14:30", "time_text": "14:30",
+           "status": "success", "payee": "Shop", "bank_ref": "REF123", "readability": "clear"}
+    v = validate(raw, captured_at=datetime(2026, 10, 16, 15, 0, tzinfo=ZoneInfo("Asia/Bangkok")), scan_from=None, scan_to=None)
+    assert v.occurred_date == date(2026, 10, 16) and v.field_states["occurred"] == "ok" and v.critical_ok
+
+
 def test_valid_slip():
     v = validate(_raw(), captured_at=CAP, scan_from=date(2026, 10, 1), scan_to=date(2026, 10, 31))
     assert v.critical_ok and v.amount_satang == 1_000 and v.kind == "expense"

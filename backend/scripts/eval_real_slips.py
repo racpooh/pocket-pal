@@ -120,8 +120,10 @@ def captured_at_of(meta: dict) -> datetime | None:
 
 # ---------------------------------------------------------------- labels
 
-def read_labels(d: Path, ids: list[str]) -> tuple[dict[str, dict], list[str]]:
-    p = d / "labels.csv"
+def read_labels(d: Path, ids: list[str], name: str = "labels.csv") -> tuple[dict[str, dict], list[str]]:
+    if "/" in name or not re.fullmatch(r"labels[\w.-]*\.csv", name):
+        raise Refused("labels file must be labels*.csv inside the round folder")
+    p = d / name
     rows = {r["id"]: r for r in csv.DictReader(p.open(encoding="utf-8-sig"))}
     errs = []
     for i in ids:
@@ -325,7 +327,8 @@ def cmd_run(a) -> int:
     with PUBLIC_LEDGER.open("a", encoding="utf-8") as f:  # cost transparency: aggregate only, no ids or content
         f.write(json.dumps({"at": datetime.now(timezone.utc).isoformat(), "run_id": run_id, "purpose": "real-slip-eval (private data; aggregate)",
                             "model": s.extraction_model, "requests": usage.get("requests"), "input_tokens": usage.get("input_tokens"),
-                            "output_tokens": usage.get("output_tokens"), "cost_usd": usage.get("cost_usd")}) + "\n")
+                            "output_tokens": usage.get("output_tokens"), "cost_usd": usage.get("estimated_cost_usd"),
+                            "cost_kind": "estimated from returned token counts x list price; not an invoice amount"}) + "\n")
     print(json.dumps({"run_id": run_id, "called": len(recs), "provider_errors": sum("provider_error" in r for r in recs),
                       "stopped_early": stop, "usage": usage}, default=str))
     return 1 if stop else 0
@@ -398,7 +401,7 @@ def cmd_score(a) -> int:
     d = round_dir(a.round)
     sel = load_selection(d)
     ids = [s["id"] for s in sel["items"]]
-    labels, errs = read_labels(d, ids)
+    labels, errs = read_labels(d, ids, a.labels)
     if errs:
         raise Refused("labels incomplete: " + "; ".join(errs[:5]))
     runs = sorted((d / "runs").glob("*-extract")) if (d / "runs").exists() else []
@@ -410,7 +413,13 @@ def cmd_score(a) -> int:
     res = score_round(d, sel, labels, recs, with_pipeline=not a.skip_pipeline)
     summary = res["summary"]
     summary["usage"] = run_meta.get("usage")
-    summary["labels_changed_after_model_run"] = run_meta["labels_sha256_frozen_before_calls"] != sha256_file(d / "labels.csv")
+    labels_sha = sha256_file(d / a.labels)
+    summary["labels"] = {"file": a.labels if a.labels == "labels.csv" else "corrected version (see private label log)",
+                         "is_frozen_version": run_meta["labels_sha256_frozen_before_calls"] == labels_sha}
+    summary["labels_changed_after_model_run"] = not summary["labels"]["is_frozen_version"]
+    summary["code"] = {"validation_sha256_16": hashlib.sha256((BACKEND / "src/finassist/domain/extraction_validation.py").read_bytes()).hexdigest()[:16],
+                       "harness_sha256_16": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]}
+    summary["cost_note"] = "estimated from returned token counts x list price; not an invoice amount"
     now = datetime.now(timezone.utc)
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
     (d / f"score-{stamp}.json").write_text(json.dumps({"source_run": src.name, **res}, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
@@ -724,6 +733,7 @@ def main() -> int:
     p.add_argument("--round", required=True)
     p.add_argument("--run", default=None, help="extraction run id under eval/private/<round>/runs (default: latest)")
     p.add_argument("--skip-pipeline", action="store_true")
+    p.add_argument("--labels", default="labels.csv", help="labels*.csv in the round folder (default: the frozen labels.csv)")
     p = sub.add_parser("selftest", help="$0 harness check on synthetic slips")
     p.add_argument("--skip-pipeline", action="store_true")
     a = ap.parse_args()
