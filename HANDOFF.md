@@ -1,6 +1,6 @@
 # HANDOFF — read this first
 
-## TL;DR (16 Oct 2026, ~15:40 ICT — internal acceptance day; local environments isolated; real-slip eval round 1 prepared, NOT run — waits for owner approval)
+## TL;DR (16 Oct 2026, ~18:00 ICT — pocket-pal integration mapping ready for Codex (`docs/design/13`, nothing implemented); real-slip r1 baseline NOT run: the VM proxy blocks the API, owner to run `run` on the Mac)
 - **Environment isolation + real-slip eval:** `docs/design/12-real-slip-eval.md`. Profiles dev (phone) / e2e / test / realeval each have their own cluster, DB, roles, storage, port (`backend/scripts/local_envs.py`; `dev_server.py --profile` now required). Evidence: isolation 15/15 `20261016T082236Z-env-isolation-device-pg18-arm64`; backend 257 passed, skipped 0 `20261016T083337Z-env-isolation-backend-device-pg18-arm64`; harness self-test `20261016T083101Z-real-slip-harness-selftest`. Real round r1 (5 images) prepared in `eval/private/real-r1/` (gitignored); needs owner labels + approval to send to Anthropic ($0.10 cap).
 - Internal acceptance deadline: **16 Oct 2026** (team review). Official submission: 20 Oct 22:59 ICT.
 - **CP2 accepted by Codex review** (after cp2b/cp2c fixes). CP3a review request + fixes: `docs/design/09-cp3a-review-request.md`. D3a (Kotlin/Compose) accepted by Codex.

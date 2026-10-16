@@ -73,3 +73,18 @@ Harness self-test (synthetic, fabricated outputs with one planted amount error, 
 as auto-import with a wrong critical field; receipt+slip pair and duplicates counted once; bill created).
 
 Limits: 5 images give counts, not rates; one owner's banks only; nothing here is a competition score.
+
+## 3. Round r1 — baseline attempt (16 Oct 2026, ~17:50 ICT)
+
+- Labels: complete (`check` → `labels_complete: true`). The owner filled them; Codex converted the dates from DD/MM/YYYY
+  to YYYY-MM-DD (the pre-conversion copy is kept in the private folder). The labels sha256 is recorded by `run`.
+- Owner approval: send the 5 selected images to Anthropic, ≤ 5 requests, ≤ $0.10.
+- Two `run` attempts from Claude's shell in the owner's Cowork VM, both **stopped before any billed call**, at the
+  free Models-API access check. No image was sent and cost is $0.
+  1. TLS: the VM's HTTPS proxy re-signs certificates and httpx (certifi) did not trust it. Fixed for the run by
+     pointing `SSL_CERT_FILE` at the system bundle (verification stays on).
+  2. `401 Unauthorized` (`text/plain`, no Anthropic error body). The VM's egress proxy refuses the authenticated
+     request. This is an environment limit, not a key or code problem.
+  Both stops are recorded privately (`eval/private/real-r1/runs/*/STOPPED.txt`). No public run exists.
+- Next: the owner runs `run` once on the Mac (direct network). Claude then runs `score` (offline, $0) in the VM and
+  reports the result.
