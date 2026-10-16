@@ -142,3 +142,64 @@ Limits: 5 images, one owner, two apps. This is a pilot: counts, not accuracy rat
 
 Change to the privacy note in §2: Claude viewed two real images for this check. The owner asked for it ("ตรวจภาพ").
 They were staged into the cloud workspace and removed after viewing. Nothing went to Git or public evidence.
+
+## 5. Follow-up after Codex review (16 Oct 2026, ~18:45 ICT)
+
+**UsageMeter (finding closed in code; Codex to confirm).** Ledger accounting now lives in `providers.ledger_cost`:
+- A `cost_usd: null` line is computed from its model and token counts when the model has a configured price.
+  Otherwise it is **unknown**: it is never counted as $0, and `UsageMeter.check` refuses every paid call while any
+  unknown entry exists.
+- A correction line (`corrects_run_id`; the one legacy free-text "CORRECTION…" line is also recognised) replaces all
+  other lines of that run, so a corrected run is counted once.
+- Tests: `tests/unit/test_usage_ledger.py` (10). They cover null computed from tokens, four uncomputable variants,
+  refusal, correction not counted twice, latest correction wins, unknown correction, and the real repo ledger (no
+  unknown entries).
+- Backend: 279 passed, skipped 0 (`20261016T114354Z-usage-ledger-backend-device-pg18-arm64`).
+
+**R1 with revised ground truth.** `labels.v2.csv` was written by the owner after the model output had been seen, so it
+is revised ground truth, not a blind holdout. Same recorded outputs, no model call. Scoring:
+`20261016T114317Z-real-slip-r1-score`, which supersedes `…114129Z` (see its NOTE). The baselines (`…110237Z`,
+`…110650Z`) and the parser-only re-score (`…110739Z`) are kept.
+
+| Field (correct / labelled) | v1 frozen, before the parser fix | v1 frozen, after the parser fix | v2 revised, after the parser fix |
+|---|---|---|---|
+| doc_type, amount, direction, status | 5/5 each | 5/5 each | 5/5 each |
+| date | 1/5 | 5/5 (**parser**) | 5/5 |
+| time | 4/5 | 4/5 | 5/5 (**label corrected**) |
+| counterparty exact / contains | 1/2 / 1/2 | 1/2 / 1/2 | 4/5 / 5/5 (**labels re-entered in Thai**) |
+| bank_ref | 0/5 (app name, not a reference) | 0/5 | **not measured** (v2 still holds the app name → excluded, n=0) |
+
+Routing and ledger for v2 are unchanged from the parser fix: 5 auto-imported with the critical fields right, 0 unsafe,
+0 review; ledger 5 counted once, 0 double, 0 wrong value, 0 missed silently. Latency p50 2.0 s, max 2.5 s.
+Estimated cost $0.0019 (not an invoice).
+
+What changed and why, kept apart:
+- **Parser fix**: date 1→5, auto-import 1→5. This uses the same labels.
+- **Label revision**: time 4→5 and counterparty. One counterparty still differs, because the v2 label also includes a
+  printed shop-description line under the name; the "contains" match counts it.
+
+Claim limits:
+- The model was checked against the images only for **two** images (time, reference, counterparty). The other three
+  were not viewed. Their fields are only compared with the owner's labels, and their reference is not measured.
+- Scoring rule added before R2: a bank_ref label without digits is not a reference. `check`/`run` reject it;
+  `score` excludes it and reports how many were excluded.
+
+**Image copies (record).**
+- What happened: on 16 Oct ~18:08 ICT, Claude copied two r1 images into the cloud workspace upload
+  folder, viewed them, and deleted them in the same session.
+- What was checked (~18:45 ICT): a filesystem search of the cloud workspace found no file with those names and no
+  JPEG under the upload folder.
+- What cannot be verified from here: transfer or log copies kept by the platform outside the workspace. The two
+  images were also shown to the model inside this conversation.
+- No further copies: from now on, image checks happen on the owner's Mac only.
+
+**R2 readiness.**
+- Ready:
+  - selection by Codex: 5 images, no SHA-256 overlap with r1, no GPS metadata;
+  - labels complete except bank_ref;
+  - worst-case estimate $0.0023;
+  - caps $0.10, 5 requests, 0 retries.
+- Not ready: all 5 bank_ref labels hold the app name. `check` fails. The owner fixes them (printed reference or
+  empty) **before** freezing; this is allowed because no model output for r2 exists yet.
+- Then `check --freeze` writes `freeze.json`, the hashes of labels, selection, prompt, tool schema, parser modules and
+  harness. `run` refuses without it, or if any hash changed.

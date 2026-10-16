@@ -120,7 +120,15 @@ def captured_at_of(meta: dict) -> datetime | None:
 
 # ---------------------------------------------------------------- labels
 
-def read_labels(d: Path, ids: list[str], name: str = "labels.csv") -> tuple[dict[str, dict], list[str]]:
+def ref_like(text: str | None) -> bool:
+    """A printed transaction reference has digits and some length; an app name ("Make by Kbank") does not."""
+    from finassist.domain.dedup import normalize_ref
+
+    n = normalize_ref(text) or ""
+    return len(n) >= 6 and any(ch.isdigit() for ch in n)
+
+
+def read_labels(d: Path, ids: list[str], name: str = "labels.csv", *, strict_ref: bool = True) -> tuple[dict[str, dict], list[str]]:
     if "/" in name or not re.fullmatch(r"labels[\w.-]*\.csv", name):
         raise Refused("labels file must be labels*.csv inside the round folder")
     p = d / name
@@ -154,6 +162,8 @@ def read_labels(d: Path, ids: list[str], name: str = "labels.csv") -> tuple[dict
             errs.append(f"{i}: status one of {STATUSES}")
         if not r["counterparty"]:
             errs.append(f"{i}: counterparty as printed (or '-' if none is shown)")
+        if strict_ref and r.get("bank_ref") and not ref_like(r["bank_ref"]):
+            errs.append(f"{i}: bank_ref must be the printed transaction reference (has digits) or empty — not the app name")
         if r["same_payment_as"] and r["same_payment_as"] not in ids:
             errs.append(f"{i}: same_payment_as must be another id of this round")
     return rows, errs
@@ -238,6 +248,21 @@ def estimate(sel: dict, model: str, max_out: int) -> float:
     return sum(m.cost(model, image_tokens_estimate((BACKEND / s["source"]).read_bytes()) + 1500, max_out) for s in sel["items"])
 
 
+def freeze_hashes(d: Path, model: str) -> dict:
+    """Everything that must not change between labelling and the billed run (and scoring)."""
+    from finassist.providers import EXTRACTION_SCHEMA_VERSION, EXTRACTION_SYSTEM, EXTRACTION_TOOL
+
+    h = lambda b: hashlib.sha256(b).hexdigest()  # noqa: E731
+    src = BACKEND / "src" / "finassist"
+    return {"labels_sha256": sha256_file(d / "labels.csv"), "selection_sha256": sha256_file(d / "selection.json"),
+            "extraction_model": model, "prompt_schema_version": EXTRACTION_SCHEMA_VERSION,
+            "prompt_system_sha256": h(EXTRACTION_SYSTEM.encode()),
+            "prompt_tool_schema_sha256": h(json.dumps(EXTRACTION_TOOL, sort_keys=True).encode()),
+            "parser_sha256": {f: sha256_file(src / f) for f in ("domain/extraction_validation.py", "domain/money.py",
+                                                                 "domain/dedup.py", "domain/classify.py")},
+            "harness_sha256": sha256_file(Path(__file__))}
+
+
 def cmd_check(a) -> int:
     require_gitignored()
     from finassist.settings import get_settings
@@ -247,6 +272,16 @@ def cmd_check(a) -> int:
     ids = [s["id"] for s in sel["items"]]
     _, errs = read_labels(d, ids)
     s = get_settings()
+    if a.freeze:
+        if errs:
+            raise Refused("labels are not complete; nothing frozen")
+        fz = d / "freeze.json"
+        cur = freeze_hashes(d, s.extraction_model)
+        if fz.exists() and json.loads(fz.read_text(encoding="utf-8"))["hashes"] != cur:
+            raise Refused("freeze.json exists with different hashes; a frozen round is never re-frozen (use a new round)")
+        if not fz.exists():
+            fz.write_text(json.dumps({"frozen_at_utc": datetime.now(timezone.utc).isoformat(), "hashes": cur}, indent=2), encoding="utf-8")
+        print(f"frozen: {fz.relative_to(REPO)}")
     print(json.dumps({"round": a.round, "images": len(ids), "labels_complete": not errs, "label_problems": errs,
                       "bytes_total": sum(x["bytes"] for x in sel["items"]), "with_gps": sum(x["has_gps"] for x in sel["items"]),
                       "extraction_model": s.extraction_model,
@@ -280,6 +315,14 @@ def cmd_run(a) -> int:
     if any(s["has_gps"] for s in sel["items"]):
         raise Refused("an image carries GPS metadata; remove it from the round")
     s = get_settings()
+    fz = d / "freeze.json"
+    if not fz.exists():
+        raise Refused("run `check --freeze` first: labels, prompt, schema and parser hashes must be frozen before a paid call")
+    frozen = json.loads(fz.read_text(encoding="utf-8"))["hashes"]
+    now_h = freeze_hashes(d, s.extraction_model)
+    changed = sorted(k for k in frozen if frozen[k] != now_h.get(k))
+    if changed:
+        raise Refused(f"changed since freeze: {changed}")
     s.model_provider = "anthropic"
     s.require_real_provider()  # fail closed: key and model ids must be present
     labels_sha = sha256_file(d / "labels.csv")
@@ -319,7 +362,7 @@ def cmd_run(a) -> int:
     (outp / "outputs.jsonl").write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in recs), encoding="utf-8")
     usage = meter.summary()
     meta = {"run_id": run_id, "round": a.round, "started_at_utc": started.isoformat(), "finished_at_utc": datetime.now(timezone.utc).isoformat(),
-            "model_access_check": access, "labels_sha256_frozen_before_calls": labels_sha, "stopped_early": stop,
+            "model_access_check": access, "labels_sha256_frozen_before_calls": labels_sha, "freeze": frozen, "stopped_early": stop,
             "prompt": {"schema_version": EXTRACTION_SCHEMA_VERSION, "system_sha256_16": hashlib.sha256(EXTRACTION_SYSTEM.encode()).hexdigest()[:16],
                        "tool_schema_sha256_16": hashlib.sha256(json.dumps(EXTRACTION_TOOL, sort_keys=True).encode()).hexdigest()[:16]},
             "caps": {"budget_usd": a.budget_usd, "max_requests": a.max_requests, "retries": 0}, "usage": usage}
@@ -388,7 +431,7 @@ def label_fields(lab: dict) -> dict:
             "direction": None if nf else lab["direction"],
             "counterparty": None if nf or lab["counterparty"] in ("", "-") else normalize_payee(lab["counterparty"]),
             "status": None if nf or lab["doc_type"] == "bill" else STATUS_MAP[lab["status"]],
-            "bank_ref": normalize_ref(lab["bank_ref"]) if lab.get("bank_ref") else None}
+            "bank_ref": normalize_ref(lab["bank_ref"]) if lab.get("bank_ref") and ref_like(lab["bank_ref"]) else None}
 
 
 def _loose(a: str | None, b: str | None) -> bool:
@@ -401,7 +444,7 @@ def cmd_score(a) -> int:
     d = round_dir(a.round)
     sel = load_selection(d)
     ids = [s["id"] for s in sel["items"]]
-    labels, errs = read_labels(d, ids, a.labels)
+    labels, errs = read_labels(d, ids, a.labels, strict_ref=False)  # older label files: non-reference bank_ref is excluded below
     if errs:
         raise Refused("labels incomplete: " + "; ".join(errs[:5]))
     runs = sorted((d / "runs").glob("*-extract")) if (d / "runs").exists() else []
@@ -481,6 +524,7 @@ def score_round(d: Path, sel: dict, labels: dict, recs: dict, *, with_pipeline: 
         "images": len(ids), "extracted": sum(1 for r in recs.values() if "raw" in r),
         "provider_errors": sum(1 for r in recs.values() if "provider_error" in r),
         "a_extraction_accuracy": acc,
+        "bank_ref_labels_excluded_not_a_reference": sum(1 for i in ids if labels[i].get("bank_ref") and not ref_like(labels[i]["bank_ref"])),
         "b_routing": {"auto_import_and_critical_right": routing["auto_right"],
                       "auto_import_with_wrong_critical_UNSAFE": routing["auto_wrong"],
                       "review_and_critical_wrong_caught": routing["review_wrong"],
@@ -723,6 +767,7 @@ def main() -> int:
     p.add_argument("--seed", type=int, default=20261016)
     p = sub.add_parser("check")
     p.add_argument("--round", required=True)
+    p.add_argument("--freeze", action="store_true", help="write freeze.json (labels/selection/prompt/schema/parser/harness hashes)")
     p = sub.add_parser("run")
     p.add_argument("--round", required=True)
     p.add_argument("--provider", required=True)

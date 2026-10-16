@@ -1,0 +1,120 @@
+{
+  "run_id": "20261016T114317Z-real-slip-r1-score",
+  "kind": "real-slip evaluation — AGGREGATE ONLY (per-image results, labels, outputs stay in eval/private/)",
+  "extraction_run": "20261016T110123Z-real-slip-r1-extract",
+  "ground_truth": "owner's labels from the images, frozen before the model call; model output never used as truth",
+  "model": "claude-haiku-5-5",
+  "prompt": {
+    "schema_version": "slip-extract@0.2",
+    "system_sha256_16": "9bd378566ccb77df",
+    "tool_schema_sha256_16": "a94caf08e352549b"
+  },
+  "caps": {
+    "budget_usd": 0.1,
+    "max_requests": 5,
+    "retries": 0
+  },
+  "stopped_early": false,
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.8.0-138-generic-aarch64-with-glibc2.35"
+  },
+  "uses_mocks": [
+    "pipeline replay: ReplayProvider returns the recorded real outputs (no second model call)",
+    "dedup probe: one re-encoded copy is SIMULATED (labelled), not a separate photo"
+  ],
+  "limits": [
+    "tiny sample: counts, not rates; not a competition score",
+    "images chosen at random from the owner's own slips; not representative of all banks"
+  ],
+  "summary": {
+    "images": 5,
+    "extracted": 5,
+    "provider_errors": 0,
+    "a_extraction_accuracy": {
+      "doc_type": {
+        "n": 5,
+        "correct": 5
+      },
+      "amount": {
+        "n": 5,
+        "correct": 5
+      },
+      "date": {
+        "n": 5,
+        "correct": 5
+      },
+      "time": {
+        "n": 5,
+        "correct": 5
+      },
+      "direction": {
+        "n": 5,
+        "correct": 5
+      },
+      "counterparty": {
+        "n": 5,
+        "correct": 4
+      },
+      "status": {
+        "n": 5,
+        "correct": 5
+      },
+      "bank_ref": {
+        "n": 0,
+        "correct": 0
+      },
+      "counterparty_loose": {
+        "n": 5,
+        "correct": 5
+      }
+    },
+    "bank_ref_labels_excluded_not_a_reference": 5,
+    "b_routing": {
+      "auto_import_and_critical_right": 5,
+      "auto_import_with_wrong_critical_UNSAFE": 0,
+      "review_and_critical_wrong_caught": 0,
+      "review_although_critical_right": 0,
+      "not_extracted": 0
+    },
+    "c_pipeline_dedup": {
+      "expected_payments": 5,
+      "counted_once": 5,
+      "held_in_review": 0,
+      "DOUBLE_COUNTED": 0,
+      "WRONG_VALUE": 0,
+      "MISSED_SILENTLY": 0,
+      "unexpected_counted": 0,
+      "open_reviews_by_reason": {},
+      "bills_created": 0,
+      "uploads_failed_or_rejected": 0,
+      "dedup_probes": {
+        "exact_reupload_flagged_duplicate": true,
+        "simulated_near_duplicate_not_double_counted": true
+      }
+    },
+    "latency_ms": {
+      "p50": 2024,
+      "max": 2486
+    },
+    "usage": {
+      "requests": 5,
+      "input_tokens": 11343,
+      "output_tokens": 1499,
+      "estimated_cost_usd": 0.001884,
+      "prior_runs_cost_usd": 0.0,
+      "budget_usd": 0.1,
+      "pricing_source": "platform.claude.com/docs/en/about-claude/pricing (15 Oct 2026)"
+    },
+    "labels": {
+      "file": "corrected version (see private label log)",
+      "is_frozen_version": false
+    },
+    "labels_changed_after_model_run": true,
+    "code": {
+      "validation_sha256_16": "79dc61b14846153d",
+      "harness_sha256_16": "a1c89c70ed1c4485"
+    },
+    "cost_note": "estimated from returned token counts x list price; not an invoice amount"
+  }
+}

@@ -60,6 +60,51 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+def _is_correction(e: dict) -> str | None:
+    """The run a ledger line corrects. Structured: `corrects_run_id`. Legacy (one line, 16 Oct 2026): a free-text
+    `purpose` starting with "CORRECTION" that carries the run_id of the run it corrects."""
+    if e.get("corrects_run_id"):
+        return e["corrects_run_id"]
+    if str(e.get("purpose", "")).startswith("CORRECTION") and e.get("run_id"):
+        return e["run_id"]
+    return None
+
+
+def ledger_cost(entries: list[dict]) -> tuple[float, list[dict]]:
+    """Total estimated spend in a usage ledger, and the entries whose cost is unknown.
+
+    - A correction for a run replaces every other line of that run (the latest correction wins), so a corrected run is
+      never counted twice.
+    - A line with `cost_usd: null` is computed from its model and token counts when the model has a configured price;
+      otherwise it is UNKNOWN (returned, never treated as zero). Callers must refuse paid calls while any is unknown.
+    """
+    corrections: dict[str, dict] = {}
+    for e in entries:
+        target = _is_correction(e)
+        if target:
+            corrections[target] = e
+    total, unknown = 0.0, []
+    for target, e in corrections.items():
+        if isinstance(e.get("cost_usd"), (int, float)):
+            total += float(e["cost_usd"])
+        else:
+            unknown.append(e)
+    for e in entries:
+        if _is_correction(e) or (e.get("run_id") and e.get("run_id") in corrections):
+            continue
+        c = e.get("cost_usd")
+        if isinstance(c, (int, float)):
+            total += float(c)
+            continue
+        model, inp, out = e.get("model"), e.get("input_tokens"), e.get("output_tokens")
+        price = next((v for k, v in PRICES_PER_MTOK.items() if isinstance(model, str) and model.startswith(k)), None)
+        if price and isinstance(inp, int) and isinstance(out, int):
+            total += inp / 1e6 * price[0] + out / 1e6 * price[1]
+        else:
+            unknown.append(e)
+    return total, unknown
+
+
 @dataclass
 class UsageMeter:
     """Tracks real-model usage across one process and refuses calls that could exceed the budget.
@@ -78,13 +123,28 @@ class UsageMeter:
     prior_cost_usd: float = 0.0
     calls: list = field(default_factory=list)
 
+    unknown_cost_entries: list = field(default_factory=list)
+
     def __post_init__(self) -> None:
         import json
         import os
 
         if self.ledger_path and os.path.exists(self.ledger_path):
             with open(self.ledger_path, encoding="utf-8") as f:
-                self.prior_cost_usd = sum(json.loads(x).get("cost_usd") or 0.0 for x in f if x.strip())  # null = unknown, never a crash
+                entries = [json.loads(x) for x in f if x.strip()]
+            self.prior_cost_usd, self.unknown_cost_entries = ledger_cost(entries)
+
+    def check(self, model: str, est_input_tokens: int, max_output_tokens: int) -> None:
+        if self.unknown_cost_entries:
+            # Fail closed: an entry whose cost is unknown and cannot be computed would silently count as $0.
+            raise BudgetExceeded(f"usage ledger has {len(self.unknown_cost_entries)} entr(y/ies) with unknown cost "
+                                 f"(runs: {sorted({str(e.get('run_id')) for e in self.unknown_cost_entries})}); "
+                                 "add a correction line (corrects_run_id) before any paid call")
+        if self.requests >= self.max_requests:
+            raise BudgetExceeded(f"request cap reached ({self.max_requests})")
+        worst = self.cost(model, est_input_tokens, max_output_tokens)
+        if self.prior_cost_usd + self.cost_usd + worst > self.budget_usd:
+            raise BudgetExceeded(f"next call could exceed budget: spent {self.prior_cost_usd + self.cost_usd:.4f} + worst {worst:.4f} > {self.budget_usd}")
 
     @staticmethod
     def price(model: str) -> tuple[float, float]:
@@ -96,13 +156,6 @@ class UsageMeter:
     def cost(self, model: str, inp: int, out: int) -> float:
         pi, po = self.price(model)
         return inp / 1e6 * pi + out / 1e6 * po
-
-    def check(self, model: str, est_input_tokens: int, max_output_tokens: int) -> None:
-        if self.requests >= self.max_requests:
-            raise BudgetExceeded(f"request cap reached ({self.max_requests})")
-        worst = self.cost(model, est_input_tokens, max_output_tokens)
-        if self.prior_cost_usd + self.cost_usd + worst > self.budget_usd:
-            raise BudgetExceeded(f"next call could exceed budget: spent {self.prior_cost_usd + self.cost_usd:.4f} + worst {worst:.4f} > {self.budget_usd}")
 
     def record(self, model: str, inp: int | None, out: int | None, purpose: str, run_id: str | None = None) -> float:
         import json
@@ -125,6 +178,8 @@ class UsageMeter:
     def summary(self) -> dict:
         return {"requests": self.requests, "input_tokens": self.input_tokens, "output_tokens": self.output_tokens,
                 "estimated_cost_usd": round(self.cost_usd, 6), "prior_runs_cost_usd": round(self.prior_cost_usd, 6),
+                "prior_unknown_cost_entries": len(self.unknown_cost_entries),
+                "cost_kind": "estimated from returned token counts x list price; not an invoice amount",
                 "budget_usd": self.budget_usd, "pricing_source": "platform.claude.com/docs/en/about-claude/pricing (15 Oct 2026)"}
 
 

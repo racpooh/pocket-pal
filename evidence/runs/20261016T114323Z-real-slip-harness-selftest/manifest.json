@@ -1,0 +1,88 @@
+{
+  "run_id": "20261016T114323Z-real-slip-harness-selftest",
+  "kind": "harness self-test of scripts/eval_real_slips.py \u2014 SYNTHETIC slips only, no model call, $0",
+  "uses_mocks": [
+    "recorded outputs FABRICATED from the synthetic ground truth, with one amount deliberately wrong (R0-02)",
+    "pipeline replay in the separate realeval database; simulated near-duplicate"
+  ],
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.8.0-138-generic-aarch64-with-glibc2.35"
+  },
+  "selftest": "PASS",
+  "checks": {
+    "amount: exactly the planted error": true,
+    "doc_type all right": true,
+    "date all right": true,
+    "routing: wrong amount is not counted as right": true,
+    "pipeline: no double count": true,
+    "pipeline: receipt+slip pair counted once": true,
+    "pipeline: planted wrong amount not silently counted right": true,
+    "pipeline: exact re-upload flagged": true,
+    "pipeline: simulated near-duplicate not double counted": true,
+    "pipeline: bill created": true
+  },
+  "accuracy": {
+    "doc_type": {
+      "n": 5,
+      "correct": 5
+    },
+    "amount": {
+      "n": 5,
+      "correct": 4
+    },
+    "date": {
+      "n": 5,
+      "correct": 5
+    },
+    "time": {
+      "n": 4,
+      "correct": 4
+    },
+    "direction": {
+      "n": 5,
+      "correct": 5
+    },
+    "counterparty": {
+      "n": 5,
+      "correct": 5
+    },
+    "status": {
+      "n": 3,
+      "correct": 3
+    },
+    "bank_ref": {
+      "n": 3,
+      "correct": 3
+    },
+    "counterparty_loose": {
+      "n": 5,
+      "correct": 5
+    }
+  },
+  "pipeline": {
+    "expected_payments": 3,
+    "counted_once": 2,
+    "held_in_review": 0,
+    "DOUBLE_COUNTED": 0,
+    "WRONG_VALUE": 1,
+    "MISSED_SILENTLY": 0,
+    "unexpected_counted": 0,
+    "open_reviews_by_reason": {
+      "receipt_link": 1
+    },
+    "bills_created": 1,
+    "uploads_failed_or_rejected": 0,
+    "dedup_probes": {
+      "exact_reupload_flagged_duplicate": true,
+      "simulated_near_duplicate_not_double_counted": true
+    }
+  },
+  "routing": {
+    "auto_import_and_critical_right": 4,
+    "auto_import_with_wrong_critical_UNSAFE": 1,
+    "review_and_critical_wrong_caught": 0,
+    "review_although_critical_right": 0,
+    "not_extracted": 0
+  }
+}
