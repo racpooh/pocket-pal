@@ -1,0 +1,50 @@
+{
+  "run_id": "20261016T133608Z-slice1fix-client-e2e-device-pg18-arm64",
+  "kind": "CP3a client core + real backend end-to-end",
+  "started_at_utc": "2026-10-16T13:36:08.679839+00:00",
+  "runner": "jar",
+  "commands": {
+    "core_selftest": {
+      "exit_code": 0,
+      "seconds": 0.3
+    },
+    "client_e2e": {
+      "exit_code": 0,
+      "seconds": 71.5
+    }
+  },
+  "environment": {
+    "os": "Linux-6.8.0-138-generic-aarch64-with-glibc2.35",
+    "python": "3.10.12",
+    "java": [
+      "openjdk version \"11.0.32.1\" 2026-08-18",
+      "OpenJDK Runtime Environment (build 11.0.32.1+1-post-1ubuntu1-22.04-Ubuntu)",
+      "OpenJDK 64-Bit Server VM (build 11.0.32.1+1-post-1ubuntu1-22.04-Ubuntu, mixed mode)"
+    ]
+  },
+  "backend": {
+    "health": {
+      "status": "ok",
+      "version": "0.0.1",
+      "test_mode": true,
+      "env": "dev"
+    },
+    "server": "backend/scripts/dev_server.py --profile e2e --provider fake --reset (real FastAPI + Postgres + RLS roles + embedded worker)",
+    "port": 8001
+  },
+  "uses_mocks": [
+    "extraction: FakeExtractionProvider preloaded with SYNTHETIC fixtures (test_mode=true reported by /v1/health)",
+    "no chat model (chat not part of CP3a)"
+  ],
+  "not_covered": [
+    "Android UI, Photo Picker and Keystore code (app module) — not built or run in this environment unless runner=gradle and the app was installed separately",
+    "album scanning, OS photo permissions, background work (CP3b)"
+  ],
+  "core_selftest": "35/35 passed",
+  "client_e2e": {
+    "all_ok": true,
+    "steps_ok": 34,
+    "steps": 34
+  },
+  "data": "synthetic fixtures only; no images or tokens stored here"
+}

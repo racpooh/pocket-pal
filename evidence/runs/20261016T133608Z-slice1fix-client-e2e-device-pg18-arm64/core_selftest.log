@@ -1,0 +1,36 @@
+PASS json roundtrip incl. Thai, escapes, nesting, numbers
+PASS money: THB text → satang like the backend; format back
+PASS base URL policy: release HTTPS only; debug cleartext only to the developer machine
+PASS multipart body has one file part and the captured_at field; filename is generic
+PASS api: 401 clears the stored token; error envelope parsed; no token sent when signed out
+PASS api: manual transaction sends an Idempotency-Key; retrying the action can reuse it
+PASS api: logout clears the token even when the server is unreachable
+PASS api: offline becomes NetworkException, 5xx is retryable, 4xx is not
+PASS queue: same image enqueued twice → one entry, one upload; local copy deleted once sent
+PASS queue: restart after a crash mid-upload re-sends; server duplicate answer → still one record
+PASS queue: transient errors back off, then succeed; repeated runs before the backoff do nothing
+PASS queue: gives up after MAX_ATTEMPTS; manual retry restarts
+PASS queue: CONSENT_REQUIRED blocks the whole queue; nothing is sent until resume
+PASS queue: user pause persists across restart and blocks sending
+PASS queue: session expiry stops sending without burning attempts
+PASS queue: permanent 4xx fails only that image and keeps the local copy for an explicit retry/discard
+PASS queue: refresh follows server status to a terminal state; labels
+PASS #1 owner: A's photos are discarded (never sent or shown) when B signs in after A's session expired
+PASS #1 owner: same account signing in again keeps its queue; unbound queue sends nothing
+PASS #2 pause requested while the first upload is in flight → the second never starts
+PASS undated photo: server asks for confirmation; only an explicit confirm sends it, with the flag
+PASS #3 review actions follow the server: receipt/duplicate items never offer 'accept'
+PASS gate: A has a queue → B signs in → /me fails → A's queue hidden, no enqueue, no send → retry ok → Ready for B
+PASS gate: a late /me answer from an earlier session cannot bind the queue (after logout or account switch)
+PASS gate: session end while Ready stops the queue and hides it; same account re-check keeps its photos
+PASS late 401 of A's /me after B is Ready: B's token stays, gate stays Ready(B), queue stays B's
+PASS each layer alone: client keeps a newer token; gate ignores an old-epoch 401; queue not stopped by a stale 401
+PASS slice1: upload limits equal the backend (8 MiB, JPEG/PNG)
+PASS slice1: money text — magnitude vs signed vs amount; negatives never shown as available
+PASS slice1: resolve 404 is NOT success; network = unknown; 409/400 mapped; 401 rethrown
+PASS slice1: review sheet offers exactly allowed_decisions; candidate choice; only changed fields sent
+PASS slice1: activity groups by day; waiting, pending and failed are not counted
+PASS slice1 fix: bill missing due date — due date input shown, required, sent; type never guessed
+PASS slice1 fix: slip with unknown status — no pre-selected status; user's choice is what is sent
+PASS slice1 fix: unknown document type — type chooser with no default; required before accept
+35/35 passed

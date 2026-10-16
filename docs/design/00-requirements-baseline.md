@@ -28,6 +28,8 @@ No `AGENTS.md`, code, git history, tests or evidence existed in the repository b
 | D3a | Android client: native Kotlin + Jetpack Compose (+ WorkManager in CP3b), minSdk 26, target 35; shared pure-Kotlin `core` module (rationale: `android/README.md`) | Claude proposal (CP3a), pending team/Codex acceptance |
 | — | **Internal acceptance deadline: 16 Oct 2026** (team review). Official submission remains 20 Oct 22:59 ICT | team |
 
+> **Device correction (16 Oct 2026, ~20:40 ICT):** the phone used for testing is a Samsung Galaxy S22 Ultra (SM-S908E, Android 14), as shown by the owner's install log (model SM-S908E, Android 14; that log is on the owner's Mac, not in this repo). Earlier text called it "S23". Decision D3 (Android) is unchanged; only the model name was wrong.
+
 ## Time reality (checked, not assumed)
 
 - Now: Thu 15 Oct 2026, ~13:00 ICT (UTC+7).

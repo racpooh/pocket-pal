@@ -4,30 +4,33 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.finassist.core.SessionState
 
@@ -36,8 +39,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as FinAssistApp
         setContent {
-            MaterialTheme {
-                Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
+            PalTheme {
+                Box(Modifier.fillMaxSize().background(Pal.Bg).safeDrawingPadding()) {
                     val scope = rememberCoroutineScope()
                     val state = remember { AppState(app, scope) }
                     AppRoot(state)
@@ -47,30 +50,36 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private val TABS = listOf("Setup", "Consent", "Upload", "Review", "Ledger")
-
 @Composable
 fun AppRoot(s: AppState) {
     LaunchedEffect(Unit) { s.checkServer(); s.checkIdentity() /* stored session? confirm the account before showing anything */ }
     Column(Modifier.fillMaxSize()) {
-        // Visible, never silent: the backend says it is running with the fake (test) extractor.
-        if (s.testMode == true) Banner("TEST MODE — fake extraction, synthetic fixtures only. Not real data.", Color(0xFFFFE082))
-        s.serverError?.let { Banner(it, Color(0xFFFFCDD2)) }
-        if (s.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        // Shown whenever the backend reports test mode (fake extraction). Never silent; never shown otherwise.
+        if (s.testMode == true) Text("TEST MODE — fake extraction, synthetic data only", Modifier.fillMaxWidth().background(Pal.TestModeBg)
+            .padding(horizontal = 18.dp, vertical = 6.dp), style = Pal.Caption.copy(color = Pal.Ink, fontWeight = FontWeight.Bold))
+        s.serverError?.let { err ->
+            Row(Modifier.fillMaxWidth().background(Pal.DangerSoft).padding(horizontal = 18.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(err, Modifier.weight(1f), style = Pal.Caption.copy(color = Pal.Danger))
+                SoftButton("Retry", { s.checkServer() })
+            }
+        }
+        if (s.busy) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Pal.Ink, trackColor = Pal.Line)
         s.message?.let { m ->
-            Row(Modifier.fillMaxWidth().background(Color(0xFFE3F2FD)).padding(8.dp)) {
-                Text(m, Modifier.weight(1f))
-                TextButton(onClick = { s.message = null }) { Text("OK") }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp).background(Pal.MintSoft, Pal.CtlShape).padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(m, Modifier.weight(1f), style = Pal.Body)
+                Text("OK", Modifier.clickable { s.message = null }.padding(8.dp), style = Pal.Body.copy(fontWeight = FontWeight.Bold))
             }
         }
         when (val st = s.session) {
             is SessionState.SignedOut -> AuthScreen(s)
-            is SessionState.Checking -> Text("Checking your account…", Modifier.padding(16.dp))
-            is SessionState.IdentityFailed -> Column(Modifier.padding(16.dp)) {
-                Text("Your account could not be confirmed (${st.reason}). Photos waiting on this phone stay hidden and are not sent.")
-                Row {
-                    TextButton(onClick = { s.checkIdentity() }) { Text("Retry") }
-                    TextButton(onClick = { s.logout() }) { Text("Log out") }
+            is SessionState.Checking -> Text("Checking your account…", Modifier.padding(18.dp), style = Pal.Body)
+            is SessionState.IdentityFailed -> Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                PalCard(flagged = true) {
+                    Text("Your account could not be confirmed", style = Pal.CardTitle)
+                    Text("(${st.reason}) Photos waiting on this phone stay hidden and are not sent.", style = Pal.Body)
+                    InkButton("Retry", { s.checkIdentity() })
+                    SoftButton("Log out", { s.logout() }, Modifier.fillMaxWidth())
                 }
             }
             is SessionState.Ready -> SignedIn(s)
@@ -78,28 +87,44 @@ fun AppRoot(s: AppState) {
     }
 }
 
+private enum class Tab(val label: String) { ACTIVITY("Activity"), UPLOAD("Upload"), REVIEW("Review"), YOU("You") }
+
 @Composable
 private fun SignedIn(s: AppState) {
+    var tab by rememberSaveable { mutableStateOf(Tab.ACTIVITY) }
+    var openReviewId by remember { mutableStateOf<String?>(null) }
+    // First run: if photo processing is not allowed yet, start on the consent screen (login → consent → upload …).
+    LaunchedEffect(Unit) { s.act({ s.app.api.activeConsentScopes() }) { if ("photo_processing" !in it) tab = Tab.YOU } }
     Column(Modifier.fillMaxSize()) {
-        var tab by rememberSaveable { mutableIntStateOf(0) }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-            Text("FinAssist CP3a", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).padding(top = 12.dp))
-            TextButton(onClick = { s.logout() }) { Text("Log out") }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when (tab) {
+                Tab.ACTIVITY -> ActivityScreen(s) { id -> openReviewId = id; tab = Tab.REVIEW }
+                Tab.UPLOAD -> UploadScreen(s) { tab = Tab.REVIEW }
+                Tab.REVIEW -> ReviewScreen(s, openReviewId) { openReviewId = null }
+                Tab.YOU -> YouScreen(s)
+            }
         }
-        ScrollableTabRow(selectedTabIndex = tab) {
-            TABS.forEachIndexed { i, t -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) }) }
-        }
-        when (tab) {
-            0 -> SetupScreen(s)
-            1 -> ConsentScreen(s)
-            2 -> UploadScreen(s)
-            3 -> ReviewScreen(s)
-            else -> LedgerScreen(s)
+        // Bottom tab bar on white; the active tab gets the mint-soft highlight (MASTER.md "Navigation and layout").
+        Row(Modifier.fillMaxWidth().background(Pal.Card).padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Tab.entries.forEach { t ->
+                val on = t == tab
+                Text(t.label, Modifier.weight(1f).heightIn(min = 44.dp).background(if (on) Pal.MintSoft else Color.Transparent, Pal.CtlShape)
+                    .clickable { tab = t }.padding(vertical = 12.dp), textAlign = TextAlign.Center,
+                    style = Pal.Caption.copy(color = if (on) Pal.MintText else Pal.Muted, fontWeight = FontWeight.Bold))
+            }
         }
     }
 }
 
 @Composable
-fun Banner(text: String, color: Color) {
-    Text(text, Modifier.fillMaxWidth().background(color).padding(8.dp), fontWeight = FontWeight.Bold)
+private fun YouScreen(s: AppState) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("You", Modifier.padding(top = 16.dp), style = Pal.Title)
+        Text("Consent", style = Pal.Caption.copy(fontWeight = FontWeight.Bold))
+        ConsentScreen(s)
+        Text("Setup", style = Pal.Caption.copy(fontWeight = FontWeight.Bold))
+        SetupScreen(s)
+        SoftButton("Log out", { s.logout() }, Modifier.fillMaxWidth())
+        Text("Logging out discards photos on this phone that were not sent yet.", style = Pal.Caption)
+    }
 }

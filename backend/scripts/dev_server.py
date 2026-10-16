@@ -81,6 +81,15 @@ def _fixture_provider():
         f = SLIPS / r["file"]
         if f.exists():
             p.by_sha[hashlib.sha256(f.read_bytes()).hexdigest()] = fields_from_gt(r)
+    # Synthetic review variants (UI slice 1): each leaves out one thing the user must supply in review.
+    variants = BACKEND / "fixtures" / "synthetic" / "review_variants"
+    if (variants / "variants.jsonl").exists():
+        import json
+
+        for line in (variants / "variants.jsonl").read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                v = json.loads(line)
+                p.by_sha[hashlib.sha256((variants / v["file"]).read_bytes()).hexdigest()] = v["fields"]
     return p
 
 

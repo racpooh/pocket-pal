@@ -165,6 +165,21 @@ class ApiClient(
 
     fun reviewItems(): Map<String, Any?> = obj(call("GET", "/review-items"))
 
+    /** The uploaded photo, for the review sheet. Kept in memory only by callers (server sends Cache-Control: no-store). */
+    fun uploadImage(id: String): ByteArray {
+        val h = linkedMapOf("Accept" to "image/*")
+        val sent = tokens.get()
+        if (sent != null) h["Authorization"] = "Bearer $sent"
+        val resp = try { transport.send(HttpRequest("GET", "$base/uploads/${q(id)}/image", h)) } catch (e: IOException) { throw NetworkException(e) }
+        if (resp.status >= 400) {
+            val text = resp.text()
+            throw toError(resp.status, if (text.isBlank()) null else try { Json.parse(text) } catch (e: IllegalArgumentException) { null }, sent)
+        }
+        return resp.body
+    }
+
+    fun bills(status: String? = null): List<Map<String, Any?>> = arr(call("GET", "/bills" + (status?.let { "?status=${q(it)}" } ?: "")))
+
     fun resolveReview(id: String, decision: String, fields: Map<String, Any?>? = null, txnId: String? = null): Map<String, Any?> {
         val body = linkedMapOf<String, Any?>("decision" to decision)
         if (fields != null) body["fields"] = fields

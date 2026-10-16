@@ -7,6 +7,10 @@ import androidx.compose.runtime.setValue
 import dev.finassist.core.ApiException
 import dev.finassist.core.BlockReason
 import dev.finassist.core.NetworkException
+import dev.finassist.core.ResolveOutcome
+import dev.finassist.core.ReviewActions
+import dev.finassist.core.ReviewResolver
+import dev.finassist.core.ReviewView
 import dev.finassist.core.SessionExpiredException
 import dev.finassist.core.SessionState
 import dev.finassist.core.UploadQueue
@@ -105,6 +109,56 @@ class AppState(val app: FinAssistApp, private val scope: CoroutineScope) {
                 message = "${e.code}: ${e.message}" + (if (fields.isNotEmpty()) " [$fields]" else "") + (e.requestId?.let { " (request $it)" } ?: "")
             } catch (e: NetworkException) {
                 message = "Server not reachable. Nothing was lost; try again."
+            } finally { busy = false }
+        }
+    }
+
+    /**
+     * Screen data with explicit Loading / Failed(retry) / Ready states. A 401 ends the session (unless it belongs to an
+     * older session); every other failure becomes a visible message with Retry. Never logs content.
+     */
+    fun <T> load(block: suspend () -> T, quiet: Boolean = false, set: (Load<T>) -> Unit) {
+        scope.launch {
+            if (!quiet) set(Load.Loading)
+            try {
+                set(Load.Ready(withContext(Dispatchers.IO) { block() }))
+            } catch (e: SessionExpiredException) {
+                sessionEnded(e, "Session ended. Please sign in again."); set(Load.Failed("Session ended."))
+            } catch (e: ApiException) {
+                if (!quiet) set(Load.Failed("${e.message} (${e.code}${e.requestId?.let { ", request $it" } ?: ""})"))
+            } catch (e: NetworkException) {
+                if (!quiet) set(Load.Failed("Server not reachable. Nothing was lost — check the connection and retry."))
+            } // quiet refresh: on failure the last good data stays on screen
+
+        }
+    }
+
+    /**
+     * One review decision. The outcome comes only from the server's answer: a 404 (item no longer open) or a lost
+     * response is NOT reported as saved (docs/design/13 §5.2); the caller reloads the list in every non-success case.
+     */
+    fun resolve(view: ReviewView, action: ReviewActions.Action, edited: Map<String, String>, chosenTxn: String?,
+                onResult: (ResolveOutcome) -> Unit) {
+        val txn = view.txnFor(action, chosenTxn)
+        if (!view.canRun(action, chosenTxn, edited)) {
+            message = if (action.needsCandidate) "Choose which existing record it is first."
+                      else "Fill in the marked details first: ${view.missingRequired(edited).joinToString()}"
+            return
+        }
+        scope.launch {
+            busy = true
+            try {
+                val fields = if (action.decision == "accept" || action.decision == "distinct") view.changedFields(edited) else null
+                val r = withContext(Dispatchers.IO) { runCatching { app.api.resolveReview(view.id, action.decision, fields, txn) } }
+                val outcome = ReviewResolver.classify(action.decision, r)
+                message = outcome.userText()
+                onResult(outcome)
+                if (outcome.isSuccess) pumpQueue() // queue entries follow the server's new upload status
+            } catch (e: SessionExpiredException) {
+                sessionEnded(e, "Session ended. Please sign in again.")
+            } catch (e: Exception) {
+                message = "Unexpected error (${e::class.java.simpleName}). Nothing is shown as saved; refresh and check."
+                onResult(ResolveOutcome.Unknown)
             } finally { busy = false }
         }
     }

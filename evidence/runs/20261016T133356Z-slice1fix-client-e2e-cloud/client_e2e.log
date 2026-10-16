@@ -1,0 +1,35 @@
+PASS health reports test mode (client must show TEST MODE banner) — as expected
+PASS release build refuses cleartext base URL — as expected
+PASS signup + wrong password is rejected and stores no token — as expected
+PASS login stores a session token; queue bound to the account from GET /me — as expected
+PASS setup: profile, balance ฿15,000, five pockets — as expected
+PASS upload before photo consent: server refuses, queue blocks, nothing stored — as expected
+PASS grant photo processing (scan from 1 Jul) and auto-import separately; resume — as expected
+PASS enqueue: 003 again (same image), 004, 024 (blurred), 021, 028 (bill), non-fixture image — as expected
+PASS app restart: a new queue instance from the persisted state keeps all entries and its owner — as expected
+PASS send: every entry uploaded exactly once; local copies removed — as expected
+PASS server processing reaches a terminal state for all — as expected
+PASS outcomes: clear slips imported, blurred slip in review, bill in review/imported, unknown image failed — slip_003_transfer_out=imported, slip_004_transfer_out=imported, slip_021_transfer_out=needs_review, slip_024_transfer_out=needs_review, slip_028_bill=imported, nonfixture=extract_failed
+PASS labels the UI would show — Imported | Imported | Needs your review | Needs your review | Imported | Could not read — tap retry
+PASS server-side dedup: same bytes sent directly (bypassing local dedup) → 200 duplicate_image — as expected
+PASS retry of the failed (non-fixture) image: server re-queues once; the fake extractor fails again honestly — as expected
+PASS review: blurred slip asks for the amount; user enters it; accept imports one transaction — as expected
+PASS review: resolving the same item again is refused (no double import) — as expected
+PASS ledger: transactions listed with source; unclassified payees surfaced — txns=3 sources=[auto_import, review_import] unclassified_groups=2 money_left=992500
+PASS undated photo: refused until the user confirms that photo; then sent with the confirmation — as expected
+PASS receipt for a purchase already recorded: review offers attach/different only; attaching adds no spending — as expected
+PASS slice1: an image over the client limit is also refused by the server (limits agree) — as expected
+PASS slice1: review sheet photo is the uploaded image (bytes, in memory) — as expected
+PASS slice1: activity model from real lists — waiting items not counted; totals = completed transactions only — days=5 rows=5 waiting=1 unpaid_bills=1 out=฿602
+PASS slice1 fix: bill without due date → user enters it in the sheet → a bill, not an expense — as expected
+PASS slice1 fix: unknown status → user picks Completed → recorded completed and counted — as expected
+PASS slice1 fix: unknown status → user picks Failed → recorded failed and NOT counted — as expected
+PASS C's session ends with 2 photos queued; D signs in on the same phone → C's photos are neither shown nor sent — as expected
+PASS gate: E queued photos; F signs in; /me fails (offline) → nothing visible or sent; retry → Ready for F only — as expected
+PASS server refuses an upload that names another account (defence in depth) — as expected
+PASS user B without auto-import: slip goes to review (confirm_import), accept imports it — as expected
+PASS slice1: resolving an item that is no longer open → NoLongerOpen (404), never shown as success — as expected
+PASS isolation: B cannot read A's upload (404) — as expected
+PASS revoke photo consent: queue pauses, new images are not sent, direct upload refused — as expected
+PASS logout clears the local token and revokes it on the server (old token → SESSION_EXPIRED) — as expected
+34/34 steps ok

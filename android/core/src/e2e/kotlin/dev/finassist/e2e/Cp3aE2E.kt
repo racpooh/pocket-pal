@@ -149,6 +149,64 @@ fun main(args: Array<String>) {
         actions.none { it.decision == "accept" } && actions.first().decision == "link_receipt" && a.transactions().size == spendBefore
     }
 
+    // ---- vertical slice 1 (docs/design/13 §4): the models the new screens render, on real server data ----
+    step("slice1: an image over the client limit is also refused by the server (limits agree)", "client problem + 413 UPLOAD_TOO_LARGE") {
+        val big = ByteArray(UploadLimits.MAX_BYTES + 1).also { byteArrayOf(-119, 80, 78, 71, 13, 10, 26, 10).copyInto(it) }
+        val client = UploadLimits.problem(big.size.toLong(), "image/png")
+        val server = try { a.upload(big, "image/png", captured); "accepted" } catch (e: ApiException) { "${e.status} ${e.code}" }
+        client != null && server == "413 UPLOAD_TOO_LARGE"
+    }
+    step("slice1: review sheet photo is the uploaded image (bytes, in memory)", "same sha256") {
+        val e = bySha("slip_003_transfer_out.png")
+        UploadQueue.sha256Hex(a.uploadImage(e.uploadId!!)) == e.sha256
+    }
+    step("slice1: activity model from real lists — waiting items not counted; totals = completed transactions only", "see actual") {
+        val txns = a.transactions(); val items = a.reviewItems().list("items").objs()
+        val sc = ActivityModel.build(txns, items, a.bills(), a.pockets(), java.time.LocalDate.now(java.time.ZoneId.of("Asia/Bangkok")))
+        val outExpected = txns.filter { it.str("payment_status") == "completed" && it.str("kind") !in setOf("income", "refund", "transfer_in") }
+            .sumOf { it.long("amount_satang") ?: 0L }
+        val ok = sc.waiting.size == items.size && sc.waiting.none { it.counted } && sc.days.sumOf { it.outSatang } == outExpected &&
+            sc.days.sumOf { it.rows.size } == txns.size
+        if (!ok) false else "days=${sc.days.size} rows=${txns.size} waiting=${sc.waiting.size} unpaid_bills=${sc.bills.size} out=${MoneyText.magnitude(outExpected)}"
+    }
+
+    // ---- slice 1 fix (Codex finding 1): inputs the review sheet offers are enough to resolve these items ----
+    val variants = File(slipsDir).resolveSibling("review_variants")
+    fun reviewFor(file: String): ReviewView {
+        val up = a.upload(File(variants, file).readBytes(), "image/png", captured, expectedOwnerId = a.me())
+        waitUntil { a.uploadDetail(up.uploadId).str("status") == "needs_review" }
+        return ReviewView(a.reviewItems().list("items").objs().first { it.str("upload_id") == up.uploadId })
+    }
+    step("slice1 fix: bill without due date → user enters it in the sheet → a bill, not an expense", "bill_id, txn count unchanged") {
+        val v = reviewFor("var_bill_no_due_date.png")
+        val ed = v.initialInputs().toMutableMap()
+        val blocked = !v.canRun(v.actions.first { it.decision == "accept" }, null, ed) && "due_date_text" in v.inputs(ed)
+        ed["due_date_text"] = "2026-10-20"
+        val n = a.transactions().size
+        val o = ReviewResolver.classify("accept", runCatching { a.resolveReview(v.id, "accept", v.changedFields(ed)) })
+        val bill = (o as? ResolveOutcome.Done)?.billId?.let { id -> a.bills().firstOrNull { it.str("id") == id } }
+        blocked && o.isSuccess && bill?.str("due_date") == "2026-10-20" && a.transactions().size == n
+    }
+    step("slice1 fix: unknown status → user picks Completed → recorded completed and counted", "completed, counted") {
+        val v = reviewFor("var_slip_status_unknown_a.png")
+        val ed = v.initialInputs().toMutableMap()
+        val noDefault = ed["status"] == "" && !v.canRun(v.actions.first { it.decision == "accept" }, null, ed)
+        ed["status"] = "success"
+        val o = ReviewResolver.classify("accept", runCatching { a.resolveReview(v.id, "accept", v.changedFields(ed)) }) as ResolveOutcome.Done
+        val t = a.transactions().first { it.str("id") == o.txnId }
+        val sc = ActivityModel.build(a.transactions(), emptyList(), emptyList(), a.pockets(), java.time.LocalDate.parse("2026-10-16"))
+        noDefault && t.str("payment_status") == "completed" && sc.days.flatMap { it.rows }.first { it.key == "t:${o.txnId}" }.counted
+    }
+    step("slice1 fix: unknown status → user picks Failed → recorded failed and NOT counted", "failed, not counted") {
+        val v = reviewFor("var_slip_status_unknown_b.png")
+        val ed = v.initialInputs().toMutableMap(); ed["status"] = "failed"
+        val o = ReviewResolver.classify("accept", runCatching { a.resolveReview(v.id, "accept", v.changedFields(ed)) }) as ResolveOutcome.Done
+        val t = a.transactions().first { it.str("id") == o.txnId }
+        val row = ActivityModel.build(a.transactions(), emptyList(), emptyList(), a.pockets(), java.time.LocalDate.parse("2026-10-16"))
+            .days.flatMap { it.rows }.first { it.key == "t:${o.txnId}" }
+        t.str("payment_status") == "failed" && !row.counted && row.tags.contains("Failed · not counted")
+    }
+
     // ---- account switch after a session ended with photos still queued (Codex CP3a #1) ----
     step("C's session ends with 2 photos queued; D signs in on the same phone → C's photos are neither shown nor sent", "0 uploads for C and D") {
         val tokens = MemoryTokenStore()
@@ -200,6 +258,7 @@ fun main(args: Array<String>) {
     // ---- second user: no auto-import consent → every slip waits for confirmation ----
     val b = ApiClient(base, transport, MemoryTokenStore(), debugBuild = true)
     val emailB = "b-${UUID.randomUUID().toString().take(8)}@example.test"
+    var bResolvedItem: String? = null
     step("user B without auto-import: slip goes to review (confirm_import), accept imports it", "needs_review → imported") {
         b.signup(emailB, pw); b.login(emailB, pw)
         b.putProfile(2_000_000, "monthly", "2026-11-01", emptyList()); b.addBalance(b.accounts()[0].str("id")!!, 500_000)
@@ -207,7 +266,15 @@ fun main(args: Array<String>) {
         val up = b.upload(slip("slip_009_transfer_out.png"), "image/png", captured, expectedOwnerId = b.me())
         waitUntil { b.uploadDetail(up.uploadId).str("status") == "needs_review" } && run {
             val item = b.reviewItems().list("items").objs().first { it.str("upload_id") == up.uploadId }
+            bResolvedItem = item.str("id")
             item.str("reason") == "confirm_import" && b.resolveReview(item.str("id")!!, "accept").str("txn_id") != null }
+    }
+    step("slice1: resolving an item that is no longer open → NoLongerOpen (404), never shown as success", "NoLongerOpen, txn count unchanged") {
+        val n = b.transactions().size
+        // the same decision sent again for the item just resolved (e.g. after a lost response): must not count as saved
+        val o1 = ReviewResolver.classify("accept", runCatching { b.resolveReview(bResolvedItem!!, "accept") })
+        o1 is ResolveOutcome.NoLongerOpen && !o1.isSuccess && b.transactions().size == n &&
+            b.reviewItems().list("items").objs().none { it.str("id") == bResolvedItem }
     }
     step("isolation: B cannot read A's upload (404)", "404") {
         try { b.uploadDetail(bySha("slip_003_transfer_out.png").uploadId!!); false } catch (e: ApiException) { e.status == 404 }

@@ -21,13 +21,13 @@ tasks.register<JavaExec>("selfTest") {
 }
 tasks.named("check") { dependsOn("selfTest") }
 
-// ./gradlew :core:e2e -PbaseUrl=http://127.0.0.1:8000  (needs backend/scripts/dev_server.py --provider fake running)
+// ./gradlew :core:e2e -PbaseUrl=http://127.0.0.1:8001  (needs backend/scripts/dev_server.py --profile e2e --provider fake running)
 tasks.register<JavaExec>("e2e") {
     group = "verification"
     classpath = e2e.runtimeClasspath
     mainClass.set("dev.finassist.e2e.Cp3aE2EKt")
     args(
-        (findProperty("baseUrl") ?: "http://127.0.0.1:8000").toString(),
+        (findProperty("baseUrl") ?: "http://127.0.0.1:8001").toString(),
         rootProject.file("../backend/fixtures/synthetic/slips").path,
         layout.buildDirectory.dir("e2e").get().asFile.path,
     )

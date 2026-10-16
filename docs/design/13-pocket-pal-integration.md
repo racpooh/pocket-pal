@@ -201,3 +201,112 @@ Acceptance for slice 1 (proposal):
 3. Decisions needed from the team / Codex: Undo; "spent today"; "protected"; Savings pocket; equal-period insights;
    the per-payday goal schedule; delete-all. Each one is either built in the backend or removed from the UI. None is
    faked on the client.
+
+## 6. Slice 1 — implemented (16 Oct 2026, ~19:35 ICT; for Codex review)
+
+**Not changed (agreed split with Codex):** backend contract, extraction schema, parser, dedup and eval harness. No
+backend change was needed. The `05` §5 notes (exposing the upload limit, `Idempotency-Key` on resolve) stay open as
+proposals.
+
+Code (Android only):
+
+| File | What |
+|---|---|
+| `core/.../Slice1.kt` (new, pure Kotlin) | `UploadLimits` (8 MiB, JPEG/PNG; same as backend); `MoneyText` (satang `Long` → `฿1,240` / `฿120.50`, signed "+/−"); `ResolveOutcome` + `ReviewResolver` (**404 → `NoLongerOpen`, never success**; no response → `Unknown`; 409 not-allowed / possible-duplicate; 400 fields; 401 rethrown to the session layer); `ReviewView` (buttons = `allowed_decisions` only, candidates with explicit choice when >1, only changed fields sent, flags from `problem_fields`); `ActivityModel` (day groups; waiting items, pending and failed payments not counted; unpaid bills; pocket via category) |
+| `core/.../Api.kt` | `uploadImage(id)` (bytes, memory only), `bills(status)` |
+| `app/.../Theme.kt` (new) | pocket-pal tokens (MASTER.md): colours, 22 dp cards, ink/mint buttons, hint pill, tag, chip; `Load` = Loading / Failed + Retry / Ready |
+| `app/.../MainActivity.kt` | bottom tabs Activity · Upload · Review · You; TEST MODE banner only when `/v1/health.test_mode`; server error with Retry; first run opens consent if photo processing is not allowed |
+| `app/.../Screens.kt` | sign in, consent (3 separate items, copy says photos go to Anthropic), upload (Photo Picker → owner-bound `UploadQueue`, limits checked before reading), review list + review sheet (photo, fields with "Check this" / "Needed", candidates, decisions from the server, optional pocket after a recorded decision), Activity (bills, Waiting, day groups, pocket filters) |
+| `app/.../AppState.kt` | `load()` (explicit states; 401 → session layer; quiet refresh keeps the last data); `resolve()` (outcome only from the server answer; list reloaded after every non-success) |
+
+Unchanged and still used: SessionGate (screens only in Ready), Keystore token store, owner-bound UploadQueue,
+`clearIf` / `staleToken` 401 handling, BaseUrlPolicy, the no-backup rules.
+
+Evidence (synthetic fixtures, fake extraction, **e2e profile**; dev DB untouched; no paid model):
+- `20261016T122933Z-slice1-client-e2e-cloud` (x86_64, PG 16): core 32/32 and E2E 31/31.
+- `20261016T123146Z-slice1-client-e2e-device-pg18-arm64` (owner's Linux ARM64 VM, PG 18.4): core 32/32 and E2E 31/31.
+- `20261016T122753Z-slice1-client-e2e-cloud` is an invalid run (cloud Postgres was down), kept with NOTE.md.
+
+New tests:
+- Core (5): limits, money text, resolve outcomes including 404 ≠ success, review view, activity model.
+- E2E (4):
+  - an oversize image is refused by both client and server (413);
+  - the review photo bytes equal the upload;
+  - the activity model on real lists counts only completed transactions and never counts waiting items;
+  - re-sending a decision for a resolved item → `NoLongerOpen`, and the transaction count is unchanged.
+
+**Not verified here:**
+- The `app` module (Compose) **has not been compiled**: this environment cannot reach Google Maven. It passed a Kotlin
+  parse check only. The owner builds on the Mac.
+- Screens and visuals have not been run on a device.
+- Plus Jakarta Sans and Noto Sans Thai are not bundled (system font).
+- No icons (no extra dependency added).
+
+## 7. Slice 1 fixes after Codex review (16 Oct 2026, ~20:45 ICT)
+
+Scope kept: no change to the backend contract, extraction schema, parser, dedup or eval harness (reference/dedup is
+Codex's work). Backend files touched, test-only: `scripts/dev_server.py` (the fake provider also registers the review
+variants), the new `tests/integration/test_slice1_review_inputs.py`, and new synthetic fixtures under
+`fixtures/synthetic/review_variants/` (see below).
+
+**Finding 1: review could not supply every field the server needs.**
+- Checked every `problem_fields` value the worker writes (`imports._route`): `amount`, `direction`, `payment_status`,
+  `occurred`, `due_date`, plus the `problems` codes when nothing critical is missing (`doc_type`, `implausible_date`,
+  `poor_readability`, `qr_ref_mismatch`, `occurred_after_capture`, `outside_scan_range`, dedup reasons).
+- Also checked what `resolve` requires: bills need amount, date and due date; everything else needs amount, direction
+  (doc_type), payment status and date. `resolve` merges only extraction field names.
+- `ReviewView` now offers:
+  - `due_date_text` for bills or when `due_date` is flagged;
+  - `status` (success / pending / failed / scheduled, the tool enum minus "unknown") for transfers or when
+    `payment_status` is flagged;
+  - `doc_type` (sent / received / receipt / bill) only when the type is unknown or `direction`/`doc_type` is flagged.
+- Choices are **never pre-selected** when the reading was unknown or missing. A status that was read is shown as read.
+- Accept and Distinct stay disabled until the required inputs are filled (`missingRequired`, presence only; the server
+  parses). Only changed fields are sent. `allowed_decisions` and candidates are unchanged.
+- Ledger policy is unchanged and comes from the server: completed counts; pending, failed and scheduled are recorded
+  but not counted.
+
+**Finding 2: negative amounts were shown as positive.**
+- `MoneyText.compact` (which used `abs`) was removed. There are now four formatters:
+  - `magnitude`: transaction or bill size, with the direction given in words;
+  - `signed`: "+/−" for transactions;
+  - `amount`: keeps the sign, e.g. −฿200;
+  - `safeToSpend`: "฿X to spend" or "Short ฿X".
+- All call sites were reviewed. The Setup summary (safe to spend, daily amount) now uses `safeToSpend` / `amount`.
+  The others are magnitudes with words (bill amount, day "out", "as read").
+
+**Synthetic review variants** (`fixtures/synthetic/review_variants/`, generated deterministically by `make_variants.py`):
+- They are copies of synthetic slips 030, 005 and 006 with a yellow "TEST VARIANT" strip.
+- Their fake-extractor fields leave out exactly the due date (bill) or the status (two transfers).
+- They exist only so the E2E and the phone checklist can reach these review states. No real data.
+
+**Tests:**
+
+| Run | Where | Result |
+|---|---|---|
+| `20261016T133608Z-slice1fix-client-e2e-device-pg18-arm64` | owner's Linux ARM64 VM, PG 18.4, e2e profile | core 35/35, E2E 34/34 |
+| `20261016T133727Z-slice1fix-backend-device-pg18-arm64` | same VM, test profile | 290 passed, 0 failed; 2 skipped = Codex's strict-xfail reference gaps |
+| `20261016T133356Z-slice1fix-client-e2e-cloud` | cloud sandbox (x86_64, PG 16) | core 35/35, E2E 34/34 |
+
+- The cloud run and the two slice-1 cloud runs (`…122753Z`, invalid, with NOTE; `…122933Z`) existed only in the cloud
+  workspace. They were copied to this machine at 2026-10-16T13:36Z, each with a `PROVENANCE.md`.
+- New core tests:
+  - money: negative, zero and satang values;
+  - bill without a due date;
+  - unknown status, with no default;
+  - unknown type, with no default.
+- New E2E steps:
+  - bill without a due date → the user enters it → a bill is created, the transaction count is unchanged;
+  - unknown status → Completed → recorded completed and counted;
+  - unknown status → Failed → recorded failed and not counted.
+
+**Device:**
+- The test phone is a Samsung Galaxy S22 Ultra (SM-S908E, Android 14), as shown by the owner's install log. Earlier
+  documents said "S23"; correction notes were added and the historical text was left as it was.
+- Checklist: `android/README.md` S1–S18. S10 is split into S10a (stale item → 404) and S10b (network failure). Neither
+  proves a response lost after the server committed; only the E2E re-send step covers that.
+- S15–S18 cover the two findings.
+
+**Not verified:**
+- The app module has still not been compiled here (no Google Maven access). The owner builds it.
+- No screen has been run on the phone yet.

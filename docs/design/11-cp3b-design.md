@@ -8,7 +8,7 @@ no deploy, no git by Claude, no security control relaxed for the demo.
 
 ## 1. Photo access model
 
-| Situation (Android 14+, S23) | What the app can read | What the app shows / does |
+| Situation (Android 14+, test phone Galaxy S22 Ultra (SM-S908E, Android 14)) | What the app can read | What the app shows / does |
 |---|---|---|
 | Full access granted (`READ_MEDIA_IMAGES`) | all images in MediaStore | "Scanning photos from <scan_from>" |
 | Partial access (`READ_MEDIA_VISUAL_USER_SELECTED` only) | only the photos the user selected in the system sheet | "Scanning only the N photos you allowed — not your whole album"; button "Choose more photos" (re-request) |
@@ -43,7 +43,7 @@ Evaluation on **synthetic** images only: positives = 40 synthetic slips/receipts
 non-slip images (gradients, noise, shapes, synthetic "photos", synthetic chat screenshots, menus) — at least 200,
 committed with their generator script and seed. Report on the frozen test split: confusion matrix, FP rate
 (non-slips that would be uploaded), FN rate (slips that would be missed), per-category misses, latency per image on
-the S23. Known limits stated in the report: real bank slips and real photos differ from synthetic ones; this filter
+the test phone (Galaxy S22 Ultra (SM-S908E, Android 14)). Known limits stated in the report: real bank slips and real photos differ from synthetic ones; this filter
 reduces uploads, it does not decide what is a transaction (the server still validates everything).
 
 ## 4. Background work
@@ -76,7 +76,7 @@ session expiry (SessionGate), account switch, process death and restart, permiss
 
 ## 7. Acceptance tests (CP3B-*)
 
-Automated = JVM core tests or backend/E2E in this repo; Device = owner on the S23 (user-reported, dated, kept apart).
+Automated = JVM core tests or backend/E2E in this repo; Device = owner on the test phone (Galaxy S22 Ultra (SM-S908E, Android 14)) (user-reported, dated, kept apart).
 
 | ID | Test | Kind |
 |---|---|---|
@@ -86,7 +86,7 @@ Automated = JVM core tests or backend/E2E in this repo; Device = owner on the S2
 | CP3B-04 | Scan respects `scan_from`; undated photos are never auto-sent and appear for confirmation | core + device |
 | CP3B-05 | Incremental cursor: second scan sends 0 new; cursor resets on account switch | core |
 | CP3B-06 | Filter FP/FN report on the frozen synthetic test split (≥40 positives, ≥200 negatives), threshold frozen before | core eval (evidence run) |
-| CP3B-07 | Filter latency on S23 per image reported | device |
+| CP3B-07 | Filter latency on the test phone per image reported | device |
 | CP3B-08 | Worker: identity mismatch or no session → sends nothing | core + E2E |
 | CP3B-09 | Worker: consent withdrawn between runs → nothing new sent; withdrawn mid-run → stops before next image | core + E2E |
 | CP3B-10 | Worker and app at the same time → each image sent once (one queue writer) | core (two threads) + device |

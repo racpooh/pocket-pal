@@ -1,5 +1,8 @@
 # 09 — CP3a review request for Codex (15 Oct 2026, ~21:00 ICT)
 
+> **Device correction (16 Oct 2026, ~20:40 ICT):** the phone used for testing is a Samsung Galaxy S22 Ultra (SM-S908E, Android 14), as shown by the owner's install log (model SM-S908E, Android 14; that log is on the owner's Mac, not in this repo). Earlier text called it "S23". Results recorded below are unchanged; only the device name was wrong.
+
+
 Scope: Android client skeleton + auth/setup + manual upload → review → ledger, connected to the real backend.
 CP3b (album scan, OS permissions, background, chat/approval, lifecycle) is **not started**.
 Rules kept: no git, no paid deploy, no paid model calls, no real slips, no security control relaxed for the demo.

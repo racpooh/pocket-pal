@@ -338,6 +338,118 @@ object CoreSelfTest {
             eq(gate.onUnauthorized(SessionExpiredException("SESSION_EXPIRED", "x", null)), true); eq(gate.state, SessionState.SignedOut)
         }
 
+        // ---------------- vertical slice 1 (docs/design/13 §4) ----------------
+        test("slice1: upload limits equal the backend (8 MiB, JPEG/PNG)") {
+            eq(UploadLimits.MAX_BYTES, 8_388_608)
+            eq(UploadLimits.problem(8_388_608, "image/png"), null); eq(UploadLimits.problem(8_388_609, "image/jpeg"), "Larger than 8 MB")
+            eq(UploadLimits.problem(10, "image/heic"), "Not a JPG or PNG photo"); eq(UploadLimits.problem(0, "image/png"), "Empty file")
+        }
+        test("slice1: money text — magnitude vs signed vs amount; negatives never shown as available") {
+            eq(MoneyText.magnitude(124_000), "฿1,240"); eq(MoneyText.magnitude(12_050), "฿120.50"); eq(MoneyText.magnitude(5), "฿0.05")
+            eq(MoneyText.magnitude(-20_000), "฿200")                       // size only; callers word the direction
+            eq(MoneyText.signed(16_000, true), "+฿160"); eq(MoneyText.signed(8_900, false), "−฿89")
+            eq(MoneyText.amount(-20_000), "−฿200"); eq(MoneyText.amount(-5), "−฿0.05"); eq(MoneyText.amount(-12_050), "−฿120.50")
+            eq(MoneyText.amount(0), "฿0"); eq(MoneyText.amount(1), "฿0.01"); eq(MoneyText.amount(99_999_999), "฿999,999.99")
+            eq(MoneyText.safeToSpend(-58_382), "Short ฿583.82"); eq(MoneyText.safeToSpend(0), "฿0 to spend")
+            eq(MoneyText.safeToSpend(992_500), "฿9,925 to spend")
+            yes(!MoneyText.safeToSpend(-1).contains("to spend"), "a shortage never reads as money to spend")
+        }
+        test("slice1: resolve 404 is NOT success; network = unknown; 409/400 mapped; 401 rethrown") {
+            val ok = ReviewResolver.classify("accept", Result.success(mapOf("decision" to "accept", "txn_id" to "t1")))
+            yes(ok.isSuccess && (ok as ResolveOutcome.Done).txnId == "t1", "done")
+            val gone = ReviewResolver.classify("accept", Result.failure(ApiException(404, "NOT_FOUND", "Not found.", "rq1")))
+            yes(gone is ResolveOutcome.NoLongerOpen && !gone.isSuccess, "404 → no longer open, not success")
+            yes(!gone.userText().contains("Recorded"), "404 text never claims success")
+            eq(ReviewResolver.classify("accept", Result.failure(NetworkException(IOException("x")))), ResolveOutcome.Unknown)
+            yes(ReviewResolver.classify("accept", Result.failure(ApiException(409, "DECISION_NOT_ALLOWED", "no"))) is ResolveOutcome.NotAllowed, "409 not allowed")
+            yes(ReviewResolver.classify("accept", Result.failure(ApiException(409, "POSSIBLE_DUPLICATE", "dup"))) is ResolveOutcome.PossibleDuplicate, "409 dup")
+            val inv = ReviewResolver.classify("accept", Result.failure(ApiException(400, "VALIDATION_FAILED", "missing", fields = listOf(mapOf("path" to "amount")))))
+            eq((inv as ResolveOutcome.Invalid).fields, listOf("amount"))
+            throws<SessionExpiredException> { ReviewResolver.classify("accept", Result.failure(SessionExpiredException("SESSION_EXPIRED", "x", null))) }
+            yes(ReviewResolver.classify("link_receipt", Result.success(emptyMap())).userText().contains("No new spending"), "link text")
+        }
+        test("slice1: review sheet offers exactly allowed_decisions; candidate choice; only changed fields sent") {
+            val item = mapOf("id" to "r1", "upload_id" to "u1", "reason" to "possible_duplicate", "problem_fields" to listOf("amount"),
+                "allowed_decisions" to listOf("duplicate_of", "distinct", "not_a_transaction"),
+                "extracted" to mapOf("amount_text" to null, "date_text" to "15 ต.ค. 69", "payee" to "Shop"),
+                "candidates" to listOf(mapOf("txn_id" to "t1", "amount_satang" to 4500L), mapOf("txn_id" to "t2", "amount_satang" to 4500L)))
+            val v = ReviewView(item)
+            eq(v.actions.map { it.decision }, listOf("duplicate_of", "distinct", "not_a_transaction"))
+            yes(v.actions.none { it.decision == "accept" }, "no accept for a duplicate")
+            val dup = v.actions.first()
+            eq(v.canRun(dup, null), false); eq(v.txnFor(dup, "t2"), "t2"); eq(v.txnFor(dup, "tX"), null)  // 2 candidates: must choose
+            eq(v.txnFor(v.actions[1], "t2"), null)                                                          // distinct sends no txn
+            eq(v.changedFields(mapOf("amount_text" to "120.00", "date_text" to "15 ต.ค. 69", "payee" to "Shop")), mapOf("amount_text" to "120.00"))
+            eq(v.changedFields(mapOf("date_text" to "15 ต.ค. 69")), null)
+            yes(v.flagged("amount_text") && !v.flagged("payee"), "flags from problem_fields")
+            eq(ReviewView(item + ("allowed_decisions" to listOf("accept", "future_decision"))).actions.map { it.decision }, listOf("accept"))
+        }
+        test("slice1: activity groups by day; waiting, pending and failed are not counted") {
+            val today = java.time.LocalDate.parse("2026-10-16")
+            val txns = listOf(
+                mapOf("id" to "a", "occurred_date" to "2026-10-16", "kind" to "expense", "amount_satang" to 8_900L, "payment_status" to "completed",
+                      "payee_display" to "7-Eleven", "category_code" to "food", "category_state" to "confirmed", "source" to "auto_import"),
+                mapOf("id" to "b", "occurred_date" to "2026-10-16", "kind" to "expense", "amount_satang" to 50_000L, "payment_status" to "pending",
+                      "payee_display" to "X", "source" to "auto_import"),
+                mapOf("id" to "c", "occurred_date" to "2026-10-15", "kind" to "refund", "amount_satang" to 16_000L, "payment_status" to "completed",
+                      "payee_display" to "Shop", "category_code" to "shopping", "category_state" to "predicted", "source" to "manual"))
+            val review = listOf(mapOf("id" to "r1", "reason" to "missing_fields", "allowed_decisions" to listOf("accept"),
+                "extracted" to mapOf("amount_text" to "1,200.00", "payee" to "Metro")))
+            val bills = listOf(mapOf("id" to "b1", "biller" to "Water", "amount_due_satang" to 7_500L, "due_date" to "2026-10-25", "status" to "unpaid"),
+                               mapOf("id" to "b2", "biller" to "Old", "amount_due_satang" to 1L, "due_date" to "2026-10-01", "status" to "paid"))
+            val pockets = listOf(mapOf("name" to "Food", "categories" to listOf("food")), mapOf("name" to "Shopping", "categories" to listOf("shopping")))
+            val sc = ActivityModel.build(txns, review, bills, pockets, today)
+            eq(sc.days.map { it.label }, listOf("Today", "Yesterday"))
+            eq(sc.days[0].outSatang, 8_900L)                                   // pending ฿500 not counted
+            eq(sc.days[1].inSatang, 16_000L)
+            eq(sc.days[0].rows.first { it.key == "t:b" }.tags, listOf("Pending · not counted"))
+            eq(sc.days[1].rows.single().tags, listOf("Guessed pocket")); eq(sc.days[1].rows.single().pocket, "Shopping")
+            eq(sc.waiting.single().counted, false); eq(sc.waiting.single().amountSatang, 120_000L); eq(sc.waiting.single().reviewId, "r1")
+            eq(sc.bills.map { it.id }, listOf("b1")); eq(sc.bills.single().daysUntil, 9L)
+            eq(sc.pocketFilters, listOf("Food", "Shopping"))
+            eq(ActivityModel.dayLabel("2026-10-01", today), "1 Oct")
+        }
+
+        test("slice1 fix: bill missing due date — due date input shown, required, sent; type never guessed") {
+            val bill = ReviewView(mapOf("id" to "r2", "reason" to "missing_fields", "problem_fields" to listOf("due_date"),
+                "allowed_decisions" to listOf("accept", "not_a_transaction"),
+                "extracted" to mapOf("doc_type" to "bill", "amount_text" to "3,600.00", "date_text" to "2026-10-01", "due_date_text" to null)))
+            val ed = bill.initialInputs().toMutableMap()
+            yes("due_date_text" in bill.inputs(ed) && "status" !in bill.inputs(ed) && "doc_type" !in bill.inputs(ed), "bill inputs")
+            yes(bill.flagged("due_date_text"), "due date flagged")
+            eq(bill.missingRequired(ed), listOf("due_date_text")); eq(bill.canRun(bill.actions[0], null, ed), false)
+            ed["due_date_text"] = "2026-10-20"
+            eq(bill.missingRequired(ed), emptyList<String>()); eq(bill.canRun(bill.actions[0], null, ed), true)
+            eq(bill.changedFields(ed), mapOf("due_date_text" to "2026-10-20"))
+        }
+        test("slice1 fix: slip with unknown status — no pre-selected status; user's choice is what is sent") {
+            val slip = ReviewView(mapOf("id" to "r3", "reason" to "missing_fields", "problem_fields" to listOf("payment_status"),
+                "allowed_decisions" to listOf("accept", "not_a_transaction"),
+                "extracted" to mapOf("doc_type" to "transfer_out", "amount_text" to "185.00", "date_text" to "2026-10-05", "status" to "unknown")))
+            val ed = slip.initialInputs().toMutableMap()
+            eq(ed["status"], ""); yes("status" in slip.inputs(ed) && slip.flagged("status"), "status asked")
+            eq(slip.missingRequired(ed), listOf("status")); eq(slip.changedFields(ed), null)
+            eq(ReviewView.STATUS_CHOICES.map { it.value }, listOf("success", "pending", "failed", "scheduled"))  // backend enum minus unknown
+            ed["status"] = "failed"
+            eq(slip.changedFields(ed), mapOf("status" to "failed")); eq(slip.missingRequired(ed), emptyList<String>())
+            val read = ReviewView(mapOf("id" to "r4", "reason" to "confirm_import", "allowed_decisions" to listOf("accept"),
+                "extracted" to mapOf("doc_type" to "transfer_out", "status" to "pending", "amount_text" to "1", "date_text" to "2026-10-05")))
+            eq(read.initialInputs()["status"], "pending"); eq(read.changedFields(read.initialInputs()), null)  // what was read, unchanged
+        }
+        test("slice1 fix: unknown document type — type chooser with no default; required before accept") {
+            val v = ReviewView(mapOf("id" to "r5", "reason" to "missing_fields", "problem_fields" to listOf("direction"),
+                "allowed_decisions" to listOf("accept", "not_a_transaction"),
+                "extracted" to mapOf("doc_type" to null, "amount_text" to "50.00", "date_text" to "2026-10-05")))
+            val ed = v.initialInputs().toMutableMap()
+            yes(v.asksType && ed["doc_type"] == "", "asks type, no default")
+            eq(v.missingRequired(ed), listOf("doc_type")); yes(ReviewView.TYPE_CHOICES.none { it.value == "not_financial" }, "not-a-transaction is a decision, not a type")
+            ed["doc_type"] = "transfer_out"
+            eq(v.missingRequired(ed), listOf("status"))                    // a transfer then needs a status too
+            ed["status"] = "success"
+            eq(v.changedFields(ed), mapOf("status" to "success", "doc_type" to "transfer_out"))
+            yes(v.canRun(v.actions.first { it.decision == "not_a_transaction" }, null, v.initialInputs()), "not-a-transaction needs nothing")
+        }
+
         val failed = results.filter { it.second != null }
         results.forEach { (n, e) -> println((if (e == null) "PASS " else "FAIL ") + n + (e?.let { "\n     $it" } ?: "")) }
         println("${results.size - failed.size}/${results.size} passed")

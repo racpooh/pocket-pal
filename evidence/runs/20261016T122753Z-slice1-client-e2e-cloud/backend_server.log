@@ -1,0 +1,15 @@
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+Traceback (most recent call last):
+  File "/home/claude/shenzen/backend/scripts/dev_server.py", line 127, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/claude/shenzen/backend/scripts/dev_server.py", line 109, in main
+    urls = _prepare(url, a.reset, prof)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/claude/shenzen/backend/scripts/dev_server.py", line 41, in _prepare
+    with psycopg.connect(url, autocommit=True) as c:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/claude/shenzen/backend/.venv/lib/python3.12/site-packages/psycopg/connection.py", line 126, in connect
+    raise last_ex.with_traceback(None)
+psycopg.OperationalError: connection is bad: connection to server on socket "/var/tmp/.s.PGSQL.55432" failed: Connection refused
+	Is the server running locally and accepting connections on that socket?

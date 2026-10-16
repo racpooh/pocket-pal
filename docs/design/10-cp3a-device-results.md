@@ -1,5 +1,8 @@
 # 10 — CP3a device results (Samsung S23)
 
+> **Device correction (16 Oct 2026, ~20:40 ICT):** the phone used for testing is a Samsung Galaxy S22 Ultra (SM-S908E, Android 14), as shown by the owner's install log (model SM-S908E, Android 14; that log is on the owner's Mac, not in this repo). Earlier text called it "S23". Results recorded below are unchanged; only the device name was wrong.
+
+
 **Kind of evidence: user-reported.** These results were observed and reported by the owner (Pooh). They are not
 automated runs; no logs or screenshots exist for them, and none were created afterwards. Automated evidence is in
 `09` and `evidence/runs/`.
