@@ -1,6 +1,7 @@
 # HANDOFF — read this first
 
-## TL;DR (16 Oct 2026, ~13:45 ICT — internal acceptance day; CP3a: 7 S23 scenarios user-reported pass, 7 checklist lines still to test; CP3b designed, not built)
+## TL;DR (16 Oct 2026, ~15:40 ICT — internal acceptance day; local environments isolated; real-slip eval round 1 prepared, NOT run — waits for owner approval)
+- **Environment isolation + real-slip eval:** `docs/design/12-real-slip-eval.md`. Profiles dev (phone) / e2e / test / realeval each have their own cluster, DB, roles, storage, port (`backend/scripts/local_envs.py`; `dev_server.py --profile` now required). Evidence: isolation 15/15 `20261016T082236Z-env-isolation-device-pg18-arm64`; backend 257 passed, skipped 0 `20261016T083337Z-env-isolation-backend-device-pg18-arm64`; harness self-test `20261016T083101Z-real-slip-harness-selftest`. Real round r1 (5 images) prepared in `eval/private/real-r1/` (gitignored); needs owner labels + approval to send to Anthropic ($0.10 cap).
 - Internal acceptance deadline: **16 Oct 2026** (team review). Official submission: 20 Oct 22:59 ICT.
 - **CP2 accepted by Codex review** (after cp2b/cp2c fixes). CP3a review request + fixes: `docs/design/09-cp3a-review-request.md`. D3a (Kotlin/Compose) accepted by Codex.
 - S23 user-reported results (16 Oct): `docs/design/10-cp3a-device-results.md` (lines 5,6,8,12,15,19 pass; 4,10,11,14,16,17,18 untested; steps there). CP3b design + acceptance tests: `docs/design/11-cp3b-design.md` (not implemented).
@@ -34,7 +35,7 @@ All suites use FAKE extraction and SCRIPTED chat; test counts are regression cov
 4. Update `06` and this file after each run.
 
 ## Open risks
-- Automated runs (`android/tools/cp3a_e2e.py`) use database `finassist_e2e`; the phone uses `finassist_dev`. Before 16 Oct ~13:45 they shared it and Claude's runs wiped the synthetic device-test data once (`10` note).
+- Before 16 Oct ~15:30 all local scripts shared one pgserver cluster and rotated the shared role passwords (and the E2E defaulted to the phone's port); Claude's runs once wiped the phone's synthetic data (`10` note). Now separate profiles (`12` §1). The phone's data moves to the new `pgdata-dev` cluster: one `--reset` start needed.
 - `scripts/local_pg.py` / `dev_server.py`: pgserver could return before Postgres accepted connections on a cold start (DB tests skipped once, dev server failed once; kept with NOTE.md). Now retried for 30 s. Still check `skipped: 0` in every device manifest.
 - Album scanning (R2.1/R2.3/R9.4) needs an Android client; backend tests cannot prove it.
 - Proposal staleness is strict (any data change invalidates pending proposals): safe but may cause refreshes in the demo.

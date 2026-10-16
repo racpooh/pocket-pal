@@ -58,7 +58,7 @@ Prerequisites: Android Studio (Ladybug 2024.2 or newer; it bundles a JDK), USB d
 1. Backend, test mode (terminal 1, repo root):
    ```bash
    cd backend
-   uv run --with pixeltable-pgserver python scripts/dev_server.py --provider fake --reset
+   uv run --with pixeltable-pgserver python scripts/dev_server.py --profile dev --provider fake --reset
    ```
    Wait for the `TEST MODE` banner and `Uvicorn running on http://127.0.0.1:8000`.
 2. Phone → your Mac (terminal 2): `adb devices` (accept the prompt on the phone), then
@@ -74,7 +74,8 @@ Prerequisites: Android Studio (Ladybug 2024.2 or newer; it bundles a JDK), USB d
 4. Build + install: Android Studio → Open `android/` → wait for Gradle sync → Run ▶ on the S23 (debug).
    Command line alternative: `cd android && ./gradlew :core:selfTest :app:installDebug`.
 5. Client-core E2E with Gradle (optional, Mac): `python3 android/tools/cp3a_e2e.py --slug cp3a-client-e2e-mac --runner gradle`
-   (stop the server from step 1 first, the script starts its own).
+   (it starts its own `--profile e2e` server on port 8001 with its own database and cluster; the phone's server from step 1
+   can keep running — see `docs/design/12` §1).
 6. Cleanup: `adb shell rm -r /sdcard/Pictures/FinAssistSynthetic` and `adb reverse --remove-all`.
 
 ### Manual device checklist (CP3a) — record the result of each line

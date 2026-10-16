@@ -1,0 +1,1 @@
+{"run_id": "20261016T082245Z-env-isolation-device-pg18-arm64-e2e", "core_selftest": "27/27 passed", "client_e2e": {"all_ok": true, "steps_ok": 27, "steps": 27}, "commands": {"core_selftest": {"exit_code": 0, "seconds": 0.3}, "client_e2e": {"exit_code": 0, "seconds": 68.3}}}

@@ -1,0 +1,19 @@
+/sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/platformdirs/api.py:459: RuntimeDirWarning: XDG_RUNTIME_DIR is not set, falling back to /sessions/rcw-01chrzru2bxushmom3zurhrq/tmp/runtime-1005
+  return Path(self.user_runtime_dir)
+Traceback (most recent call last):
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 127, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 111, in main
+    _reset_storage(prof)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/scripts/dev_server.py", line 71, in _reset_storage
+    shutil.rmtree(root)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/shutil.py", line 759, in rmtree
+    _rmtree_safe_fd(stack, onexc)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/shutil.py", line 703, in _rmtree_safe_fd
+    onexc(func, path, err)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/shutil.py", line 700, in _rmtree_safe_fd
+    onexc(os.unlink, fullname, err)
+  File "/sessions/rcw-01chrzru2bxushmom3zurhrq/.local/share/uv/python/cpython-3.12.14-linux-aarch64-gnu/lib/python3.12/shutil.py", line 698, in _rmtree_safe_fd
+    os.unlink(entry.name, dir_fd=topfd)
+PermissionError: [Errno 1] Operation not permitted: '/sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/var/dev_uploads/owners/a740ef6c-637d-4b59-a2cd-fbf56bd6550d/uploads'

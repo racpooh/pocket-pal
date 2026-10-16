@@ -42,7 +42,7 @@ and 18 are reported (and the partly-reported lines confirmed), or Codex decides 
 ## Steps for the remaining lines (owner, ~20 min)
 
 Setup once: latest sources → `cd android && ./gradlew :core:selfTest :app:installDebug` (expect `27/27 passed`); terminal 1:
-`cd backend && uv run --with pixeltable-pgserver python scripts/dev_server.py --provider fake --reset`; terminal 2:
+`cd backend && uv run --with pixeltable-pgserver python scripts/dev_server.py --profile dev --provider fake --reset`; terminal 2:
 `adb reverse tcp:8000 tcp:8000`. Push the extra synthetic slips:
 ```bash
 for f in slip_015_transfer_out slip_016_receipt slip_028_bill slip_032_transfer_out slip_033_transfer_out slip_034_transfer_out; do

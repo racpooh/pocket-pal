@@ -23,12 +23,8 @@ REPO = BACKEND.parent
 
 
 def _git_commit() -> str:
-    try:
-        out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True, check=True)
-        dirty = subprocess.run(["git", "status", "--porcelain"], cwd=REPO, capture_output=True, text=True).stdout
-        return out.stdout.strip() + ("+dirty" if dirty.strip() else "")
-    except Exception:
-        return "uncommitted"
+    # Owner rule (16 Oct 2026): Claude runs no git commands, not even from scripts. Identify code by content hash.
+    return "not queried (no git commands run by scripts; see content_sha256)"
 
 
 def _content_hash() -> str:

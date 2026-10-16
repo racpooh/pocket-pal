@@ -94,4 +94,4 @@ Per competition rules, submissions are in English. Team discussion may be in Tha
 
 
 ## Android client (CP3a)
-See `android/README.md`: stack decision, build on the Mac, run against `backend/scripts/dev_server.py --provider fake` via `adb reverse`, device checklist.
+See `android/README.md`: stack decision, build on the Mac, run against `backend/scripts/dev_server.py --profile dev --provider fake` via `adb reverse`, device checklist.

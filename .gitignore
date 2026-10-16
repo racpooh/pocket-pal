@@ -18,3 +18,5 @@ eval/private/
 # leftover temp dirs if pytest cannot clean up
 backend/pytest-cache-files-*/
 .sync/
+# real slips (owner-provided, private): never in Git
+backend/fixtures/real/

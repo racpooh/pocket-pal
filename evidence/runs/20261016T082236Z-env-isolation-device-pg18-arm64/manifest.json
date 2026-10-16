@@ -1,0 +1,115 @@
+{
+  "run_id": "20261016T082236Z-env-isolation-device-pg18-arm64",
+  "kind": "local environment isolation check (synthetic fixtures, fake extraction, no model calls)",
+  "started_at_utc": "2026-10-16T08:22:36.102591+00:00",
+  "finished_at_utc": "2026-10-16T08:23:58.335834+00:00",
+  "environment": {
+    "os": "Linux-6.8.0-138-generic-aarch64-with-glibc2.35",
+    "python": "3.12.14"
+  },
+  "profiles": {
+    "dev": {
+      "cluster": "pgdata-dev",
+      "database": "finassist_dev",
+      "port": 8000
+    },
+    "e2e": {
+      "cluster": "pgdata-e2e",
+      "database": "finassist_e2e",
+      "port": 8001
+    },
+    "test": {
+      "cluster": "pgdata-test",
+      "database": "finassist_test",
+      "port": null
+    },
+    "realeval": {
+      "cluster": "pgdata-realeval",
+      "database": "finassist_realeval_test",
+      "port": null
+    }
+  },
+  "uses_mocks": [
+    "extraction: FakeExtractionProvider with SYNTHETIC fixtures"
+  ],
+  "checks": [
+    {
+      "check": "legacy FINASSIST_PGDATA refused",
+      "ok": true,
+      "detail": "FINASSIST_PGDATA (one shared cluster) is no longer supported; set FINASSIST_PGDATA_ROOT instead (each profile gets its own cluster under it)"
+    },
+    {
+      "check": "dev server is the dev profile",
+      "ok": true
+    },
+    {
+      "check": "second server on the taken dev port refused",
+      "ok": true,
+      "detail": "port 8000 is already in use (another server running?); refusing to start"
+    },
+    {
+      "check": "e2e profile on the dev port refused",
+      "ok": true,
+      "detail": "port 8000 belongs to profile 'dev'; refusing"
+    },
+    {
+      "check": "cp3a_e2e on port 8000 refused",
+      "ok": true,
+      "detail": "port 8000 is the phone's dev server; the E2E uses the e2e profile (default 8001)"
+    },
+    {
+      "check": "e2e profile with the dev database URL refused",
+      "ok": true,
+      "detail": "profile 'e2e' uses database 'finassist_e2e', but the URL points at 'finassist_dev'; refusing"
+    },
+    {
+      "check": "cluster marked for another profile refused",
+      "ok": true,
+      "detail": "cluster /sessions/rcw-01chrzru2bxushmom3zurhrq/fa-iso/marker-check/pgdata-dev belongs to profile 'e2e', not 'dev'; refus"
+    },
+    {
+      "check": "dev: first synthetic slip imported",
+      "ok": true
+    },
+    {
+      "check": "pytest (test profile) ran while dev server was up",
+      "ok": true,
+      "detail": "7 passed, 15 warnings in 3.96s"
+    },
+    {
+      "check": "cp3a_e2e (e2e profile, --reset, port 8001) ran while dev server was up",
+      "ok": true,
+      "detail": "{\"run_id\": \"20261016T082245Z-env-isolation-device-pg18-arm64-e2e\", \"core_selftest\": \"27/27 passed\", \"client_e2e\": {\"all_ok\": true, \"steps_ok\": 27, \"steps\": 27}, \"commands\": {\"core_selftest\": {\"exit_code\": 0, \"seconds\": 0.3}, \"client_e2e\": {\"exit_code\": 0, \"seconds\": 68.3}}}"
+    },
+    {
+      "check": "dev: A's token still valid after both runs",
+      "ok": true
+    },
+    {
+      "check": "dev: A's records unchanged",
+      "ok": true,
+      "detail": {
+        "before": 1,
+        "after": 1
+      }
+    },
+    {
+      "check": "dev: a new upload still imports (fresh API + worker connections)",
+      "ok": true
+    },
+    {
+      "check": "dev server still running",
+      "ok": true
+    },
+    {
+      "check": "three separate clusters",
+      "ok": true,
+      "detail": {
+        "dev": "pgdata-dev",
+        "e2e": "pgdata-e2e",
+        "test": "pgdata-test"
+      }
+    }
+  ],
+  "verdict": "PASS"
+}

@@ -6,6 +6,10 @@ client-core E2E scenario. Writes ../evidence/runs/<UTC>-<slug>/. Python 3 stdlib
   # build sandbox without Gradle plugin access (uses Gradle's bundled Kotlin compiler):
   python3 android/tools/cp3a_e2e.py --slug cp3a-client-e2e --runner kotlinc --database-url postgresql://…/finassist_e2e
 
+Always uses dev_server.py --profile e2e: its own pgserver cluster, database finassist_e2e, its own login roles and upload
+storage, port 8001 — never the phone's dev profile (port 8000). Refuses to start if the port is already taken, so the
+E2E can never talk to another running server.
+
 No real slips, no model calls, no tokens or images are written to the evidence folder.
 """
 
@@ -26,6 +30,17 @@ from pathlib import Path
 ANDROID = Path(__file__).resolve().parents[1]
 REPO = ANDROID.parent
 BACKEND = REPO / "backend"
+
+
+def _port_free(port: int) -> bool:
+    import socket
+
+    with socket.socket() as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return True
+        except OSError:
+            return False
 
 
 def wait_health(url: str, timeout: float = 90) -> dict:
@@ -60,8 +75,12 @@ def main() -> int:
     ap.add_argument("--runner", choices=["gradle", "kotlinc", "jar"], required=True)
     ap.add_argument("--jar-dir", default=None, help="runner=jar: dir with finassist-core-e2e.jar + kotlin-stdlib jar (compiled elsewhere from this tree)")
     ap.add_argument("--database-url", default=None, help="admin URL of a finassist_e2e (or dev) database; default: local pgserver finassist_e2e")
-    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--port", type=int, default=8001, help="e2e profile port; 8000 (the phone's dev server) is refused")
     a = ap.parse_args()
+    if a.port == 8000:
+        raise SystemExit("port 8000 is the phone's dev server; the E2E uses the e2e profile (default 8001)")
+    if not _port_free(a.port):
+        raise SystemExit(f"port {a.port} is already in use; refusing (the E2E must talk only to the server it starts)")
     started = datetime.now(timezone.utc)
     run_id = started.strftime("%Y%m%dT%H%M%SZ") + "-" + a.slug
     out = REPO / "evidence" / "runs" / run_id
@@ -69,13 +88,15 @@ def main() -> int:
     base = f"http://127.0.0.1:{a.port}"
 
     srv_cmd = ["uv", "run"] + ([] if a.database_url else ["--with", "pixeltable-pgserver"]) + \
-              ["python", "scripts/dev_server.py", "--provider", "fake", "--reset", "--port", str(a.port)] + \
-              (["--database-url", a.database_url] if a.database_url else ["--db-name", "finassist_e2e"])  # never reset the phone's finassist_dev
+              ["python", "scripts/dev_server.py", "--profile", "e2e", "--provider", "fake", "--reset", "--port", str(a.port)] + \
+              (["--database-url", a.database_url] if a.database_url else [])  # e2e profile: never the phone's cluster/DB
     srv_log = open(out / "backend_server.log", "w", encoding="utf-8")
     srv = subprocess.Popen(srv_cmd, cwd=BACKEND, stdout=srv_log, stderr=subprocess.STDOUT)
     results: dict = {}
     try:
         health = wait_health(base)
+        if srv.poll() is not None or "PROFILE e2e" not in (out / "backend_server.log").read_text(encoding="utf-8"):
+            raise SystemExit("the healthy server is not the e2e server this run started; refusing")
         if a.runner == "gradle":
             gw = str(ANDROID / ("gradlew.bat" if os.name == "nt" else "gradlew"))
             steps = [("core_selftest", [gw, ":core:selfTest", "--console=plain"]),
@@ -119,7 +140,7 @@ def main() -> int:
         "runner": a.runner, "commands": {k: v for k, v in results.items()},
         "environment": {"os": platform.platform(), "python": platform.python_version(),
                         "java": subprocess.run(["java", "-version"], capture_output=True, text=True).stderr.splitlines()[-3:]},
-        "backend": {"health": health, "server": "backend/scripts/dev_server.py --provider fake --reset (real FastAPI + Postgres + RLS roles + embedded worker)"},
+        "backend": {"health": health, "server": "backend/scripts/dev_server.py --profile e2e --provider fake --reset (real FastAPI + Postgres + RLS roles + embedded worker)", "port": a.port},
         "uses_mocks": ["extraction: FakeExtractionProvider preloaded with SYNTHETIC fixtures (test_mode=true reported by /v1/health)",
                        "no chat model (chat not part of CP3a)"],
         "not_covered": ["Android UI, Photo Picker and Keystore code (app module) — not built or run in this environment unless runner=gradle and the app was installed separately",

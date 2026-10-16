@@ -45,11 +45,8 @@ REFERENCE_AT = datetime(2026, 10, 15, 6, 0, tzinfo=timezone.utc)  # 13:00 ICT; s
 
 
 def code_version() -> str:
-    try:
-        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO, capture_output=True, text=True)
-        return head.stdout.strip() or "no-commits"
-    except Exception:
-        return "unknown"
+    # Owner rule (16 Oct 2026): no git commands, not even from scripts. Identify code by content_hash().
+    return "not queried"
 
 
 def content_hash() -> str:
@@ -185,7 +182,7 @@ def main() -> int:
     manifest = {
         "run_id": run_id, "kind": "evaluation (real model calls, synthetic data only)", "started_at_utc": started.isoformat(),
         "finished_at_utc": datetime.now(timezone.utc).isoformat(), "command": " ".join(sys.argv),
-        "code_version": {"git_head": code_version(), "working_tree": "uncommitted changes present (no commits yet)" if code_version() == "no-commits" else "see git", "content_sha256_16": content_hash()},
+        "code_version": {"git_head": code_version(), "content_sha256_16": content_hash()},
         "config": s.describe(), "model_access_check": access,
         "model_identifiers_returned": sorted({r["model_id"] for r in scored}),
         "validation": {"reference_at": REFERENCE_AT.isoformat(), "max_age_days": ev.MAX_AGE.days},
