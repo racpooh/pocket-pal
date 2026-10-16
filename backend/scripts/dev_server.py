@@ -23,7 +23,8 @@ BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND / "src"))
 sys.path.insert(0, str(BACKEND))
 
-DEV_DB = "finassist_dev"
+DEV_DB = "finassist_dev"  # the phone tests use this one
+RESETTABLE = ("finassist_dev", "finassist_e2e")  # finassist_e2e: automated runs (android/tools/cp3a_e2e.py), never the phone's data
 
 
 def _psql_retry(srv, sql: str, tries: int = 30) -> str:
@@ -41,7 +42,7 @@ def _psql_retry(srv, sql: str, tries: int = 30) -> str:
     raise RuntimeError("unreachable")
 
 
-def _local_pg() -> str:
+def _local_pg(db: str = DEV_DB) -> str:
     import pixeltable_pgserver as pgserver
     from psycopg.conninfo import make_conninfo
 
@@ -49,9 +50,9 @@ def _local_pg() -> str:
     data.mkdir(parents=True, exist_ok=True)
     srv = pgserver.get_server(str(data), cleanup_mode=None)
     names = _psql_retry(srv, "select datname from pg_database;")
-    if DEV_DB not in names:
-        _psql_retry(srv, f"create database {DEV_DB};")
-    return make_conninfo(srv.get_uri(), dbname=DEV_DB)
+    if db not in names:
+        _psql_retry(srv, f"create database {db};")
+    return make_conninfo(srv.get_uri(), dbname=db)
 
 
 def _prepare(url: str, reset: bool) -> dict[str, str]:
@@ -63,8 +64,8 @@ def _prepare(url: str, reset: bool) -> dict[str, str]:
         name = c.execute("select current_database()").fetchone()[0]
         empty = c.execute("select to_regclass('public.app_user') is null").fetchone()[0]
         if reset or empty:
-            if name != DEV_DB:
-                raise SystemExit(f"refusing to reset database {name!r}; only {DEV_DB!r}")
+            if name not in RESETTABLE:
+                raise SystemExit(f"refusing to reset database {name!r}; only {RESETTABLE}")
             c.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
             for f in sorted((BACKEND / "db" / "migrations").glob("*.sql")):
                 c.execute(f.read_text(encoding="utf-8"))
@@ -99,7 +100,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--provider", choices=["fake", "anthropic"], required=True, help="explicit; no default")
     ap.add_argument("--database-url", default=None, help="admin URL of a database named finassist_dev (default: local pgserver)")
-    ap.add_argument("--reset", action="store_true", help=f"drop and re-create the {DEV_DB} schema")
+    ap.add_argument("--reset", action="store_true", help="drop and re-create the schema (finassist_dev / finassist_e2e only)")
+    ap.add_argument("--db-name", choices=RESETTABLE, default=DEV_DB, help="local pgserver database (default: the phone's finassist_dev)")
     ap.add_argument("--port", type=int, default=8000)
     a = ap.parse_args()
 
@@ -108,7 +110,7 @@ def main() -> int:
     from finassist.api.app import create_app
     from finassist.settings import Settings
 
-    url = a.database_url or _local_pg()
+    url = a.database_url or _local_pg(a.db_name)
     urls = _prepare(url, a.reset)
     provider = _fixture_provider() if a.provider == "fake" else None
     settings = Settings(env="dev", model_provider=a.provider, database_url=urls["finassist_app"],

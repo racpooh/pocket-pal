@@ -268,6 +268,7 @@ object CoreSelfTest {
             eq(gate.pumpOnce(), 0); eq(api.calls, 0)
             eq(gate.check { "B" }, SessionState.Ready(2, "B"))                       // retry succeeds
             eq(gate.visibleEntries(), emptyList<QueueEntry>()); eq(blobs.m.isEmpty(), true) // A's photo discarded, never shown
+            eq(gate.lastDiscarded, 1)                                               // the app shows "1 unsent photo(s) … discarded"
             gate.enqueue(byteArrayOf(51), "image/png", "2026-10-15T13:00:00+07:00"); eq(gate.pumpOnce(), 1); eq(api.owners, listOf("B"))
         }
         test("gate: a late /me answer from an earlier session cannot bind the queue (after logout or account switch)") {

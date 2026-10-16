@@ -72,7 +72,9 @@ class AppState(val app: FinAssistApp, private val scope: CoroutineScope) {
         // finish() checks the epoch for every outcome, including 401: a late answer of an older check changes nothing.
         val applied = onQueue { app.gate.finish(epoch, me) }
         if (!applied) return@launch
+        val discarded = onQueue { app.gate.lastDiscarded }
         message = when {
+            err == null && discarded > 0 -> "$discarded unsent photo(s) from another account on this phone were discarded."
             err == null -> null
             err is SessionExpiredException -> "Session ended. Please sign in again."
             err is NetworkException -> "Cannot confirm your account (server not reachable)."

@@ -178,3 +178,19 @@ Mutations: client clearing on any 401 (1 fails), gate signing out on any 401 (2)
 
 No backend change this round (last backend suite: `20261015T164958Z-cp3a-gate-backend`, 257 passed).
 Observed: a new `app-debug.apk` (8.96 MB) on the owner's Mac at ~00:25 ICT, i.e. built from the **gate** sources (before this 401 fix) — owner's report pending. Expected for the latest sources: `./gradlew :core:selfTest` → **27/27**, then `:app:assembleDebug`.
+
+
+---
+
+## Device report 1 and follow-up (16 Oct 2026, ~13:45 ICT)
+
+- **User-reported** S23 results (7 scenarios) are recorded in `10-cp3a-device-results.md`, dated, separate from
+  automated evidence. Mapped to the checklist: lines 5, 6, 8, 12, 15, 19 pass; 7, 9, 13 partly; 1–3 not reported;
+  **4, 10, 11, 14, 16, 17, 18 not tested**. CP3a is not complete on the device yet.
+- Found while preparing the remaining steps (no device result involved):
+  1. Checklist line 10 was wrong: airplane mode does not cut `adb reverse` (USB). Now uses `adb reverse --remove`.
+  2. The "N unsent photo(s) from another account … discarded" notice (line 18) had been lost in the gate refactor.
+     Restored via `SessionGate.lastDiscarded` (core test asserts it).
+  3. Line 18 needs an API call to notice the ended session; the step now says "open Ledger and press Refresh".
+- Evidence: client core + E2E after fix 2 — `evidence/runs/20261016T064025Z-cp3a-notice-client-e2e-cloud` (27/27, 27/27); ARM64 VM `20261016T064357Z-cp3a-notice-client-e2e-device-pg18-arm64` (27/27, 27/27 — this run also reset the phone's `finassist_dev`, see `10` note); after moving automated runs to `finassist_e2e`: `20261016T064546Z-cp3a-e2edb-client-e2e-device-pg18-arm64` (27/27, 27/27; verified it wrote to `finassist_e2e`).
+- CP3b design + acceptance tests prepared, not implemented: `11-cp3b-design.md`.

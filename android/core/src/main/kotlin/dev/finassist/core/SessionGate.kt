@@ -24,6 +24,9 @@ class SessionGate(private val queue: UploadQueue) {
         private set
     private var epoch = 0
     var listener: ((SessionState) -> Unit)? = null
+    /** How many queued photos of a previous account were discarded by the last successful check (for a visible notice). */
+    var lastDiscarded = 0
+        private set
 
     private fun set(s: SessionState) { state = s; listener?.invoke(s) }
 
@@ -48,7 +51,7 @@ class SessionGate(private val queue: UploadQueue) {
         if (forEpoch != epoch || s !is SessionState.Checking) return false // stale: logout or another sign-in happened since
         me.fold(
             onSuccess = { id ->
-                queue.bindOwner(id)                         // another account's entries are discarded here
+                lastDiscarded = queue.bindOwner(id)         // another account's entries are discarded here
                 if (queue.blocked == BlockReason.SIGNED_OUT) queue.resume()
                 set(SessionState.Ready(epoch, id))
             },

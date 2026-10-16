@@ -90,7 +90,7 @@ Prerequisites: Android Studio (Ladybug 2024.2 or newer; it bundles a JDK), USB d
 | 7 | Pick 024 and 021 | "Needs your review" |
 | 8 | Review → blurred slip: type amount 120.00 → Confirm | Item disappears; Ledger shows a ฿120.00 transaction |
 | 9 | Ledger | Money left, "Not yet categorised" list, transactions with source `auto_import`/`review_import` |
-| 10 | Airplane mode, pick 028, then turn network back on, Refresh | "Waiting to retry (NETWORK)" then Imported/Needs review |
+| 10 | Pick 028 while offline: run `adb reverse --remove tcp:8000` first (airplane mode does **not** cut `adb reverse`, it runs over USB), wait ~10 s, then `adb reverse tcp:8000 tcp:8000` and press Refresh | "Waiting to retry (NETWORK)" while offline, then Imported/Needs review once; no duplicate |
 | 11 | Force-stop the app during an upload, reopen | The entry is sent once (no duplicate record) |
 | 12 | Consent → Withdraw photo processing, pick another slip | Not sent; status explains why |
 | 13 | Log out → sign in again | Queue empty (local copies discarded); data still on the server |

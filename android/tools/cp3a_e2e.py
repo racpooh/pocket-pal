@@ -4,7 +4,7 @@ client-core E2E scenario. Writes ../evidence/runs/<UTC>-<slug>/. Python 3 stdlib
   # owner's Mac (Android Studio's JDK on PATH, network for Gradle):
   python3 android/tools/cp3a_e2e.py --slug cp3a-client-e2e-mac --runner gradle
   # build sandbox without Gradle plugin access (uses Gradle's bundled Kotlin compiler):
-  python3 android/tools/cp3a_e2e.py --slug cp3a-client-e2e --runner kotlinc --database-url postgresql://…/finassist_dev
+  python3 android/tools/cp3a_e2e.py --slug cp3a-client-e2e --runner kotlinc --database-url postgresql://…/finassist_e2e
 
 No real slips, no model calls, no tokens or images are written to the evidence folder.
 """
@@ -59,7 +59,7 @@ def main() -> int:
     ap.add_argument("--slug", required=True)
     ap.add_argument("--runner", choices=["gradle", "kotlinc", "jar"], required=True)
     ap.add_argument("--jar-dir", default=None, help="runner=jar: dir with finassist-core-e2e.jar + kotlin-stdlib jar (compiled elsewhere from this tree)")
-    ap.add_argument("--database-url", default=None, help="admin URL of finassist_dev; default: dev_server's local pgserver")
+    ap.add_argument("--database-url", default=None, help="admin URL of a finassist_e2e (or dev) database; default: local pgserver finassist_e2e")
     ap.add_argument("--port", type=int, default=8000)
     a = ap.parse_args()
     started = datetime.now(timezone.utc)
@@ -70,7 +70,7 @@ def main() -> int:
 
     srv_cmd = ["uv", "run"] + ([] if a.database_url else ["--with", "pixeltable-pgserver"]) + \
               ["python", "scripts/dev_server.py", "--provider", "fake", "--reset", "--port", str(a.port)] + \
-              (["--database-url", a.database_url] if a.database_url else [])
+              (["--database-url", a.database_url] if a.database_url else ["--db-name", "finassist_e2e"])  # never reset the phone's finassist_dev
     srv_log = open(out / "backend_server.log", "w", encoding="utf-8")
     srv = subprocess.Popen(srv_cmd, cwd=BACKEND, stdout=srv_log, stderr=subprocess.STDOUT)
     results: dict = {}
