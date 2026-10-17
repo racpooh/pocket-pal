@@ -1,5 +1,16 @@
 # 06 — Acceptance plan and submission traceability
 
+### Web integration status (16 Oct 2026)
+
+| Scope | Implemented | Tested | Not verified / open |
+|---|---|---|---|
+| Conversation continuity (`16`) | Owner-bound tab memory; consented saved history/context; New chat | Full backend `20261017T012325Z-conversation-gallery-backend`: 300 passed + 2 existing xfails; browser `20261017T012328Z-conversation-browser`: 5 synthetic checks | Real-model follow-up quality and extended device sessions pending |
+| Native gallery trial (`16`) | New Pocket Pal WebView APK; 30-day capture-date filter, native permission, bounded WorkManager uploads, separate empty gallery profile | APK `20261017T012431Z-pocketpal-apk`: build + 4 policy tests; install/launch `20261017T012628Z-pocketpal-install`; empty DB `20261017T012521Z-gallery-clean-baseline`; UI bridge 3 mock checks | Actual gallery OCR/import, FP/FN image evaluation, native revoke/restart/background acceptance unverified; CP3b not closed |
+| Pocket Pal browser client (`15`) | API-connected Chat/Pockets/Activity, setup/goals/settings; same source design | `20261016T165659Z-web-bff-smoke` 15 checks; `20261016T170403Z-web-browser-smoke` 9 steps including setup/buffer; `20261016T170440Z-web-plan-supersession` 294 passed + 2 reference xfails; `20261016T170510Z-web-build` build+types | Physical S22 web, paid Chat through browser, remaining goal/edit interactions, native background scanning, deployment; not overall CP3 acceptance |
+| Phase 1 chat readability / pocket scope (`15`) | Safe Markdown, scoped date labels, increase-by-THB tradeoff preview with explicit approval | `20261016T174645Z-phase1-backend`: 25 passed; `20261016T174520Z-phase1-browser`: 5 mocked UI checks; `20261016T174704Z-web-build`: passed | Unseen real Chat questions and physical S22 pending; arbitrary pocket targets and native last-30-day gallery scanning not implemented |
+
+**Codex targeted Slice 1 fix review (16 Oct 2026):** Original required-input and negative-money findings closed at source/automated-evidence level. Core 35/35 and E2E 34/34 in existing VM evidence; backend evidence 290 passed with 2 reference strict xfails (not accepted controls). Owner reports successful build/install on SM-S908E / Android 14. Device S1–S18 remains pending; no overall CP3 acceptance. Review provenance: `evidence/runs/20261016T141918Z-slice1fix-codex-review/manifest.json`. No tests rerun by Codex for this review.
+
 ### Reference checkpoint status (Codex, 16 Oct 2026)
 
 | Scope | Implemented | Tested | Not verified / open |
@@ -108,3 +119,10 @@ MOB-01 permission prompt and limited/selected-photos behaviour on the chosen OS 
 ## 5. Evidence manifest (per run)
 
 Each run writes `evidence/runs/<UTC timestamp>-<slug>/` containing `manifest.json` (schema `evidence/manifest.schema.json`), raw tool output (`*.log`), and a short `summary.md`. Required fields: run id, timestamp UTC, git commit (or `uncommitted` + content hash), command, environment (OS, Python, Postgres version), configuration, model identifier(s) or `none`, `uses_mocks` list, expected vs actual per case, result. Personal images, tokens and chain-of-thought are never stored.
+
+### Scan monitoring status (17 Oct 2026)
+
+| Item | Status | Evidence / limitation |
+|---|---|---|
+| Native scan stages and privacy-safe counters | Implemented; APK build and mocked browser checks passed | `20261017T015209Z-pocketpal-apk`, `20261017T015210Z-web-build`, `20261017T015252Z-native-controls-browser`; actual gallery scan acceptance pending. No claim that upload acceptance means import completion. |
+| Scan census + local filter v2 (versioned recheck, no re-send) | Implemented; policy unit tests passed (cloud); APK build, phone scan and end-to-end flow NOT verified | `20261017T020449Z-pocketpal-scanpolicy-v2-cloud` (8/8 synthetic). v2 image precision/recall unmeasured. Undated photos still manual-only. |
