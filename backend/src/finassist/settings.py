@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     budget_usd: float = 1.0
     max_model_requests: int = 120
     extraction_max_output_tokens: int = 400
-    chat_max_output_tokens: int = 700
+    chat_max_output_tokens: int = 1200  # Thai text uses several times more tokens than English; 700 cut a live answer off
 
     def require_real_provider(self) -> None:
         """Fail closed: if a real provider is requested, every piece must be present."""

@@ -25,6 +25,8 @@ MAX_TURNS = 6
 MAX_HISTORY_MESSAGES = 12
 MAX_HISTORY_CHARS = 12000
 MAX_STORED_MESSAGES = 200
+TRUNCATED_NOTE = "_(This answer was cut short. Ask me to continue or to answer more briefly.)_"
+EMPTY_REPLY = "Sorry, I couldn't finish an answer this time. Please ask again."
 
 SYSTEM = """You are a personal finance assistant for one signed-in user in Thailand (THB).
 Rules:
@@ -38,7 +40,7 @@ Rules:
 - Say clearly when spending is unassigned or a category was guessed ('predicted').
 - If history is short (for example get_insights has fewer than two complete months), say so; do not describe monthly patterns or trends.
 - For a greeting or a question that needs no figures, answer briefly without calling tools.
-- Reply in the language of the user's message.
+- Reply in the language of the user's LATEST message, even if earlier messages or tool data use another language.
 - Answer shape: first a direct answer (the number, yes/no, or the recommendation) naming the period or assumption it rests on; then at most three short supporting facts; then at most one next step the app supports (for example review an item, approve or edit a proposal in the app, add a bill). Skip parts that do not apply.
 - Use simple Markdown with blank lines between sections. Prefer bullets to tables on a phone; use tables only for useful comparisons.
 - Keep replies short. Amounts like ฿1,234.50. Explain the period behind a spending figure; never imply that no spending in the current plan means no spending historically.
@@ -288,10 +290,16 @@ def _chat(conn, owner_id, text: str, model: ChatModel) -> dict:
     cards: list[dict] = []
     tools_used: list[str] = []
     reply, model_id = "", None
+    truncated = False
     system = system_prompt(time_context(conn, owner_id))
     for _ in range(MAX_TURNS):
         turn: ChatTurn = model.step(system, messages, tool_specs())
         model_id = turn.model_id
+        if turn.stop_reason == "max_tokens":
+            # The answer was cut off (no usable tool call can follow). Never return an empty or silently truncated reply.
+            truncated = True
+            reply = turn.text
+            break
         if not turn.tool_calls:
             reply = turn.text
             break
@@ -306,6 +314,10 @@ def _chat(conn, owner_id, text: str, model: ChatModel) -> dict:
             results.append({"type": "tool_result", "tool_use_id": call["id"], "content": json.dumps(out, default=str, ensure_ascii=False)})
         messages.append({"role": "user", "content": results})
         reply = turn.text
+    if truncated:
+        reply = (reply.rstrip() + "\n\n" if reply.strip() else "") + TRUNCATED_NOTE
+    elif not reply.strip():
+        reply = EMPTY_REPLY
     with conn.transaction():
         # Re-check under a share lock: the model call can take seconds, and a revocation in that window deletes
         # history (core.revoke_consent takes FOR UPDATE). Without this, the turn would be stored after revocation.
@@ -317,6 +329,6 @@ def _chat(conn, owner_id, text: str, model: ChatModel) -> dict:
             conn.execute("""delete from chat_message where owner_id=%s and id not in
                 (select id from chat_message where owner_id=%s order by created_at desc, (role='user') limit %s)""",
                 (owner_id, owner_id, MAX_STORED_MESSAGES))
-        audit(conn, owner_id, "agent", "chat_turn", "chat", None, details={"tools": tools_used, "model": model_id, "cards": len(cards),
+        audit(conn, owner_id, "agent", "chat_turn", "chat", None, details={"tools": tools_used, "model": model_id, "cards": len(cards), "truncated": truncated,
                                                                     "history_stored": bool(keep and still)})
     return {"reply": reply, "cards": cards, "tools_used": tools_used, "model": model_id}

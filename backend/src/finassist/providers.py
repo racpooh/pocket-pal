@@ -295,6 +295,7 @@ class ChatTurn:
     tool_calls: list[dict]  # [{"id","name","input"}]
     stop: bool
     model_id: str
+    stop_reason: str | None = None  # provider's reason, e.g. "max_tokens" when the answer was cut off
 
 
 class ChatModel(Protocol):
@@ -354,7 +355,7 @@ class AnthropicChatModel:
             self.meter.record(msg.model, getattr(msg.usage, "input_tokens", 0), getattr(msg.usage, "output_tokens", 0), "chat", self.run_id)
         text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
         calls = [{"id": b.id, "name": b.name, "input": b.input} for b in msg.content if getattr(b, "type", "") == "tool_use"]
-        return ChatTurn(text, calls, msg.stop_reason != "tool_use", msg.model)
+        return ChatTurn(text, calls, msg.stop_reason != "tool_use", msg.model, msg.stop_reason)
 
 
 def anthropic_content(turn: ChatTurn) -> list[dict[str, Any]]:

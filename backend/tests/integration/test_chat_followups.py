@@ -104,3 +104,19 @@ def test_system_rules_cover_answer_shape_and_fact_kinds():
                    "Call list_proposals before saying what its status is", "do not describe monthly patterns",
                    "cannot verify bank settlement", "without calling tools"):
         assert phrase in agent.SYSTEM
+
+
+@pytest.mark.parametrize("turns,expected", [
+    ([ChatTurn("", [], True, "scripted", "max_tokens")], agent.TRUNCATED_NOTE),
+    ([ChatTurn("ยอดเดือนนี้คือ", [], True, "scripted", "max_tokens")], "ยอดเดือนนี้คือ\n\n" + agent.TRUNCATED_NOTE),
+    ([_tool("get_overview"), ChatTurn("", [], True, "scripted", "end_turn")], agent.EMPTY_REPLY),
+])
+def test_cut_off_or_empty_model_answers_are_never_shown_as_blank(client, app, turns, expected):
+    # Live eval 20261018T122238Z: a Thai answer hit max_tokens and the user saw an empty reply.
+    u = User(client).onboard()
+    app.state.chat_model = ScriptedChatModel(list(turns))
+    assert _send(u, "เดือนนี้ใช้เงินหมวดไหนมากที่สุด")["reply"] == expected
+
+
+def test_language_rule_targets_latest_message():
+    assert "LATEST message" in agent.SYSTEM

@@ -1,0 +1,1 @@
+{"run_id":"20261018T122703Z-chat-truncation-fix","git_commit":"uncommitted (after f25fa5c)","command":"pytest -q -p no:cacheprovider tests -p no:randomly -rxs (isolated test profile)","model":"none","uses_mocks":["ScriptedChatModel","FakeExtractionProvider"],"cases":{"actual":"321 passed, 2 xfailed, 0 skipped"},"reviews_live_run":"20261018T122238Z-chat-eval-live","result":"pass"}
