@@ -540,7 +540,7 @@ def list_review(conn, owner_id) -> list[dict]:
     for r in rows:
         f = r.pop("fields") or {}
         # Only the fields the user needs to see or fix; never the raw image text.
-        r["extracted"] = {k: f.get(k) for k in ("doc_type", "amount_text", "date_text", "time_text", "payee", "status")}
+        r["extracted"] = {k: f.get(k) for k in ("doc_type", "amount_text", "date_text", "time_text", "payee", "status", "due_date_text")}
         r["allowed_decisions"] = list(ALLOWED_DECISIONS.get(r["reason"], ("not_a_transaction",)))
         # The existing records this item may be the same as, so the user can compare before choosing.
         r["candidates"] = conn.execute(

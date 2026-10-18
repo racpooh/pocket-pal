@@ -1,0 +1,17 @@
+{
+  "profile": "gallery",
+  "counts": {
+    "app_user": 0,
+    "upload": 0,
+    "txn": 0,
+    "bill": 0,
+    "review_item": 0,
+    "chat_message": 0,
+    "job": 0
+  },
+  "stored_files": 0,
+  "test_mode": false,
+  "passed": true,
+  "paid_calls": 0,
+  "note": "Read-only aggregate verification; no users or images created. Existing dev database not queried or changed."
+}

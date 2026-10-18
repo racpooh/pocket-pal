@@ -1,0 +1,18 @@
+{
+  "run_id": "20261018T113335Z-demo-phone-refresh",
+  "kind": "owner_authorized_demo_app_reset",
+  "package": "dev.finassist.pocketpal",
+  "android_user": 0,
+  "pm_clear": "Success",
+  "adb_reverse_port": 3002,
+  "activity_start": "command succeeded; screen not visually inspected",
+  "backend_health": {
+    "status": "ok",
+    "test_mode": false
+  },
+  "web_connect_http": 200,
+  "scope": "App-local session/cache/scan state only. No source gallery photos, other apps or database reset in this operation.",
+  "application_tests_run": false,
+  "paid_model_calls": 0,
+  "git_commands_run": false
+}

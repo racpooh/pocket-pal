@@ -126,3 +126,25 @@ Each run writes `evidence/runs/<UTC timestamp>-<slug>/` containing `manifest.jso
 |---|---|---|
 | Native scan stages and privacy-safe counters | Implemented; APK build and mocked browser checks passed | `20261017T015209Z-pocketpal-apk`, `20261017T015210Z-web-build`, `20261017T015252Z-native-controls-browser`; actual gallery scan acceptance pending. No claim that upload acceptance means import completion. |
 | Scan census + local filter v2 (versioned recheck, no re-send) | Implemented; policy unit tests passed (cloud); APK build, phone scan and end-to-end flow NOT verified | `20261017T020449Z-pocketpal-scanpolicy-v2-cloud` (8/8 synthetic). v2 image precision/recall unmeasured. Undated photos still manual-only. |
+| Automatic gallery scan → upload with dated real slips (S22) | Owner-reported pass for ~10 slips; per-slip correctness, dedup and Chat use NOT yet verified | `20261017T040000Z-pocketpal-gallery-dated-scan-owner` (test copies with capture dates recovered from iPhone Photos metadata; undated photos still manual-only). |
+
+## Submission documentation status on 17 October 2026
+
+| Deliverable | Status | Location and boundary |
+|---|---|---|
+| Technical documentation | Expanded v2 with source-checked agentic orchestration sections 7.4–7.6 ready for team review (18 Oct 2026); not final team acceptance | `docs/submission/Pocket_Pal_Technical_Documentation_v2.docx`; Architecture, algorithms, security, API, evidence and bounded single-agent orchestration; pagination changes with editing. Document QA `20261018T004544Z-technical-documentation-v2`; no new application tests. Earlier draft retained. |
+| Security self assessment | Expanded 18-page English assessment ready for team review (18 Oct 2026); not security acceptance | `docs/submission/Pocket_Pal_Security_Self_Assessment.docx`; source-checked T0–T5, threat model, 18 open risks, evidence limits, proposed hardening and release gates. Document QA `20261018T080821Z-security-self-assessment-document-qa`; no new application tests or certification. |
+| S22 gallery POC | Owner accepts observed access and scan flow as sufficient to start documentation | Approximate ten dated slips and five-minute delay are owner-reported. Per-item reconciliation, filter benchmark and lifecycle checks remain open; CP3b not closed. |
+
+## Submission preflight — 18 October 2026
+
+| Item | Status | Evidence / limit |
+| --- | --- | --- |
+| Repository reviewer guidance | Updated | Root README, environment example and reviewer guide source-checked; clean checkout replay not run. |
+| Submission hygiene | Partial | 20261018T110413Z-submission-preflight-demo-refresh; 519 selected text files scanned for three secret patterns, zero matches. Git staging/history/remote and full PII audit not checked. |
+| Demo environment refresh | Backend reset previously verified; phone app reset completed | Gallery reset evidence retained. Native user-0 Pocket Pal data clear returned Success, USB restored and activity launched; health/HTTP checks passed. Follow-up evidence `20261018T113335Z-demo-phone-refresh`; no visual screen verification or application acceptance inferred. |
+| Chat improvement handoff | Proposed, not implemented | `docs/submission/CLAUDE_CHAT_POLISH_PROMPT.md`; temporal grounding, deterministic display/ranking, monthly-vs-income-event savings units, evidence and memory freshness. |
+
+The source review found that `services/budget.py::insights` adds monthly estimated savings directly to per-income-event capacity. Non-monthly income schedules require validation/correction; this review did not execute a reproducer or close the finding. No feature acceptance or test pass is inferred from documentation changes.
+| Chat grounding: server date/period context, ranked spending facts, insights per-income-event unit fix | Implemented; deterministic tests passed (scripted chat model); real-model answers NOT evaluated | `20261018T114108Z-chat-grounding-p0` (313 passed, 2 xfailed, 0 skipped). Items 4–5 of the polish prompt not done. |
+| Chat answer rules + read-only list_proposals (fresh proposal status) + live-eval harness | Implemented; scripted tests passed; live eval prepared, NOT run | `20261018T114905Z-chat-polish-items-4-5` (317 passed, 2 xfailed, 0 skipped); dry run `20261018T114903Z-chat-eval-scripted`. |

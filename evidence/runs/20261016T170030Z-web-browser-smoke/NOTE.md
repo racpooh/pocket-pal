@@ -1,0 +1,1 @@
+Failed acceptance: setup created and approved a new plan, but GET /plan returned the older overlapping plan. Fixed current_plan to choose the latest period already started and never revive an older plan after the newer plan expires. Regression covers this with real PostgreSQL. This failed run is retained, not counted as passed.

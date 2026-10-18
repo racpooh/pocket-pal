@@ -319,9 +319,11 @@ class ScriptedChatModel:
 
     turns: list[ChatTurn]
     seen: list[list[dict]] = field(default_factory=list)
+    systems: list[str] = field(default_factory=list)
 
     def step(self, system: str, messages: list[dict], tools: list[dict]) -> ChatTurn:
         self.seen.append(messages)
+        self.systems.append(system)
         return self.turns.pop(0)
 
 

@@ -32,6 +32,19 @@ def income_dates(next_income: date, frequency: str, until_inclusive: date) -> li
     return out
 
 
+# Deterministic period rule: 12 calendar months = 52 weeks = 26 two-week periods. Results are floored (conservative).
+_EVENTS_PER_YEAR = {"monthly": 12, "biweekly": 26, "weekly": 52}
+
+
+def monthly_to_per_event(amount_per_month_satang: int, frequency: str) -> int | None:
+    """Convert a per-month amount to a per-income-event amount, or None when the frequency has no fixed rate
+    (irregular income): callers must then say the conversion is unavailable instead of guessing."""
+    per_year = _EVENTS_PER_YEAR.get(frequency)
+    if per_year is None:
+        return None
+    return amount_per_month_satang * 12 // per_year
+
+
 def _days_in_month(y: int, m: int) -> int:
     nxt = date(y + (m // 12), m % 12 + 1, 1)
     return (nxt - timedelta(days=1)).day

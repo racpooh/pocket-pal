@@ -1,0 +1,14 @@
+{
+  "passed": false,
+  "steps": [
+    "Tab navigation retains unsaved messages for same owner",
+    "New chat clears local and server conversation",
+    "In-flight reply survives tab navigation"
+  ],
+  "errors": [
+    "cross-account conversation leak"
+  ],
+  "data": "synthetic only",
+  "backend": "mocked browser routes; separate DB integration run",
+  "paid_calls": 0
+}

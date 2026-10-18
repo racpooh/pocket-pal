@@ -453,6 +453,16 @@ class ChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
 
 
+@router.get("/chat/messages")
+def chat_history(o=Depends(owner), conn=Depends(_conn)):
+    return _out(200, agent.history(conn, o))
+
+
+@router.delete("/chat/messages")
+def delete_chat_history(o=Depends(owner), conn=Depends(_conn)):
+    return _out(200, agent.clear_history(conn, o))
+
+
 @router.post("/chat/messages")
 def chat(body: ChatIn, request: Request, o=Depends(owner), conn=Depends(_conn)):
     model = request.app.state.chat_model

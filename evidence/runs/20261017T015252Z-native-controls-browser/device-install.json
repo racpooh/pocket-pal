@@ -1,0 +1,7 @@
+{
+  "command": "adb install --user 0 -r android/pocketpal/build/outputs/apk/debug/pocketpal-debug.apk",
+  "result": "Success",
+  "apk_sha256": "81d40daf1d26b188e048b5e1b5f47de156b8b6b2665b9d0f1431febb1d97e8ba",
+  "data_reset": false,
+  "real_gallery_scan_acceptance": "not run by Codex"
+}

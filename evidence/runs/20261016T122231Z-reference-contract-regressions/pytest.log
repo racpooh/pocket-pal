@@ -1,0 +1,6 @@
+.x.x.......................................................              [100%]
+- generated xml file: /Users/POOH/Development/case/shenzen/evidence/runs/20261016T122231Z-reference-contract-regressions/junit.xml -
+=========================== short test summary info ============================
+XFAIL tests/unit/test_reference_contract.py::test_same_payment_alternate_field_must_not_silently_create_second_payment - REF-GAP-1: single untyped reference cannot detect alternate fields of one payment
+XFAIL tests/unit/test_reference_contract.py::test_reused_nontransaction_identifier_must_not_automatically_merge_payments - REF-GAP-2: field type/issuer scope absent; non-unique identifier can auto-merge
+57 passed, 2 xfailed in 0.09s

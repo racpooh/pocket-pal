@@ -1,0 +1,14 @@
+{
+  "passed": false,
+  "steps": [
+    "Tab navigation retains unsaved messages for same owner",
+    "New chat clears local and server conversation",
+    "In-flight reply survives tab navigation"
+  ],
+  "errors": [
+    "locator.waitFor: Error: strict mode violation: getByRole('heading', { name: 'Your pockets', exact: true }) resolved to 2 elements:\n    1) <h1 class=\"text-2xl leading-[30px] font-extrabold tracking-tight\">Your pockets</h1> aka locator('h1')\n    2) <h2 class=\"flex items-center gap-3 text-[15px] font-semibold text-muted-foreground before:h-px before:flex-1 before:bg-[#d9dde2] after:h-px after:flex-1 after:bg-[#d9dde2]\">Your pockets</h2> aka locator('h2')\n\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: 'Your pockets', exact: true }) to be visible\u001b[22m\n"
+  ],
+  "data": "synthetic only",
+  "backend": "mocked browser routes; separate DB integration run",
+  "paid_calls": 0
+}

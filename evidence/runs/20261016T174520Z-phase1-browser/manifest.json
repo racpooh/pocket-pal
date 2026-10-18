@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "steps": [
+    "Thai Markdown heading, bold, bullets and GFM table render as elements",
+    "Raw HTML, remote images and javascript links disabled; external link isolated",
+    "393px mobile chat has no page overflow",
+    "Pocket preview sends integer satang and does not approve automatically",
+    "Explicit approval refreshes pocket values"
+  ],
+  "errors": [],
+  "data": "synthetic HTTP fixtures only",
+  "paid_calls": 0,
+  "limitations": [
+    "UI test with mocked API, not real model or real backend",
+    "not physical S22"
+  ]
+}

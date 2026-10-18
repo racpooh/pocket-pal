@@ -84,3 +84,31 @@ def is_reflected_in_balance(
     if occurred_date is None:
         raise ValueError("either occurred_at or occurred_date is required")
     return occurred_date <= local_date(balance_as_of, tz)
+
+
+def _month_start(d: date) -> date:
+    return d.replace(day=1)
+
+
+def _next_month_start(d: date) -> date:
+    return date(d.year + (d.month // 12), d.month % 12 + 1, 1)
+
+
+def reporting_periods(today: date) -> dict[str, tuple[date, date]]:
+    """Named half-open local-date ranges [start, end_exclusive) relative to the user's `today` (chat grounding).
+
+    - today: the local day.
+    - this_month_to_date: first day of the current calendar month up to and including today.
+    - last_month: the whole previous calendar month.
+    - last_7_days / last_30_days: rolling windows that INCLUDE today (today-6 .. today, today-29 .. today).
+    """
+    end = today + timedelta(days=1)
+    this_start = _month_start(today)
+    last_start = _month_start(this_start - timedelta(days=1))
+    return {
+        "today": (today, end),
+        "this_month_to_date": (this_start, end),
+        "last_month": (last_start, this_start),
+        "last_7_days": (today - timedelta(days=6), end),
+        "last_30_days": (today - timedelta(days=29), end),
+    }

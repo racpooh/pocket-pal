@@ -1,0 +1,65 @@
+{
+  "kind": "Next BFF + real isolated FastAPI/PG synthetic smoke",
+  "steps": [
+    {
+      "name": "unauthenticated proxy rejected",
+      "passed": true
+    },
+    {
+      "name": "cross-origin sign-in rejected",
+      "passed": true
+    },
+    {
+      "name": "signup via BFF",
+      "passed": true
+    },
+    {
+      "name": "token absent from JSON; HttpOnly cookie",
+      "passed": true
+    },
+    {
+      "name": "identity confirmed and fake mode visible",
+      "passed": true
+    },
+    {
+      "name": "plan and pockets load",
+      "passed": true
+    },
+    {
+      "name": "upload imported through proxy",
+      "passed": true
+    },
+    {
+      "name": "exact upload counts once",
+      "passed": true
+    },
+    {
+      "name": "bill enters review",
+      "passed": true
+    },
+    {
+      "name": "bill resolved without expense",
+      "passed": true
+    },
+    {
+      "name": "stale resolve not success",
+      "passed": true
+    },
+    {
+      "name": "exception",
+      "passed": false,
+      "reason": "POST /plan/suggest: 422 {\"error\":{\"code\":\"POCKETS_REQUIRED\",\"message\":\"Create pockets first.\",\"fields\":[],\"retryable\":false,\"request_id\":\"bb79be34-1eb4-40fa-8936-017ccbe5f96d\",\"details\":{}}}"
+    }
+  ],
+  "passed": 11,
+  "failed": 1,
+  "uses_mocks": [
+    "fake extraction from synthetic fixtures",
+    "chat unavailable, expected 503"
+  ],
+  "not_tested": [
+    "paid Anthropic chat",
+    "physical S22 browser",
+    "all prototype features"
+  ]
+}

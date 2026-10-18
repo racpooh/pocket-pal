@@ -1,0 +1,23 @@
+{
+  "device_model": "SM-S908E",
+  "android": "14",
+  "package": "dev.finassist.pocketpal",
+  "install": "adb install --user 0 returned Success",
+  "launch": "am start returned Starting; process running",
+  "apk_sha256": "2beea6aab2c8e57fadb4738edc31a5479c0910d255cc9ef657b5da94a19423a7",
+  "photo_permissions": [
+    "android.permission.READ_MEDIA_VISUAL_USER_SELECTED: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]",
+    "android.permission.READ_MEDIA_IMAGES: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]",
+    "android.permission.READ_MEDIA_VISUAL_USER_SELECTED: granted=false",
+    "android.permission.READ_MEDIA_IMAGES: granted=false"
+  ],
+  "photo_access_enabled": false,
+  "web_connect_http": 200,
+  "paid_calls": 0,
+  "limitations": [
+    "launch only, not an end-to-end gallery scan",
+    "no personal photo accessed or uploaded",
+    "new profile gallery is separate from existing dev",
+    "USB and local web/backend services required"
+  ]
+}

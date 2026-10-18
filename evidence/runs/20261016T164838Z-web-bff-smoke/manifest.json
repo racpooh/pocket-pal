@@ -1,0 +1,45 @@
+{
+  "kind": "Next BFF + real isolated FastAPI/PG synthetic smoke",
+  "steps": [
+    {
+      "name": "unauthenticated proxy rejected",
+      "passed": true
+    },
+    {
+      "name": "cross-origin sign-in rejected",
+      "passed": true
+    },
+    {
+      "name": "signup via BFF",
+      "passed": true
+    },
+    {
+      "name": "token absent from JSON; HttpOnly cookie",
+      "passed": true
+    },
+    {
+      "name": "identity confirmed and fake mode visible",
+      "passed": true
+    },
+    {
+      "name": "plan and pockets load",
+      "passed": false
+    },
+    {
+      "name": "exception",
+      "passed": false,
+      "reason": "plan and pockets load"
+    }
+  ],
+  "passed": 5,
+  "failed": 2,
+  "uses_mocks": [
+    "fake extraction from synthetic fixtures",
+    "chat unavailable, expected 503"
+  ],
+  "not_tested": [
+    "paid Anthropic chat",
+    "physical S22 browser",
+    "all prototype features"
+  ]
+}

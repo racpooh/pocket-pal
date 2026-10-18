@@ -1,0 +1,56 @@
+{
+  "run_id": "20261018T080821Z-security-self-assessment-document-qa",
+  "kind": "documentation_quality_assurance",
+  "status": "passed_document_checks_only",
+  "pages": 18,
+  "checks": {
+    "referenced_evidence_directories_exist": [
+      "20261016T122231Z-reference-contract-regressions",
+      "20261017T012325Z-conversation-gallery-backend",
+      "20261017T012328Z-conversation-browser",
+      "20261017T015252Z-native-controls-browser",
+      "20261017T020449Z-pocketpal-scanpolicy-v2-cloud",
+      "20261017T040000Z-pocketpal-gallery-dated-scan-owner"
+    ],
+    "cited_security_test_functions_exist": [
+      "test_sec_agent_hijack_attempt_and_tool_limit",
+      "test_sec_agent_proposes_user_approves",
+      "test_sec_apr_concurrent_approvals_apply_once",
+      "test_sec_apr_expired",
+      "test_sec_apr_hash_mismatch_rejected",
+      "test_sec_apr_replay_and_repeat",
+      "test_sec_apr_stale_after_data_change_returns_replacement",
+      "test_sec_auth_required_and_logout",
+      "test_sec_cons_revoke_during_extraction_discards_result",
+      "test_sec_cons_upload_requires_consent",
+      "test_sec_inj_image_text_cannot_act",
+      "test_sec_log_audit_has_no_sensitive_content",
+      "test_sec_own_cannot_inject_owner_or_unknown_fields",
+      "test_sec_own_cross_user_access_is_404_everywhere",
+      "test_sec_rls_blocks_cross_owner_even_without_app_filter",
+      "test_sec_tools_registry_has_no_write_authority"
+    ],
+    "known_risk_count": 18,
+    "visual_review": "All 18 pages reviewed in rendered overview; selected full-page checks on pages 1, 12 and 14. Final header/footer tab correction rendered and page 1 inspected.",
+    "implemented_proposed_evidence_boundaries": "Explicitly separated in report"
+  },
+  "application_tests_run": false,
+  "paid_model_calls": 0,
+  "git_commands_run": false,
+  "private_images_read": false,
+  "source_sha256": {
+    "docs/submission/Pocket_Pal_Security_Self_Assessment.docx": "4f74629878c47488b4e03f4c90d1338d95dd3504923ad8bec094cbdfbd54b252",
+    "docs/submission/Pocket_Pal_Security_Self_Assessment.md": "5df95bf4874dd00fb8ba329abeed90f316c003f90d973b8478d1dba782698f83",
+    "docs/submission/build_security_report.py": "c2c38d6a71b1d89fa12887474248bbc6488edf4f53b201553aecc448dfa5580f",
+    "docs/submission/Pocket_Pal_Technical_Documentation_v2.docx": "7b4425616231d8b656d19a8df7d3dcc91e95551df8d6c5ceeb0f530d69d81591",
+    "backend/src/finassist/infra.py": "2f9be82be96c58d3a4350e3daaf279795d54ac9be75f303ea49b7a9e0ad7641b",
+    "backend/src/finassist/services/agent.py": "b412d296469116a6ba3386a315c170ad586ca7bd052939fc47c27d040303c4a6",
+    "backend/src/finassist/services/budget.py": "63929ad55f2438159cc1b564057bd2799676a6d93efa4123f174fecd8d69fbc3",
+    "backend/src/finassist/services/core.py": "54b61f3af679ab0d174ee93661b2b01b737a8033e8ed14434d82383e503ce5c9",
+    "backend/src/finassist/services/imports.py": "ce15ea142d8305ea5b2e734f2cf8532fec0863fa468733f0200206190a915574",
+    "backend/db/migrations/0002_rls.sql": "85dd7a90f53845e50d221a0dc795f758e20424841167c3a002477bf0fed4afd7",
+    "web/src/lib/backend-server.ts": "c10a4bf0a377aecedfb6bd5f2ab410b60157ba5ec179ea4c7f317906afa43fed",
+    "web/src/app/api/session/route.ts": "e27ff5e3d4fcaa24a7fb0adfa57ed3edc0d39912503f3ee2ab93437dd5da6489",
+    "web/src/app/api/backend/[...path]/route.ts": "1472fb7458f42e161f393a5e6b84cde1b7a467b3ff7a39e8607e5da1cce842f7"
+  }
+}

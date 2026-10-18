@@ -1,0 +1,32 @@
+{
+  "kind": "document QA, not an application test run",
+  "timestamp_utc": "2026-10-17T06:56:03.581093+00:00",
+  "artifacts": {
+    "Pocket_Pal_Technical_Documentation": {
+      "sha256": "61d391b3e8f1f308102ea56e5710b40c8ae23570907f4c0607b4a6d837b9ca79",
+      "pages": 6,
+      "render": "passed",
+      "visual_review": "All pages inspected; title border removed and code font corrected; changed pages reinspected."
+    },
+    "Pocket_Pal_Security_Self_Assessment": {
+      "sha256": "c19ef362a5ea61b1ac502afd5682e38bfcca3bd7a4dfea44e145d55097f5fa93",
+      "pages": 5,
+      "render": "passed",
+      "visual_review": "All pages inspected; title border removed and code font corrected; changed pages reinspected."
+    }
+  },
+  "referenced_run_directories_verified": [
+    "20261016T120301Z-real-slip-r2-score",
+    "20261016T122231Z-reference-contract-regressions",
+    "20261017T012325Z-conversation-gallery-backend",
+    "20261017T012328Z-conversation-browser",
+    "20261017T015252Z-native-controls-browser",
+    "20261017T020449Z-pocketpal-scanpolicy-v2-cloud",
+    "20261017T040000Z-pocketpal-gallery-dated-scan-owner"
+  ],
+  "git_commands": 0,
+  "paid_calls": 0,
+  "personal_images_accessed": false,
+  "application_tests_rerun": false,
+  "status": "review drafts rendered and visually inspected"
+}

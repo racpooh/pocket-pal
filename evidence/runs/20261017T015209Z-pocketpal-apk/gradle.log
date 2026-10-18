@@ -1,0 +1,55 @@
+> Task :pocketpal:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :pocketpal:preBuild UP-TO-DATE
+> Task :pocketpal:preDebugBuild UP-TO-DATE
+> Task :pocketpal:generateDebugBuildConfig UP-TO-DATE
+> Task :pocketpal:checkDebugAarMetadata UP-TO-DATE
+> Task :pocketpal:generateDebugResValues UP-TO-DATE
+> Task :pocketpal:mapDebugSourceSetPaths UP-TO-DATE
+> Task :pocketpal:generateDebugResources UP-TO-DATE
+> Task :pocketpal:mergeDebugResources UP-TO-DATE
+> Task :pocketpal:packageDebugResources UP-TO-DATE
+> Task :pocketpal:parseDebugLocalResources UP-TO-DATE
+> Task :pocketpal:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :pocketpal:extractDeepLinksDebug UP-TO-DATE
+> Task :pocketpal:processDebugMainManifest UP-TO-DATE
+> Task :pocketpal:processDebugManifest UP-TO-DATE
+> Task :pocketpal:processDebugManifestForPackage UP-TO-DATE
+> Task :pocketpal:processDebugResources UP-TO-DATE
+> Task :pocketpal:javaPreCompileDebug UP-TO-DATE
+> Task :pocketpal:preDebugUnitTestBuild UP-TO-DATE
+> Task :pocketpal:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :pocketpal:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :pocketpal:mergeDebugShaders UP-TO-DATE
+> Task :pocketpal:compileDebugShaders NO-SOURCE
+> Task :pocketpal:generateDebugAssets UP-TO-DATE
+> Task :pocketpal:mergeDebugAssets UP-TO-DATE
+> Task :pocketpal:compressDebugAssets UP-TO-DATE
+> Task :pocketpal:desugarDebugFileDependencies UP-TO-DATE
+> Task :pocketpal:checkDebugDuplicateClasses UP-TO-DATE
+> Task :pocketpal:mergeExtDexDebug UP-TO-DATE
+> Task :pocketpal:mergeLibDexDebug UP-TO-DATE
+> Task :pocketpal:mergeDebugJniLibFolders UP-TO-DATE
+> Task :pocketpal:mergeDebugNativeLibs UP-TO-DATE
+> Task :pocketpal:stripDebugDebugSymbols UP-TO-DATE
+> Task :pocketpal:validateSigningDebug UP-TO-DATE
+> Task :pocketpal:writeDebugAppMetadata UP-TO-DATE
+> Task :pocketpal:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :pocketpal:compileDebugKotlin
+> Task :pocketpal:compileDebugJavaWithJavac UP-TO-DATE
+> Task :pocketpal:processDebugJavaRes UP-TO-DATE
+> Task :pocketpal:bundleDebugClassesToCompileJar
+> Task :pocketpal:bundleDebugClassesToRuntimeJar
+> Task :pocketpal:dexBuilderDebug
+> Task :pocketpal:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :pocketpal:mergeDebugJavaResource UP-TO-DATE
+> Task :pocketpal:mergeProjectDexDebug
+> Task :pocketpal:compileDebugUnitTestKotlin
+> Task :pocketpal:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :pocketpal:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :pocketpal:testDebugUnitTest
+> Task :pocketpal:packageDebug
+> Task :pocketpal:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :pocketpal:assembleDebug
+
+BUILD SUCCESSFUL in 4s
+43 actionable tasks: 8 executed, 35 up-to-date

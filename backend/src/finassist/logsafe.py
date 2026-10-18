@@ -38,7 +38,12 @@ class RedactingFilter(logging.Filter):
             msg = record.getMessage()
         except Exception:  # bad format args must not leak raw args either
             msg = str(record.msg)
-        record.msg, record.args = redact(msg), None
+        if record.name == "uvicorn.access" and isinstance(record.args, tuple) and len(record.args) == 5:
+            # Uvicorn's AccessFormatter unpacks these five arguments itself.
+            record.args = tuple(redact(v) if isinstance(v, str) else v for v in record.args)
+            record.msg = redact(str(record.msg))
+        else:
+            record.msg, record.args = redact(msg), None
         if record.exc_info and not record.exc_text:
             record.exc_text = logging.Formatter().formatException(record.exc_info)
         if record.exc_text:
@@ -55,7 +60,10 @@ def log_exception(logger: logging.Logger, event: str, exc: BaseException, **cont
     import traceback
 
     ctx = " ".join(f"{k}={v}" for k, v in context.items())
-    frames = "".join(traceback.format_tb(exc.__traceback__))
+    # format_tb includes source lines, which can contain literal private values.
+    # Keep locations and function names only; never source text or locals.
+    frames = "".join(f'  File "{frame.f_code.co_filename}", line {lineno}, in {frame.f_code.co_name}\n'
+                     for frame, lineno in traceback.walk_tb(exc.__traceback__))
     logger.error("%s %s exc=%s\n%s", event, ctx, type(exc).__name__, frames)
 
 

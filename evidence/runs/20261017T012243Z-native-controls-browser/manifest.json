@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "steps": [
+    "Scanning opt-in starts disabled with selected-access explanation",
+    "Explicit enable, scan and pause bridge actions",
+    "Status events do not create a bridge feedback loop"
+  ],
+  "errors": [],
+  "limitations": [
+    "mock native bridge and HTTP; no real photos or Android permission interactions"
+  ],
+  "paid_calls": 0
+}

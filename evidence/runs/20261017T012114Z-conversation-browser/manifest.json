@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "steps": [
+    "Tab navigation retains unsaved messages for same owner",
+    "New chat clears local and server conversation",
+    "In-flight reply survives tab navigation",
+    "Account switch clears prior account memory",
+    "Explicit retention restores conversation after reload"
+  ],
+  "errors": [],
+  "data": "synthetic only",
+  "backend": "mocked browser routes; separate DB integration run",
+  "paid_calls": 0
+}

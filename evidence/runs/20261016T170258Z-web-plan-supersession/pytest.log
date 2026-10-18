@@ -1,0 +1,476 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.5, pytest-8.4.2, pluggy-1.6.0 -- /Users/POOH/Development/case/shenzen/backend/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/POOH/Development/case/shenzen/backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1
+collecting ... collected 294 items
+
+tests/api/test_health_and_errors.py::test_health PASSED                  [  0%]
+tests/api/test_health_and_errors.py::test_unknown_route_uses_error_envelope PASSED [  0%]
+tests/db/test_schema_constraints.py::test_amount_must_be_positive PASSED [  1%]
+tests/db/test_schema_constraints.py::test_unconfirmed_ocr_refs_may_repeat PASSED [  1%]
+tests/db/test_schema_constraints.py::test_bank_ref_unique_per_owner_only PASSED [  1%]
+tests/db/test_schema_constraints.py::test_same_amount_same_day_without_ref_is_allowed PASSED [  2%]
+tests/db/test_schema_constraints.py::test_cannot_reference_other_owners_account PASSED [  2%]
+tests/db/test_schema_constraints.py::test_bill_paid_once_and_payment_settles_one_bill PASSED [  2%]
+tests/db/test_schema_constraints.py::test_bill_link_cannot_cross_owners PASSED [  3%]
+tests/db/test_schema_constraints.py::test_one_active_consent_per_scope PASSED [  3%]
+tests/db/test_schema_constraints.py::test_category_state_consistency PASSED [  3%]
+tests/db/test_schema_constraints.py::test_upload_sha_unique_per_owner PASSED [  4%]
+tests/db/test_schema_constraints.py::test_allocation_cannot_be_negative PASSED [  4%]
+tests/db/test_schema_constraints.py::test_transfer_group_only_on_transfers PASSED [  4%]
+tests/integration/test_cp1_review_fixes.py::test_f1_cannot_raise_total_beyond_available_with_existing_plan PASSED [  5%]
+tests/integration/test_cp1_review_fixes.py::test_f1_after_spending_only_unspent_budget_can_move PASSED [  5%]
+tests/integration/test_cp1_review_fixes.py::test_f1_cannot_move_spent_budget_out_of_an_overspent_pocket PASSED [  5%]
+tests/integration/test_cp1_review_fixes.py::test_f1_check_is_repeated_at_approval PASSED [  6%]
+tests/integration/test_cp1_review_fixes.py::test_f2_bill_needs_auto_import_consent PASSED [  6%]
+tests/integration/test_cp1_review_fixes.py::test_f2_bill_with_consent_still_imports PASSED [  6%]
+tests/integration/test_cp1_review_fixes.py::test_f4_bill_missing_due_date_can_be_completed_once PASSED [  7%]
+tests/integration/test_cp1_review_fixes.py::test_f3_failed_storage_delete_is_retried_not_reported_done PASSED [  7%]
+tests/integration/test_cp1_review_fixes.py::test_f3_already_missing_object_counts_as_deleted PASSED [  7%]
+tests/integration/test_cp1_review_fixes.py::test_f5_misread_ref_then_correct_read_does_not_double_count PASSED [  8%]
+tests/integration/test_cp1_review_fixes.py::test_f5_ocr_refs_are_stored_unconfirmed PASSED [  8%]
+tests/integration/test_cp1_review_fixes.py::test_r1_raising_buffer_alone_is_checked PASSED [  8%]
+tests/integration/test_cp1_review_fixes.py::test_r1_period_change_goes_through_full_check PASSED [  9%]
+tests/integration/test_cp1_review_fixes.py::test_r2_purge_survives_more_than_five_failures PASSED [  9%]
+tests/integration/test_cp1_review_fixes.py::test_r2_legacy_dead_purge_is_revived_and_repeat_delete_recovers PASSED [  9%]
+tests/integration/test_cp1_review_fixes.py::test_r3_crashed_worker_lease_is_reclaimed_and_stale_worker_cannot_write PASSED [ 10%]
+tests/integration/test_cp1_review_fixes.py::test_r3_crashed_purge_is_reclaimed PASSED [ 10%]
+tests/integration/test_cp1_review_fixes.py::test_r3_extraction_crash_loop_stops_after_max_attempts PASSED [ 10%]
+tests/integration/test_cp2_cards.py::test_card_move_all_remaining_food_to_shopping PASSED [ 11%]
+tests/integration/test_cp2_cards.py::test_card_thresholds_small_large_and_low PASSED [ 11%]
+tests/integration/test_cp2_cards.py::test_card_reports_predicted_unassigned_and_review_uncertainty PASSED [ 11%]
+tests/integration/test_cp2_cards.py::test_card_goal_effects_and_plan_overcommit_warning PASSED [ 12%]
+tests/integration/test_cp2_cards.py::test_card_buffer_change_shows_goal_feasibility_before_after PASSED [ 12%]
+tests/integration/test_cp2_cards.py::test_card_is_identical_after_reload_and_hash_binds_it PASSED [ 12%]
+tests/integration/test_cp2_cards.py::test_card_hash_mismatch_is_rejected_and_nothing_changes PASSED [ 13%]
+tests/integration/test_cp2_cards.py::test_db_refuses_to_change_stored_card_or_reopen_final_proposal PASSED [ 13%]
+tests/integration/test_cp2_cards.py::test_stale_replacement_has_a_recomputed_card PASSED [ 13%]
+tests/integration/test_cp2_cards.py::test_edit_creates_new_proposal_and_old_approval_cannot_apply PASSED [ 14%]
+tests/integration/test_cp2_cards.py::test_edit_is_validated_like_a_new_proposal PASSED [ 14%]
+tests/integration/test_cp2_cards.py::test_expired_proposal_is_reported_expired_on_reload PASSED [ 14%]
+tests/integration/test_cp2_cards.py::test_agent_sees_code_computed_warnings_only_as_tool_result PASSED [ 15%]
+tests/integration/test_cp2_gaps.py::test_data_delete_reports_pending_purge_and_resumes PASSED [ 15%]
+tests/integration/test_cp2_gaps.py::test_data_delete_keeps_manual_entries_and_is_owner_scoped PASSED [ 15%]
+tests/integration/test_cp2_gaps.py::test_goal_update_requires_approval_and_applies_once PASSED [ 16%]
+tests/integration/test_cp2_gaps.py::test_goal_update_stale_after_concurrent_goal_change PASSED [ 16%]
+tests/integration/test_cp2_gaps.py::test_goal_update_rejects_invalid_and_foreign_goals PASSED [ 17%]
+tests/integration/test_cp2_gaps.py::test_chat_history_off_on_and_revoked PASSED [ 17%]
+tests/integration/test_cp2_gaps.py::test_chat_turn_not_stored_when_consent_revoked_mid_call PASSED [ 17%]
+tests/integration/test_cp2_gaps.py::test_patch_amount_updates_totals_pockets_and_staleness PASSED [ 18%]
+tests/integration/test_cp2_gaps.py::test_patch_date_moves_across_balance_anchor_and_period PASSED [ 18%]
+tests/integration/test_cp2_gaps.py::test_patch_category_moves_spending_between_pockets PASSED [ 18%]
+tests/integration/test_cp2_gaps.py::test_patch_rejects_bad_values_without_server_errors PASSED [ 19%]
+tests/integration/test_cp2_gaps.py::test_patch_keeps_bill_and_refund_links_consistent PASSED [ 19%]
+tests/integration/test_cp2_gaps.py::test_third_party_log_lines_are_pattern_redacted PASSED [ 19%]
+tests/integration/test_cp2_gaps.py::test_unhandled_error_log_is_redacted FAILED [ 20%]
+tests/integration/test_cp2_review_fixes.py::test_r1_status_change_on_one_leg_moves_both_and_total_is_unchanged PASSED [ 20%]
+tests/integration/test_cp2_review_fixes.py::test_r1_time_change_on_one_leg_moves_both PASSED [ 20%]
+tests/integration/test_cp2_review_fixes.py::test_r1_deleting_one_leg_deletes_the_transfer PASSED [ 21%]
+tests/integration/test_cp2_review_fixes.py::test_r1_database_rejects_a_one_leg_change_from_any_code_path PASSED [ 21%]
+tests/integration/test_cp2_review_fixes.py::test_r1b_hard_delete_of_one_leg_is_rejected_but_both_is_allowed PASSED [ 21%]
+tests/integration/test_cp2_review_fixes.py::test_r1b_groups_must_be_pairs_and_external_single_leg_has_no_group PASSED [ 22%]
+tests/integration/test_cp2_review_fixes.py::test_r1b_moving_legs_between_groups_checks_old_and_new_group PASSED [ 22%]
+tests/integration/test_cp2_review_fixes.py::test_r2_uncommitted_ledger_change_blocks_approval_then_makes_it_stale[manual_expense] PASSED [ 22%]
+tests/integration/test_cp2_review_fixes.py::test_r2_uncommitted_ledger_change_blocks_approval_then_makes_it_stale[bill] PASSED [ 23%]
+tests/integration/test_cp2_review_fixes.py::test_r2_ledger_change_waits_for_an_approval_in_progress PASSED [ 23%]
+tests/integration/test_cp2_review_fixes.py::test_r3_worker_step_logs_type_and_frames_but_not_the_message PASSED [ 23%]
+tests/integration/test_cp2_review_fixes.py::test_r3_embedded_worker_uses_the_safe_step PASSED [ 24%]
+tests/integration/test_cp3a_client_api.py::test_retry_failed_extraction_requeues_once_and_imports PASSED [ 24%]
+tests/integration/test_cp3a_client_api.py::test_retry_respects_consent PASSED [ 24%]
+tests/integration/test_cp3a_client_api.py::test_list_pockets_is_owner_scoped PASSED [ 25%]
+tests/integration/test_cp3a_client_api.py::test_me_returns_only_the_session_owner PASSED [ 25%]
+tests/integration/test_cp3a_client_api.py::test_upload_for_another_account_is_refused_and_stores_nothing PASSED [ 25%]
+tests/integration/test_cp3a_client_api.py::test_undated_photo_needs_explicit_confirmation PASSED [ 26%]
+tests/integration/test_cp3a_client_api.py::test_receipt_review_offers_link_not_accept_and_link_adds_no_spending PASSED [ 26%]
+tests/integration/test_flows.py::test_e2e_slip_import_updates_plan PASSED [ 26%]
+tests/integration/test_flows.py::test_slip_after_anchor_reduces_money_left PASSED [ 27%]
+tests/integration/test_flows.py::test_exact_duplicate_image_is_idempotent PASSED [ 27%]
+tests/integration/test_flows.py::test_same_bank_ref_different_image_counts_once PASSED [ 27%]
+tests/integration/test_flows.py::test_two_waters_same_amount_different_refs_are_two PASSED [ 28%]
+tests/integration/test_flows.py::test_receipt_and_slip_count_once PASSED [ 28%]
+tests/integration/test_flows.py::test_unclear_amount_goes_to_review_and_is_excluded PASSED [ 28%]
+tests/integration/test_flows.py::test_no_auto_import_consent_means_confirm_in_review PASSED [ 29%]
+tests/integration/test_flows.py::test_pending_slip_recorded_but_excluded_from_totals PASSED [ 29%]
+tests/integration/test_flows.py::test_bill_then_payment_counts_once PASSED [ 29%]
+tests/integration/test_flows.py::test_manual_duplicate_check_and_confirm PASSED [ 30%]
+tests/integration/test_flows.py::test_refund_reconciles_and_cannot_exceed PASSED [ 30%]
+tests/integration/test_flows.py::test_affordability_has_no_side_effects PASSED [ 30%]
+tests/integration/test_flows.py::test_budget_plan_reconciles PASSED      [ 31%]
+tests/integration/test_flows.py::test_reallocation_conserves_total_and_creates_no_expense PASSED [ 31%]
+tests/integration/test_flows.py::test_goal_feasibility_and_alternatives PASSED [ 31%]
+tests/integration/test_flows.py::test_scan_status_reports_last_success_and_pause PASSED [ 32%]
+tests/integration/test_flows.py::test_tradeoff_proposal_conserves_and_requires_approval PASSED [ 32%]
+tests/integration/test_flows.py::test_insights_and_spending_report PASSED [ 32%]
+tests/integration/test_security.py::test_sec_own_cross_user_access_is_404_everywhere PASSED [ 33%]
+tests/integration/test_security.py::test_sec_own_cannot_inject_owner_or_unknown_fields PASSED [ 33%]
+tests/integration/test_security.py::test_sec_auth_required_and_logout PASSED [ 34%]
+tests/integration/test_security.py::test_sec_apr_hash_mismatch_rejected PASSED [ 34%]
+tests/integration/test_security.py::test_sec_apr_stale_after_data_change_returns_replacement PASSED [ 34%]
+tests/integration/test_security.py::test_sec_apr_expired PASSED          [ 35%]
+tests/integration/test_security.py::test_sec_apr_replay_and_repeat PASSED [ 35%]
+tests/integration/test_security.py::test_sec_apr_concurrent_approvals_apply_once PASSED [ 35%]
+tests/integration/test_security.py::test_sec_conc_manual_and_import_race PASSED [ 36%]
+tests/integration/test_security.py::test_sec_cons_upload_requires_consent PASSED [ 36%]
+tests/integration/test_security.py::test_sec_cons_revoke_before_worker_cancels_job PASSED [ 36%]
+tests/integration/test_security.py::test_sec_cons_revoke_during_extraction_discards_result PASSED [ 37%]
+tests/integration/test_security.py::test_sec_cons_delete_then_retry_is_noop PASSED [ 37%]
+tests/integration/test_security.py::test_sec_fail_model_failure_keeps_saved_data PASSED [ 37%]
+tests/integration/test_security.py::test_sec_inj_image_text_cannot_act PASSED [ 38%]
+tests/integration/test_security.py::test_sec_tools_registry_has_no_write_authority PASSED [ 38%]
+tests/integration/test_security.py::test_sec_agent_hijack_attempt_and_tool_limit PASSED [ 38%]
+tests/integration/test_security.py::test_sec_agent_proposes_user_approves PASSED [ 39%]
+tests/integration/test_security.py::test_sec_log_audit_has_no_sensitive_content PASSED [ 39%]
+tests/integration/test_security.py::test_sec_rls_blocks_cross_owner_even_without_app_filter PASSED [ 39%]
+tests/integration/test_slice1_review_inputs.py::test_bill_missing_due_date_resolves_to_a_bill_not_an_expense PASSED [ 40%]
+tests/integration/test_slice1_review_inputs.py::test_unknown_status_follows_the_users_choice_in_the_ledger[var_slip_status_unknown_a.png-success-completed-True] PASSED [ 40%]
+tests/integration/test_slice1_review_inputs.py::test_unknown_status_follows_the_users_choice_in_the_ledger[var_slip_status_unknown_b.png-failed-failed-False] PASSED [ 40%]
+tests/integration/test_slice1_review_inputs.py::test_web_review_preserves_readable_bill_due_date PASSED [ 41%]
+tests/integration/test_slice1_review_inputs.py::test_web_replanning_uses_latest_period_and_does_not_revive_old_plan PASSED [ 41%]
+tests/unit/test_allocation.py::test_largest_remainder_exact_sum PASSED   [ 41%]
+tests/unit/test_allocation.py::test_tie_break_is_input_order PASSED      [ 42%]
+tests/unit/test_allocation.py::test_partial_percentages_leave_unallocated PASSED [ 42%]
+tests/unit/test_allocation.py::test_zero_base PASSED                     [ 42%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares0-x] PASSED [ 43%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares1-x] PASSED [ 43%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares2-] PASSED [ 43%]
+tests/unit/test_allocation.py::test_invalid_allocations[-1-shares3-x] PASSED [ 44%]
+tests/unit/test_allocation.py::test_invalid_allocations[100-shares4-x] PASSED [ 44%]
+tests/unit/test_allocation.py::test_reallocate_conserves_total PASSED    [ 44%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-food-1-ValueError] PASSED [ 45%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-nope-1-KeyError] PASSED [ 45%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-shopping-0-ValueError] PASSED [ 45%]
+tests/unit/test_allocation.py::test_reallocate_rejects[food-shopping-300001-ValueError] PASSED [ 46%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[\u0e19\u0e32\u0e22 \u0e2a\u0e21\u0e0a\u0e32\u0e22 \u0e43\u0e08\u0e14\u0e35-\u0e2a\u0e21\u0e0a\u0e32\u0e22 \u0e43\u0e08\u0e14\u0e35] PASSED [ 46%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[\u0e23\u0e49\u0e32\u0e19\u0e1b\u0e49\u0e32\u0e2a\u0e21\u0e32\u0e19-\u0e23\u0e49\u0e32\u0e19\u0e1b\u0e49\u0e32\u0e2a\u0e21\u0e32\u0e19] PASSED [ 46%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[AWN SPECIAL SHOP-awn special shop] PASSED [ 47%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[JAMES SMITH-james smith] PASSED [ 47%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[MR. JOHN DOE xxx-x-x1234-x-john doe] PASSED [ 47%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[\u0e19\u0e32\u0e07\u0e1f\u0e49\u0e32 \u0e04\u0e32\u0e40\u0e1f\u0e48-\u0e19\u0e32\u0e07\u0e1f\u0e49\u0e32 \u0e04\u0e32\u0e40\u0e1f\u0e48] PASSED [ 48%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[Demo Mart Co., Ltd.-demo mart] PASSED [ 48%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[None-None] PASSED [ 48%]
+tests/unit/test_classify_dedup_validation.py::test_normalize_payee[  -None] PASSED [ 49%]
+tests/unit/test_classify_dedup_validation.py::test_one_confirmation_is_not_a_rule PASSED [ 49%]
+tests/unit/test_classify_dedup_validation.py::test_history_majority_predicts PASSED [ 50%]
+tests/unit/test_classify_dedup_validation.py::test_mixed_history_stays_unclassified PASSED [ 50%]
+tests/unit/test_classify_dedup_validation.py::test_user_default_wins_and_intermediary_needs_default PASSED [ 50%]
+tests/unit/test_classify_dedup_validation.py::test_seed_cold_start PASSED [ 51%]
+tests/unit/test_classify_dedup_validation.py::test_two_waters_with_different_refs_are_distinct PASSED [ 51%]
+tests/unit/test_classify_dedup_validation.py::test_same_ref_different_amount_is_a_conflict_not_a_merge PASSED [ 51%]
+tests/unit/test_classify_dedup_validation.py::test_misread_ref_with_same_amount_goes_to_review PASSED [ 52%]
+tests/unit/test_classify_dedup_validation.py::test_same_ref_is_same_payment_even_if_formatted_differently PASSED [ 52%]
+tests/unit/test_classify_dedup_validation.py::test_receipt_and_slip_count_once PASSED [ 52%]
+tests/unit/test_classify_dedup_validation.py::test_manual_entry_matching_import_asks PASSED [ 53%]
+tests/unit/test_classify_dedup_validation.py::test_near_image_without_ref_asks PASSED [ 53%]
+tests/unit/test_classify_dedup_validation.py::test_thai_dates PASSED     [ 53%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[16 Oct 2026] PASSED [ 54%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[16 Oct 2026 14:30] PASSED [ 54%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[16 Oct. 2026 14:30:05] PASSED [ 54%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[16 October 2026] PASSED [ 55%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[16 OCT 26 09:05] PASSED [ 55%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[Oct 16, 2026] PASSED [ 55%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[October 16 2026 8:15 PM] PASSED [ 56%]
+tests/unit/test_classify_dedup_validation.py::test_english_and_timestamped_dates[16 \u0e15.\u0e04. 2569 14:30 \u0e19.] PASSED [ 56%]
+tests/unit/test_classify_dedup_validation.py::test_unknown_month_words_still_fail[16 Foo 2026] PASSED [ 56%]
+tests/unit/test_classify_dedup_validation.py::test_unknown_month_words_still_fail[Monday 2026] PASSED [ 57%]
+tests/unit/test_classify_dedup_validation.py::test_unknown_month_words_still_fail[16 Octember 2026] PASSED [ 57%]
+tests/unit/test_classify_dedup_validation.py::test_english_date_slip_is_auto_import_eligible PASSED [ 57%]
+tests/unit/test_classify_dedup_validation.py::test_valid_slip PASSED     [ 58%]
+tests/unit/test_classify_dedup_validation.py::test_problem_fields_block_auto_import[override0-amount] PASSED [ 58%]
+tests/unit/test_classify_dedup_validation.py::test_problem_fields_block_auto_import[override1-amount] PASSED [ 58%]
+tests/unit/test_classify_dedup_validation.py::test_problem_fields_block_auto_import[override2-amount] PASSED [ 59%]
+tests/unit/test_classify_dedup_validation.py::test_problem_fields_block_auto_import[override3-payment_status] PASSED [ 59%]
+tests/unit/test_classify_dedup_validation.py::test_problem_fields_block_auto_import[override4-direction] PASSED [ 59%]
+tests/unit/test_classify_dedup_validation.py::test_problem_fields_block_auto_import[override5-occurred] PASSED [ 60%]
+tests/unit/test_classify_dedup_validation.py::test_problem_fields_block_auto_import[override6-occurred] PASSED [ 60%]
+tests/unit/test_classify_dedup_validation.py::test_pending_is_valid_but_not_completed PASSED [ 60%]
+tests/unit/test_classify_dedup_validation.py::test_missing_payee_does_not_block PASSED [ 61%]
+tests/unit/test_classify_dedup_validation.py::test_qr_mismatch_drops_ref PASSED [ 61%]
+tests/unit/test_classify_dedup_validation.py::test_injected_text_has_no_channel PASSED [ 61%]
+tests/unit/test_classify_dedup_validation.py::test_bill PASSED           [ 62%]
+tests/unit/test_classify_dedup_validation.py::test_misread_year_is_not_auto_imported PASSED [ 62%]
+tests/unit/test_classify_dedup_validation.py::test_poor_readability_forces_review_and_drops_ref PASSED [ 62%]
+tests/unit/test_config_fail_closed.py::test_anthropic_without_key_fails PASSED [ 63%]
+tests/unit/test_config_fail_closed.py::test_unknown_provider_fails PASSED [ 63%]
+tests/unit/test_config_fail_closed.py::test_worker_and_app_do_not_fall_back PASSED [ 63%]
+tests/unit/test_config_fail_closed.py::test_describe_never_contains_key PASSED [ 64%]
+tests/unit/test_config_fail_closed.py::test_meter_blocks_before_overspend PASSED [ 64%]
+tests/unit/test_config_fail_closed.py::test_meter_refuses_unpriced_model PASSED [ 64%]
+tests/unit/test_config_fail_closed.py::test_provider_must_be_explicit_and_fake_only_in_dev_test PASSED [ 65%]
+tests/unit/test_config_fail_closed.py::test_health_reports_test_mode PASSED [ 65%]
+tests/unit/test_insights.py::test_monthly_history_and_recommendation PASSED [ 65%]
+tests/unit/test_insights.py::test_no_recommendation_without_two_complete_months PASSED [ 66%]
+tests/unit/test_insights.py::test_recurring_monthly_with_change PASSED   [ 66%]
+tests/unit/test_insights.py::test_irregular_payee_is_not_recurring PASSED [ 67%]
+tests/unit/test_insights.py::test_bill_changes PASSED                    [ 67%]
+tests/unit/test_insights.py::test_pace_alerts PASSED                     [ 67%]
+tests/unit/test_layering.py::test_domain_has_files PASSED                [ 68%]
+tests/unit/test_layering.py::test_domain_imports_stdlib_only PASSED      [ 68%]
+tests/unit/test_ledger_cashflow_goals.py::test_projected_balance_anchor_rules PASSED [ 68%]
+tests/unit/test_ledger_cashflow_goals.py::test_old_slips_do_not_reduce_balance_again PASSED [ 69%]
+tests/unit/test_ledger_cashflow_goals.py::test_spending_attribution_and_exclusions PASSED [ 69%]
+tests/unit/test_ledger_cashflow_goals.py::test_transfers_conserve_and_one_legged_group_is_flagged PASSED [ 69%]
+tests/unit/test_ledger_cashflow_goals.py::test_refund_cannot_exceed_source PASSED [ 70%]
+tests/unit/test_ledger_cashflow_goals.py::test_txn_rejects_float_and_zero PASSED [ 70%]
+tests/unit/test_ledger_cashflow_goals.py::test_waterfall_reconciles_without_double_reservation PASSED [ 70%]
+tests/unit/test_ledger_cashflow_goals.py::test_buffer_percentage_has_labelled_base PASSED [ 71%]
+tests/unit/test_ledger_cashflow_goals.py::test_same_savings_source_twice_is_rejected PASSED [ 71%]
+tests/unit/test_ledger_cashflow_goals.py::test_shortage_and_affordability_have_no_side_effects PASSED [ 71%]
+tests/unit/test_ledger_cashflow_goals.py::test_next_income_passed PASSED [ 72%]
+tests/unit/test_ledger_cashflow_goals.py::test_tradeoff_takes_from_unspent_room_proportionally PASSED [ 72%]
+tests/unit/test_ledger_cashflow_goals.py::test_income_dates_month_end_clamp PASSED [ 72%]
+tests/unit/test_ledger_cashflow_goals.py::test_goal_infeasible_alternatives PASSED [ 73%]
+tests/unit/test_ledger_cashflow_goals.py::test_goal_feasible_and_done PASSED [ 73%]
+tests/unit/test_money.py::test_parse_valid[10-1000] PASSED               [ 73%]
+tests/unit/test_money.py::test_parse_valid[0.01-1] PASSED                [ 74%]
+tests/unit/test_money.py::test_parse_valid[1234.50-123450] PASSED        [ 74%]
+tests/unit/test_money.py::test_parse_valid[1,234.5-123450] PASSED        [ 74%]
+tests/unit/test_money.py::test_parse_valid[\u0e3f1,234.50-123450] PASSED [ 75%]
+tests/unit/test_money.py::test_parse_valid[1,234.50 \u0e1a\u0e32\u0e17-123450] PASSED [ 75%]
+tests/unit/test_money.py::test_parse_valid[THB 120.00-12000] PASSED      [ 75%]
+tests/unit/test_money.py::test_parse_valid[1,000,000-100000000] PASSED   [ 76%]
+tests/unit/test_money.py::test_parse_valid[\u0e51\u0e52\u0e50.\u0e55\u0e50-12050] PASSED [ 76%]
+tests/unit/test_money.py::test_parse_valid[  99.9 -9990] PASSED          [ 76%]
+tests/unit/test_money.py::test_parse_rejects[] PASSED                    [ 77%]
+tests/unit/test_money.py::test_parse_rejects[   ] PASSED                 [ 77%]
+tests/unit/test_money.py::test_parse_rejects[0] PASSED                   [ 77%]
+tests/unit/test_money.py::test_parse_rejects[0.00] PASSED                [ 78%]
+tests/unit/test_money.py::test_parse_rejects[-5] PASSED                  [ 78%]
+tests/unit/test_money.py::test_parse_rejects[+5] PASSED                  [ 78%]
+tests/unit/test_money.py::test_parse_rejects[(5)] PASSED                 [ 79%]
+tests/unit/test_money.py::test_parse_rejects[1.234] PASSED               [ 79%]
+tests/unit/test_money.py::test_parse_rejects[1,23] PASSED                [ 79%]
+tests/unit/test_money.py::test_parse_rejects[12,34.00] PASSED            [ 80%]
+tests/unit/test_money.py::test_parse_rejects[1,234,5] PASSED             [ 80%]
+tests/unit/test_money.py::test_parse_rejects[1e3] PASSED                 [ 80%]
+tests/unit/test_money.py::test_parse_rejects[1.] PASSED                  [ 81%]
+tests/unit/test_money.py::test_parse_rejects[.5] PASSED                  [ 81%]
+tests/unit/test_money.py::test_parse_rejects[abc] PASSED                 [ 81%]
+tests/unit/test_money.py::test_parse_rejects[1.2.3] PASSED               [ 82%]
+tests/unit/test_money.py::test_parse_rejects[\u0661\u0662] PASSED        [ 82%]
+tests/unit/test_money.py::test_parse_rejects[100000001] PASSED           [ 82%]
+tests/unit/test_money.py::test_parse_rejects_non_string PASSED           [ 83%]
+tests/unit/test_money.py::test_format[0-0.00] PASSED                     [ 83%]
+tests/unit/test_money.py::test_format[1-0.01] PASSED                     [ 84%]
+tests/unit/test_money.py::test_format[12050-120.50] PASSED               [ 84%]
+tests/unit/test_money.py::test_format[123456789-1,234,567.89] PASSED     [ 84%]
+tests/unit/test_money.py::test_format[-1050--10.50] PASSED               [ 85%]
+tests/unit/test_money.py::test_format_rejects_float_and_bool PASSED      [ 85%]
+tests/unit/test_money.py::test_split_evenly_reports_remainder PASSED     [ 85%]
+tests/unit/test_money.py::test_split_evenly_rejects_negative_and_zero_parts PASSED [ 86%]
+tests/unit/test_periods.py::test_local_date_crosses_midnight PASSED      [ 86%]
+tests/unit/test_periods.py::test_naive_datetime_rejected PASSED          [ 86%]
+tests/unit/test_periods.py::test_end_of_local_day PASSED                 [ 87%]
+tests/unit/test_periods.py::test_period_half_open PASSED                 [ 87%]
+tests/unit/test_periods.py::test_period_rejects_empty PASSED             [ 87%]
+tests/unit/test_periods.py::test_days_until_income PASSED                [ 88%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[occurred_at0-None-True] PASSED [ 88%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[occurred_at1-None-True] PASSED [ 88%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[occurred_at2-None-False] PASSED [ 89%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[None-occurred_date3-True] PASSED [ 89%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[None-occurred_date4-True] PASSED [ 89%]
+tests/unit/test_periods.py::test_is_reflected_in_balance[None-occurred_date5-False] PASSED [ 90%]
+tests/unit/test_periods.py::test_reflected_requires_some_time PASSED     [ 90%]
+tests/unit/test_reference_contract.py::test_current_same_payment_with_alternate_printed_field_is_treated_as_new PASSED [ 90%]
+tests/unit/test_reference_contract.py::test_same_payment_alternate_field_must_not_silently_create_second_payment XFAIL [ 91%]
+tests/unit/test_reference_contract.py::test_current_equal_untyped_value_and_amount_merges_even_for_different_payments PASSED [ 91%]
+tests/unit/test_reference_contract.py::test_reused_nontransaction_identifier_must_not_automatically_merge_payments XFAIL [ 91%]
+tests/unit/test_reference_contract.py::test_ocr_confusables_and_missing_character_request_review_not_merge[BANK12O456789-BANK120456789] PASSED [ 92%]
+tests/unit/test_reference_contract.py::test_ocr_confusables_and_missing_character_request_review_not_merge[BANK12I456789-BANK121456789] PASSED [ 92%]
+tests/unit/test_reference_contract.py::test_ocr_confusables_and_missing_character_request_review_not_merge[BANK123456789-BANK12345678] PASSED [ 92%]
+tests/unit/test_reference_contract.py::test_near_reference_with_different_amount_does_not_merge PASSED [ 93%]
+tests/unit/test_reference_contract.py::test_two_actual_payments_same_amount_with_distinct_refs_stay_distinct PASSED [ 93%]
+tests/unit/test_reference_contract.py::test_repeated_exact_reference_and_amount_retains_legacy_behavior PASSED [ 93%]
+tests/unit/test_synth_slips.py::test_deterministic PASSED                [ 94%]
+tests/unit/test_synth_slips.py::test_different_seed_differs PASSED       [ 94%]
+tests/unit/test_synth_slips.py::test_files_exist_and_shape PASSED        [ 94%]
+tests/unit/test_synth_slips.py::test_exact_duplicate_is_byte_identical PASSED [ 95%]
+tests/unit/test_synth_slips.py::test_near_duplicate_differs_but_same_truth PASSED [ 95%]
+tests/unit/test_synth_slips.py::test_required_scenarios_present PASSED   [ 95%]
+tests/unit/test_synth_slips.py::test_watermark_in_rendering_function PASSED [ 96%]
+tests/unit/test_synth_slips.py::test_watermark_changes_pixels PASSED     [ 96%]
+tests/unit/test_usage_ledger.py::test_null_cost_is_computed_from_tokens_when_the_model_is_priced PASSED [ 96%]
+tests/unit/test_usage_ledger.py::test_uncomputable_null_cost_is_unknown_not_zero[entry0] PASSED [ 97%]
+tests/unit/test_usage_ledger.py::test_uncomputable_null_cost_is_unknown_not_zero[entry1] PASSED [ 97%]
+tests/unit/test_usage_ledger.py::test_uncomputable_null_cost_is_unknown_not_zero[entry2] PASSED [ 97%]
+tests/unit/test_usage_ledger.py::test_uncomputable_null_cost_is_unknown_not_zero[entry3] PASSED [ 98%]
+tests/unit/test_usage_ledger.py::test_meter_refuses_paid_calls_while_a_cost_is_unknown PASSED [ 98%]
+tests/unit/test_usage_ledger.py::test_correction_replaces_the_run_and_is_not_counted_twice PASSED [ 98%]
+tests/unit/test_usage_ledger.py::test_latest_correction_wins_and_legacy_text_correction_is_recognised PASSED [ 99%]
+tests/unit/test_usage_ledger.py::test_correction_with_unknown_cost_is_unknown PASSED [ 99%]
+tests/unit/test_usage_ledger.py::test_real_repo_ledger_has_no_unknown_cost_and_no_double_count PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_unhandled_error_log_is_redacted _____________________
+
+app_db = <finassist.infra.Database object at 0x104e2df40>
+storage = <tests.integration.test_cp2_gaps.FlakyStorage object at 0x1053dac10>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1051079a0>
+
+    def test_unhandled_error_log_is_redacted(app_db, storage, monkeypatch):
+        stream = io.StringIO()
+        handler = logging.StreamHandler(stream)
+        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
+        root = logging.getLogger()
+        root.addHandler(handler)
+        try:
+            app = create_app(Settings(_env_file=None, model_provider="fake", database_url="postgresql://x", storage_dir=str(storage.root)),
+                             db=app_db, storage=storage)  # installs redaction on existing handlers
+            c = TestClient(app, raise_server_exceptions=False)
+            u = User(c).onboard()
+            secret_email, ref = "victim.person@example.test", "DS01812026101599887766"
+    
+            def boom(conn, owner_id):
+                raise RuntimeError(f"DETAIL:  Key (lower(email))=({secret_email}) already exists; ref {ref}; "
+                                   f"Authorization: {u.h['Authorization']} postgresql://finassist:pw@db/x payee ร้านป้าสมาน")
+    
+            monkeypatch.setattr(budget, "get_plan", boom)
+            r = c.get("/v1/plan", headers=u.h)
+            assert r.status_code == 500 and r.json()["error"]["code"] == "INTERNAL"
+            assert secret_email not in r.text and "RuntimeError" not in r.text  # nothing leaks to the client
+            out = stream.getvalue()
+            assert "unhandled request_id=" in out and "route=/v1/plan" in out and "exc=RuntimeError" in out
+            assert r.json()["error"]["request_id"] in out  # still traceable
+            assert "test_cp2_gaps.py" in out  # stack frames kept for debugging
+            for leaked in (secret_email, ref, u.h["Authorization"][7:], ":pw@", "ร้านป้าสมาน"):
+>               assert leaked not in out, leaked
+E               AssertionError: ร้านป้าสมาน
+E               assert 'ร้านป้าสมาน' not in 'ERROR finas...้าสมาน")\n\n'
+E                 
+E                 'ร้านป้าสมาน' is contained here:
+E                   ERROR finassist.api unhandled request_id=3dee0a09-273b-4f22-bc56-185789df9a7d method=GET route=/v1/plan exc=RuntimeError
+E                     File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 164, in __call__
+E                       await self.app(scope, receive, _send)
+E                     File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/telemetry/_asgi.py", line 151, in __call__
+E                       await self.app(scope, receive, send)...
+E                 
+E                 ...Full output truncated (77 lines hidden), use '-vv' to show
+
+tests/integration/test_cp2_gaps.py:360: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    finassist.api:logsafe.py:59 unhandled request_id=3dee0a09-273b-4f22-bc56-185789df9a7d method=GET route=/v1/plan exc=RuntimeError
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/telemetry/_asgi.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 203, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/POOH/Development/case/shenzen/backend/src/finassist/api/app.py", line 48, in request_id
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 179, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 149, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/routing.py", line 676, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 2788, in app
+    await route.handle(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 1819, in handle
+    await self.original_router.handle(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 2871, in handle
+    await included_router._handle_selected(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 1845, in _handle_selected
+    await original_route.handle(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 1308, in handle
+    await effective_context.app(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 165, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 151, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 727, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 362, in run_endpoint_function
+    return await run_in_threadpool(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+        _run_sync_endpoint, function=dependant.call, arguments=values
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/starlette/concurrency.py", line 34, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/anyio/to_thread.py", line 65, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2706, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 1100, in run
+    result = context.run(func, *args)
+  File "/Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/telemetry/_api.py", line 244, in _run_sync_endpoint
+    return function(**arguments)
+  File "/Users/POOH/Development/case/shenzen/backend/src/finassist/api/routes.py", line 250, in plan
+    return _out(200, budget.get_plan(conn, o))
+                     ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/POOH/Development/case/shenzen/backend/tests/integration/test_cp2_gaps.py", line 348, in boom
+    raise RuntimeError(f"DETAIL:  Key (lower(email))=([REDACTED]) already exists; ref {ref}; "
+                       f"Authorization: [REDACTED]} postgresql://[REDACTED]@db/x payee ร้านป้าสมาน")
+=============================== warnings summary ===============================
+.venv/lib/python3.13/site-packages/fastapi/testclient.py:1
+  /Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+src/finassist/api/app.py:54: 1 warning
+tests/integration/test_cp1_review_fixes.py: 18 warnings
+tests/integration/test_cp2_cards.py: 13 warnings
+tests/integration/test_cp2_gaps.py: 13 warnings
+tests/integration/test_cp2_review_fixes.py: 10 warnings
+tests/integration/test_cp3a_client_api.py: 7 warnings
+tests/integration/test_flows.py: 19 warnings
+tests/integration/test_security.py: 19 warnings
+tests/integration/test_slice1_review_inputs.py: 5 warnings
+tests/unit/test_config_fail_closed.py: 1 warning
+  /Users/POOH/Development/case/shenzen/backend/src/finassist/api/app.py:54: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+.venv/lib/python3.13/site-packages/fastapi/applications.py:4745: 1 warning
+tests/integration/test_cp1_review_fixes.py: 18 warnings
+tests/integration/test_cp2_cards.py: 13 warnings
+tests/integration/test_cp2_gaps.py: 13 warnings
+tests/integration/test_cp2_review_fixes.py: 10 warnings
+tests/integration/test_cp3a_client_api.py: 7 warnings
+tests/integration/test_flows.py: 19 warnings
+tests/integration/test_security.py: 19 warnings
+tests/integration/test_slice1_review_inputs.py: 5 warnings
+tests/unit/test_config_fail_closed.py: 1 warning
+  /Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/applications.py:4745: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/POOH/Development/case/shenzen/evidence/runs/20261016T170258Z-web-plan-supersession/junit.xml -
+=========== 1 failed, 291 passed, 2 xfailed, 213 warnings in 39.05s ============

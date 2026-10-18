@@ -1,0 +1,1 @@
+Full suite failed one existing security test: traceback.format_tb included a source line containing a synthetic private string. It was not caused by the plan-selection change, but is a real logging gap. log_exception now emits filename, line number and function only. Two existing reference strict xfails remain separate from passes. Retained as failed evidence.

@@ -145,6 +145,18 @@ def spending(txns: list[Txn], start: date, end_exclusive: date) -> SpendingSumma
     return s
 
 
+def ranked_categories(s: SpendingSummary) -> list[dict]:
+    """Categories by net spending (largest first, ties by code), keeping the confirmed/predicted split.
+
+    Unassigned spending and unlinked refunds are NOT ranked here; they stay separate fields so they are never
+    silently merged into a category. A category can be negative when linked refunds exceed its expenses.
+    """
+    rows = [{"category": code, "total_satang": v.get("confirmed", 0) + v.get("predicted", 0),
+             "confirmed_satang": v.get("confirmed", 0), "predicted_satang": v.get("predicted", 0)}
+            for code, v in s.by_category.items()]
+    return sorted(rows, key=lambda r: (-r["total_satang"], r["category"]))
+
+
 def spending_by_payee(txns: list[Txn], start: date, end_exclusive: date) -> dict[str, int]:
     out: dict[str, int] = defaultdict(int)
     for t in txns:

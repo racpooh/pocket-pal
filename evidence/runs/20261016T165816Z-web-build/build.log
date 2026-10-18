@@ -1,0 +1,50 @@
+
+> web@0.1.0 build
+> next build --turbopack
+
+   ▲ Next.js 15.5.28 (Turbopack)
+
+   Creating an optimized production build ...
+ ✓ Finished writing to disk in 46ms
+ ✓ Compiled successfully in 2.3s
+   Linting and checking validity of types ...
+
+./src/app/chat-tab.tsx
+160:629  Warning: Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element').
+160:686  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/goal/goal-tab.tsx
+43:6  Warning: React Hook useEffect has a missing dependency: 'goal'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/12) ...
+   Generating static pages (3/12) 
+   Generating static pages (6/12) 
+   Generating static pages (9/12) 
+ ✓ Generating static pages (12/12)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                         Size  First Load JS
+┌ ○ /                            22.6 kB         142 kB
+├ ○ /_not-found                      0 B         120 kB
+├ ○ /activity                    22.1 kB         142 kB
+├ ƒ /api/backend/[...path]           0 B            0 B
+├ ƒ /api/session                     0 B            0 B
+├ ○ /connect                     1.85 kB         121 kB
+├ ○ /goal                        16.2 kB         136 kB
+├ ○ /pockets                     18.8 kB         138 kB
+├ ○ /settings                    5.17 kB         125 kB
+└ ○ /welcome                     19.9 kB         140 kB
++ First Load JS shared by all     128 kB
+  ├ chunks/5a50ee1d1bd5f6b0.js   10.9 kB
+  ├ chunks/841f20390e229d44.js   59.2 kB
+  ├ chunks/a5ae679281090a68.js   14.7 kB
+  ├ chunks/c20516c263ef3a09.js   17.2 kB
+  └ other shared chunks (total)  26.2 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

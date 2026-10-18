@@ -1,0 +1,23 @@
+{
+  "steps": [
+    "sign in",
+    "render /",
+    "render /pockets",
+    "render /activity",
+    "render /settings",
+    "render /goal",
+    "upload and review sheet",
+    "review confirmation"
+  ],
+  "errors": [
+    "buffer was not applied"
+  ],
+  "passed": false,
+  "viewport": "393x852",
+  "data": "synthetic only",
+  "limitations": [
+    "not a physical S22 run",
+    "no paid model call",
+    "not all interactions tested"
+  ]
+}

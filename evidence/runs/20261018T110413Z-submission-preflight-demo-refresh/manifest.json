@@ -1,0 +1,25 @@
+{
+  "run_id": "20261018T110413Z-submission-preflight-demo-refresh",
+  "kind": "submission_documentation_and_demo_environment_refresh",
+  "checks": {
+    "selected_workspace_secret_pattern_scan": {
+      "scope": "Selected source, design/submission text and evidence text only; no private folders, binary documents, Git staging/history or remote scan. Not a comprehensive PII or secret audit.",
+      "files_scanned": 519,
+      "high_confidence_matches": []
+    },
+    "documentation": "Source/rules inspected; no clean-checkout build replay",
+    "backend_health": "ok; real provider selected; no paid calls made",
+    "web_connect_status": 200
+  },
+  "git_commands_run": false,
+  "tracked_staged_history_remote_verified": false,
+  "application_tests_run": false,
+  "phone_reset": "blocked by ADB unauthorized",
+  "files_sha256": {
+    "README.md": "39a185a0cd5b14b6b9be57af6685a546baee50306a1b724278cbca9b7069d44f",
+    ".gitignore": "e99dc95e8848242ba5529ce05482dddfe5126f3f3a7105045ad5472f0c450d34",
+    ".env.example": "34b0696f7cac8aa7eb1b2d9b30c08fcbce073bca1ba43ea782d802d4a1be35f2",
+    "docs/submission/REVIEWER_GUIDE.md": "3e692e69011a742bbcf5dec73b000818abe6b911f86e83c64397220fd5ac35bd",
+    "docs/submission/CLAUDE_CHAT_POLISH_PROMPT.md": "e6987a4a829c6d465e1af6c6b917fa10ad760d7d8c6be23af9bed7b9cdc2d323"
+  }
+}

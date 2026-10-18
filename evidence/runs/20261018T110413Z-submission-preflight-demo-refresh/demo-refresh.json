@@ -1,0 +1,58 @@
+{
+  "timestamp_utc": "2026-10-18T10:58:19.005857+00:00",
+  "profile": "gallery",
+  "database": "finassist_gallery",
+  "before_counts": {
+    "note": "Initial reset completed; verification expected zero categories but migrations seed 10 shared categories. Resuming verification/restart without a second reset."
+  },
+  "after_counts": {
+    "account": 0,
+    "app_user": 0,
+    "audit_event": 0,
+    "balance_observation": 0,
+    "bill": 0,
+    "bill_payment_link": 0,
+    "budget_plan": 0,
+    "category": 10,
+    "chat_message": 0,
+    "consent_grant": 0,
+    "essential_expense": 0,
+    "extraction": 0,
+    "goal": 0,
+    "idempotency_key": 0,
+    "income_schedule": 0,
+    "job": 0,
+    "owner_watermark": 0,
+    "payee_default": 0,
+    "pocket": 0,
+    "pocket_allocation": 0,
+    "pocket_category_map": 0,
+    "proposal": 0,
+    "review_item": 0,
+    "txn": 0,
+    "txn_evidence": 0,
+    "upload": 0,
+    "user_session": 0
+  },
+  "upload_files_after": 0,
+  "health": {
+    "status": "ok",
+    "version": "0.0.1",
+    "test_mode": false,
+    "env": "dev"
+  },
+  "preserved": [
+    "dev",
+    "test",
+    "e2e",
+    "realeval",
+    "original gallery photos",
+    "private eval inputs",
+    "usage ledger"
+  ],
+  "paid_calls_made_by_reset": 0,
+  "phone_app_reset": "not performed: connected device remains ADB unauthorized",
+  "restart": "Backend restarted under persistent uv session after temporary uv interpreter cleanup; health ok/test_mode false on port 8002",
+  "frontend": "GET /connect on port 3002 returned 200",
+  "application_tests_run": false
+}

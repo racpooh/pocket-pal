@@ -1,0 +1,28 @@
+.F.F......                                                               [100%]
+=================================== FAILURES ===================================
+__ test_same_payment_alternate_field_must_not_silently_create_second_payment ___
+
+    @pytest.mark.xfail(strict=True, reason="REF-GAP-1: single untyped reference cannot detect alternate fields of one payment")
+    def test_same_payment_alternate_field_must_not_silently_create_second_payment():
+        decision = decide(candidate("CHANNEL987654321"), [candidate("BANK123456789", id="old")])
+>       assert decision.action in {"possible_duplicate", "same_payment"}
+E       AssertionError: assert 'new' in {'possible_duplicate', 'same_payment'}
+E        +  where 'new' = Decision(action='new', match_id=None, reason='no matching record').action
+
+tests/unit/test_reference_contract.py:28: AssertionError
+_ test_reused_nontransaction_identifier_must_not_automatically_merge_payments __
+
+    @pytest.mark.xfail(strict=True, reason="REF-GAP-2: field type/issuer scope absent; non-unique identifier can auto-merge")
+    def test_reused_nontransaction_identifier_must_not_automatically_merge_payments():
+        old = candidate("ORDER123456789", id="old")
+        new = candidate("ORDER123456789", at=T + timedelta(minutes=10))
+>       assert decide(new, [old]).action != "same_payment"
+E       AssertionError: assert 'same_payment' != 'same_payment'
+E        +  where 'same_payment' = Decision(action='same_payment', match_id='old', reason='same bank reference and amount').action
+E        +    where Decision(action='same_payment', match_id='old', reason='same bank reference and amount') = decide(Candidate(id='new', doc_type='transfer_out', amount_satang=12000, occurred_at=datetime.datetime(2026, 10, 16, 5, 10, tzinfo=datetime.timezone.utc), occurred_date_iso='2026-10-16', payee_key='synthetic shop', bank_ref='ORDER123456789'), [Candidate(id='old', doc_type='transfer_out', amount_satang=12000, occurred_at=datetime.datetime(2026, 10, 16, 5, 0, tzinfo=datetime.timezone.utc), occurred_date_iso='2026-10-16', payee_key='synthetic shop', bank_ref='ORDER123456789')])
+
+tests/unit/test_reference_contract.py:43: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_reference_contract.py::test_same_payment_alternate_field_must_not_silently_create_second_payment
+FAILED tests/unit/test_reference_contract.py::test_reused_nontransaction_identifier_must_not_automatically_merge_payments
+2 failed, 8 passed in 0.03s

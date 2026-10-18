@@ -1,0 +1,1 @@
+4 passed, 1 failed: new test expected FastAPI default 422, but this API deliberately maps schema validation to 400. Corrected the assertion to the established API contract. No production code change required for this failure.

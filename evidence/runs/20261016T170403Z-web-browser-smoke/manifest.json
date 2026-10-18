@@ -1,0 +1,22 @@
+{
+  "steps": [
+    "sign in",
+    "render /",
+    "render /pockets",
+    "render /activity",
+    "render /settings",
+    "render /goal",
+    "upload and review sheet",
+    "review confirmation",
+    "setup to approved plan with 500 THB buffer"
+  ],
+  "errors": [],
+  "passed": true,
+  "viewport": "393x852",
+  "data": "synthetic only",
+  "limitations": [
+    "not a physical S22 run",
+    "no paid model call",
+    "not all interactions tested"
+  ]
+}

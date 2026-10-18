@@ -1,0 +1,39 @@
+{
+  "run_id": "20261016T122231Z-reference-contract-regressions",
+  "kind": "synthetic domain regression/characterization; NOT production remediation",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "command": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "tests/unit/test_reference_contract.py",
+    "tests/unit/test_classify_dedup_validation.py",
+    "-q",
+    "-rxX",
+    "--junitxml=/Users/POOH/Development/case/shenzen/evidence/runs/20261016T122231Z-reference-contract-regressions/junit.xml"
+  ],
+  "exit_code": 0,
+  "known_gaps_without_xfail_exit_code": 1,
+  "uses_mocks": [
+    "invented Candidate objects, no DB or model"
+  ],
+  "not_run": [
+    "database pipeline",
+    "Android",
+    "paid model"
+  ],
+  "sha256": {
+    "backend/tests/unit/test_reference_contract.py": "68904dfd7e6ee31cf17d49e230c3f6f1911a73cd7e252d92c5fdb54b6b9edcce",
+    "backend/src/finassist/domain/dedup.py": "5c908a898c16b31c86fb8d4332939247cf1deea04845900d4fe15e5c56b43523",
+    "backend/src/finassist/services/imports.py": "c55ec73a51aeee701e949607969385117f560a58f19c8ce7cfb541cd7b31eab9",
+    "docs/design/14-reference-contract.md": "2b903bd860d89f89ba73c0e9bd0d54fc738842f36d6278cab16ccc0af338e501"
+  },
+  "actual": {
+    "passed": 57,
+    "xfailed_open_gaps": 2,
+    "unmasked_new_suite": {
+      "passed": 8,
+      "failed": 2
+    }
+  }
+}

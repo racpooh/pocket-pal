@@ -1,0 +1,9 @@
+{
+  "commands": {
+    "typecheck": 0,
+    "build": 0,
+    "source_sha256": "3b2c26048dd5813a005d1038b6ebd8df24fb32e29569841d3d64c480954df92c"
+  },
+  "passed": true,
+  "paid_calls": 0
+}

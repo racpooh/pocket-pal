@@ -1,0 +1,76 @@
+{
+  "kind": "Next BFF + real isolated FastAPI/PG synthetic smoke",
+  "steps": [
+    {
+      "name": "unauthenticated proxy rejected",
+      "passed": true
+    },
+    {
+      "name": "cross-origin sign-in rejected",
+      "passed": true
+    },
+    {
+      "name": "signup via BFF",
+      "passed": true
+    },
+    {
+      "name": "token absent from JSON; HttpOnly cookie",
+      "passed": true
+    },
+    {
+      "name": "identity confirmed and fake mode visible",
+      "passed": true
+    },
+    {
+      "name": "plan and pockets load",
+      "passed": true
+    },
+    {
+      "name": "upload imported through proxy",
+      "passed": true
+    },
+    {
+      "name": "exact upload counts once",
+      "passed": true
+    },
+    {
+      "name": "bill enters review",
+      "passed": true
+    },
+    {
+      "name": "bill resolved without expense",
+      "passed": true
+    },
+    {
+      "name": "stale resolve not success",
+      "passed": true
+    },
+    {
+      "name": "proposal has bound approval card",
+      "passed": true
+    },
+    {
+      "name": "explicit approve applies server plan",
+      "passed": true
+    },
+    {
+      "name": "fake chat fails honestly rather than fabricating",
+      "passed": true
+    },
+    {
+      "name": "logout removes session",
+      "passed": true
+    }
+  ],
+  "passed": 15,
+  "failed": 0,
+  "uses_mocks": [
+    "fake extraction from synthetic fixtures",
+    "chat unavailable, expected 503"
+  ],
+  "not_tested": [
+    "paid Anthropic chat",
+    "physical S22 browser",
+    "all prototype features"
+  ]
+}

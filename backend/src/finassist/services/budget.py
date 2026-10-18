@@ -67,8 +67,12 @@ def _next_due(today: date, due_day: int | None) -> date:
 
 
 def current_plan(conn, owner_id, today: date):
-    return conn.execute("""select id,period_start,period_end,buffer_satang,version from budget_plan
-                           where owner_id=%s and period_start<=%s and period_end>%s""", (owner_id, today, today)).fetchone()
+    # A later-starting approved plan supersedes earlier periods. Do not revive an
+    # older overlapping plan when the newer one expires.
+    plan = conn.execute("""select id,period_start,period_end,buffer_satang,version from budget_plan
+                           where owner_id=%s and period_start<=%s
+                           order by period_start desc limit 1""", (owner_id, today)).fetchone()
+    return plan if plan and plan["period_end"] > today else None
 
 
 def cashflow_inputs(conn, owner_id, *, txns: list[Txn] | None = None) -> tuple[cf.CashflowInputs, dict]:
@@ -582,12 +586,21 @@ def insights(conn, owner_id) -> dict:
         item = asdict(r)
         impacts = []
         if inc:
+            # Savings are per MONTH; goal capacity is per INCOME EVENT. Convert with the documented rule
+            # (goals_d.monthly_to_per_event) or report the impact as unavailable — never add monthly to per-event.
+            added = goals_d.monthly_to_per_event(r.estimated_savings_per_month_satang, inc["frequency"])
             for g in goals:
+                if added is None:
+                    impacts.append({"goal": g["name"], "goal_impact_unavailable": True,
+                                    "reason": "Income has no fixed frequency, so monthly savings cannot be converted to per-income amounts."})
+                    continue
                 before = goals_d.feasibility(g["target_satang"], g["saved_satang"], g["deadline"], inc["next_income_date"], inc["frequency"], cap)
                 after = goals_d.feasibility(g["target_satang"], g["saved_satang"], g["deadline"], inc["next_income_date"], inc["frequency"],
-                                            cap + r.estimated_savings_per_month_satang)
+                                            cap + added)
                 impacts.append({"goal": g["name"], "feasible_before": before.feasible, "feasible_after": after.feasible,
-                                "later_deadline_before": before.later_deadline, "later_deadline_after": after.later_deadline})
+                                "later_deadline_before": before.later_deadline, "later_deadline_after": after.later_deadline,
+                                "income_frequency": inc["frequency"], "added_capacity_per_income_event_satang": added,
+                                "conversion": "monthly savings x 12 / income events per year (12 monthly, 26 biweekly, 52 weekly), rounded down"})
         item["goal_impact"] = impacts
         recs.append(item)
     out["recommendations"] = recs
