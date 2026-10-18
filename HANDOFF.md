@@ -1,3 +1,6 @@
+## Live chat eval 3 — English default verified (18 Oct 2026, Claude)
+**TL;DR:** `20261018T124452Z-chat-eval-live` (23 requests, est. $0.26): tools 10/10, numeric 7/7, period 2/2, boundary 10/10; all English prompts answered in English (also after a Thai turn), the Thai prompt in Thai. The single narrative fail was a harness false positive (Thai payee name quoted in an English reply); harness fixed and the same replies re-scored offline 10/10 (`20261018T124708Z-chat-eval-live3-review`). Limits: one run, 10 synthetic scenarios, heuristic narrative checks, owner ratings blank. Chat eval spend 18 Oct ≈ $0.76 est.
+
 ## English-default chat replies, Thai supported (18 Oct 2026, Claude)
 **TL;DR:** Owner decision: English is the primary reply language (international competition); Thai is supported when the latest message is Thai, and Thai live results are kept as bilingual evidence (`20261018T123021Z-chat-eval-live`, Thai biggest-category answer). Server `reply_language` is now English unless the latest message contains Thai letters. Eval harness has 10 scenarios (English primary + one Thai bilingual check). `20261018T124204Z-chat-english-default`: scripted tests passed. Not yet verified live.
 
