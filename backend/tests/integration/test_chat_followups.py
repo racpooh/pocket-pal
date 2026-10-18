@@ -118,5 +118,16 @@ def test_cut_off_or_empty_model_answers_are_never_shown_as_blank(client, app, tu
     assert _send(u, "เดือนนี้ใช้เงินหมวดไหนมากที่สุด")["reply"] == expected
 
 
-def test_language_rule_targets_latest_message():
-    assert "LATEST message" in agent.SYSTEM
+def test_language_rule_defaults_to_english():
+    assert "LATEST message" in agent.SYSTEM and "English is the default" in agent.SYSTEM
+
+
+@pytest.mark.parametrize("text,lang", [("Did my budget change go through?", "English"), ("ผ่านไหม ฿300", "Thai"), ("฿300 ok?", "English"),
+                                       ("¿Cuánto gasté?", "English")])
+def test_server_states_reply_language_of_latest_message(client, app, text, lang):
+    u = User(client).onboard()
+    model = ScriptedChatModel([_done("ok")])
+    app.state.chat_model = model
+    _send(u, text)
+    ctx = json.loads(model.systems[0].split("not from the user):\n", 1)[1])
+    assert ctx["reply_language"] == lang

@@ -1,3 +1,9 @@
+## English-default chat replies, Thai supported (18 Oct 2026, Claude)
+**TL;DR:** Owner decision: English is the primary reply language (international competition); Thai is supported when the latest message is Thai, and Thai live results are kept as bilingual evidence (`20261018T123021Z-chat-eval-live`, Thai biggest-category answer). Server `reply_language` is now English unless the latest message contains Thai letters. Eval harness has 10 scenarios (English primary + one Thai bilingual check). `20261018T124204Z-chat-english-default`: scripted tests passed. Not yet verified live.
+
+## Live chat eval 2 + reply-language fix (18 Oct 2026, Claude)
+**TL;DR:** Second live run `20261018T123021Z-chat-eval-live` (21 requests, est. $0.25): numeric 6/6, tools 9/9, boundary 9/9; the empty-reply bug is fixed live. English questions after a Thai turn were still answered in Thai, so the server now passes a deterministic `reply_language` hint from the latest message (`20261018T123400Z-chat-language-fix`, 324 passed, 2 xfailed, 0 skipped, scripted). Harness Thai detector fixed (baht sign is not Thai text). Language fix not yet verified live.
+
 ## Live chat eval + truncation fix (18 Oct 2026, Claude)
 **TL;DR:** Owner ran `eval_chat.py --live` (`20261018T122238Z-chat-eval-live`): 21 requests, est. $0.25; tool selection 9/9, boundary 9/9 (no agent approval, injection refused), numeric 5/6. Real defect found: a Thai answer hit max_tokens=700 and the user saw an EMPTY reply; English follow-ups drifted into Thai. Fixed (`20261018T122703Z-chat-truncation-fix`, 321 passed, 2 xfailed, 0 skipped, scripted): never a blank/silently cut reply (partial text + note, or apology; audit `truncated`), chat_max_output_tokens default 1200, reply in the language of the LATEST message, eval heuristics corrected. Fixes not yet re-verified live. Note: commit f25fa5c staged broadly and also contains other agents' pending files.
 

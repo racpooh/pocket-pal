@@ -1,0 +1,57 @@
+........................................................................ [ 22%]
+........................................................................ [ 44%]
+........................................................................ [ 66%]
+........................................................................ [ 88%]
+..........x.x..........................                                  [100%]
+=============================== warnings summary ===============================
+../../../venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+src/finassist/api/app.py:54: 1 warning
+tests/integration/test_chat_continuity.py: 5 warnings
+tests/integration/test_chat_followups.py: 10 warnings
+tests/integration/test_chat_grounding.py: 8 warnings
+tests/integration/test_cp1_review_fixes.py: 18 warnings
+tests/integration/test_cp2_cards.py: 13 warnings
+tests/integration/test_cp2_gaps.py: 13 warnings
+tests/integration/test_cp2_review_fixes.py: 10 warnings
+tests/integration/test_cp3a_client_api.py: 7 warnings
+tests/integration/test_flows.py: 19 warnings
+tests/integration/test_security.py: 19 warnings
+tests/integration/test_slice1_review_inputs.py: 6 warnings
+tests/unit/test_config_fail_closed.py: 1 warning
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/mnt/shenzen/backend/src/finassist/api/app.py:54: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../../../venv-finassist/lib/python3.12/site-packages/fastapi/applications.py:4745: 1 warning
+tests/integration/test_chat_continuity.py: 5 warnings
+tests/integration/test_chat_followups.py: 10 warnings
+tests/integration/test_chat_grounding.py: 8 warnings
+tests/integration/test_cp1_review_fixes.py: 18 warnings
+tests/integration/test_cp2_cards.py: 13 warnings
+tests/integration/test_cp2_gaps.py: 13 warnings
+tests/integration/test_cp2_review_fixes.py: 10 warnings
+tests/integration/test_cp3a_client_api.py: 7 warnings
+tests/integration/test_flows.py: 19 warnings
+tests/integration/test_security.py: 19 warnings
+tests/integration/test_slice1_review_inputs.py: 6 warnings
+tests/unit/test_config_fail_closed.py: 1 warning
+  /sessions/rcw-01chrzru2bxushmom3zurhrq/venv-finassist/lib/python3.12/site-packages/fastapi/applications.py:4745: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+XFAIL tests/unit/test_reference_contract.py::test_same_payment_alternate_field_must_not_silently_create_second_payment - REF-GAP-1: single untyped reference cannot detect alternate fields of one payment
+XFAIL tests/unit/test_reference_contract.py::test_reused_nontransaction_identifier_must_not_automatically_merge_payments - REF-GAP-2: field type/issuer scope absent; non-unique identifier can auto-merge
+325 passed, 2 xfailed, 261 warnings in 47.40s

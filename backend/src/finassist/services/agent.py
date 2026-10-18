@@ -7,6 +7,7 @@ and has no tool that approves, deletes, changes consent or moves money (SI-7).
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 
 from psycopg.types.json import Jsonb
@@ -40,7 +41,7 @@ Rules:
 - Say clearly when spending is unassigned or a category was guessed ('predicted').
 - If history is short (for example get_insights has fewer than two complete months), say so; do not describe monthly patterns or trends.
 - For a greeting or a question that needs no figures, answer briefly without calling tools.
-- Reply in the language of the user's LATEST message, even if earlier messages or tool data use another language.
+- Language: use the server context reply_language for every reply. English is the default; reply in Thai only when reply_language is Thai (the user's LATEST message is in Thai), even if earlier messages or tool data use another language.
 - Answer shape: first a direct answer (the number, yes/no, or the recommendation) naming the period or assumption it rests on; then at most three short supporting facts; then at most one next step the app supports (for example review an item, approve or edit a proposal in the app, add a bill). Skip parts that do not apply.
 - Use simple Markdown with blank lines between sections. Prefer bullets to tables on a phone; use tables only for useful comparisons.
 - Keep replies short. Amounts like ฿1,234.50. Explain the period behind a spending figure; never imply that no spending in the current plan means no spending historically.
@@ -58,6 +59,16 @@ def time_context(conn, owner_id) -> dict:
             "periods": {k: {"start": a.isoformat(), "end_exclusive": b.isoformat()} for k, (a, b) in reporting_periods(today).items()},
             "period_rules": "Ranges are local dates, end_exclusive. this_month_to_date runs from the 1st to today; last_month is the whole "
                             "previous calendar month; last_7_days and last_30_days are rolling windows that include today."}
+
+
+_THAI_LETTERS = re.compile("[\u0e01-\u0e3a\u0e40-\u0e5b]")  # Thai script, excluding the baht sign ฿ (U+0E3F)
+
+
+def reply_language(text: str) -> str:
+    """Deterministic reply language: English by default (international audience), Thai when the latest message is
+    written in Thai. The live eval showed English follow-ups answered in Thai after a Thai turn, so the server decides
+    instead of leaving it to the model."""
+    return "Thai" if _THAI_LETTERS.search(text or "") else "English"
 
 
 def system_prompt(ctx: dict) -> str:
@@ -291,7 +302,7 @@ def _chat(conn, owner_id, text: str, model: ChatModel) -> dict:
     tools_used: list[str] = []
     reply, model_id = "", None
     truncated = False
-    system = system_prompt(time_context(conn, owner_id))
+    system = system_prompt({**time_context(conn, owner_id), "reply_language": reply_language(text)})
     for _ in range(MAX_TURNS):
         turn: ChatTurn = model.step(system, messages, tool_specs())
         model_id = turn.model_id

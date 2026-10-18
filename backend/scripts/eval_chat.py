@@ -1,4 +1,4 @@
-"""Synthetic novel-prompt chat evaluation (polish prompt item "prepare, do not execute paid calls without approval").
+"""Synthetic novel-prompt chat evaluation (English primary; one Thai prompt as a bilingual check) (polish prompt item "prepare, do not execute paid calls without approval").
 
   TEST_DATABASE_URL=<disposable *_test database> uv run python scripts/eval_chat.py --scripted      # dry run, no model calls
   TEST_DATABASE_URL=<disposable *_test database> uv run python scripts/eval_chat.py --live --max-requests 40 --max-usd 1.00
@@ -27,7 +27,7 @@ sys.path.insert(0, str(BACKEND / "src"))
 sys.path.insert(0, str(BACKEND))
 
 FIXED_NOW = "2026-10-15T06:00:00+00:00"  # 13:00 ICT
-THAI = re.compile("[฀-๿]")
+THAI = re.compile("[\u0e01-\u0e3a\u0e40-\u0e5b]")  # Thai letters; excludes the baht sign U+0E3F
 
 
 def amount_in_text(satang: int, text: str) -> bool:
@@ -194,19 +194,22 @@ def main() -> int:
     if t:
         record("overview", [t], "get_overview" in t["tools"], amount_in_text(expected["daily_allowance"], t["reply"]), None,
                not t["cards"], has_any(t["reply"], ["day", "payday", "income", "nov"]))
-    # 2 biggest category (Thai; this month)
-    t = turn("เดือนนี้ใช้เงินหมวดไหนมากที่สุด")
-    if t:
-        sp = [x["input"] for x in t["calls"] if x["name"] == "get_spending"]
-        top = expected["top_category"]
-        record("biggest_category", [t], bool(sp), amount_in_text(top["total_satang"], t["reply"]),
-               any(x.get("start") == "2026-10-01" and x.get("end_exclusive") == "2026-10-16" for x in sp), not t["cards"],
-               bool(THAI.search(t["reply"] or "")))
+    # 2 biggest category — English (primary) and Thai (bilingual check; the next English turn must switch back)
+    top = expected["top_category"]
+    for scenario, prompt, want_thai in (("biggest_category_en", "Which category did I spend the most on this month?", False),
+                                        ("biggest_category_th", "เดือนนี้ใช้เงินหมวดไหนมากที่สุด", True)):
+        t = turn(prompt)
+        if t:
+            sp = [x["input"] for x in t["calls"] if x["name"] == "get_spending"]
+            record(scenario, [t], bool(sp), amount_in_text(top["total_satang"], t["reply"]),
+                   any(x.get("start") == "2026-10-01" and x.get("end_exclusive") == "2026-10-16" for x in sp), not t["cards"],
+                   bool(THAI.search(t["reply"] or "")) == want_thai)
     # 3 affordable purchase
     t = turn("Can I afford a ฿1,500 jacket today?")
     if t:
         sim = [x["input"] for x in t["calls"] if x["name"] == "simulate_purchase"]
-        ok_word = has_any(t["reply"], ["yes", "you can", "affordable"]) if expected["afford_1500"] else has_any(t["reply"], ["no", "not", "can't", "cannot"])
+        ok_word = (has_any(t["reply"], ["yes", "you can", "affordable"]) if expected["afford_1500"] else has_any(t["reply"], ["no", "not", "can't", "cannot"])) \
+            and not THAI.search(t["reply"] or "")
         record("affordability", [t], bool(sim), any("1500" in x.get("amount_thb", "").replace(",", "") for x in sim), None, not t["cards"], ok_word)
     # 4 insufficient funds
     t = turn("Can I afford a ฿50,000 laptop this week?")
@@ -264,7 +267,7 @@ def main() -> int:
                 "mode": "live" if a.live else "scripted dry run", "config": config, "model_access_check": access, "uses_mocks": mocks,
                 "caps": {"max_requests": a.max_requests, "max_usd_this_run": a.max_usd}, "stopped": stopped,
                 "expected_from_deterministic_fixture": {k: (format_thb(v) if k in ("daily_allowance", "month_total", "unassigned") else v) for k, v in expected.items()},
-                "scenarios_completed": len(results), "scenarios_planned": 9, "summary": summary, "results": results,
+                "scenarios_completed": len(results), "scenarios_planned": 10, "summary": summary, "results": results,
                 "environment": {"python": platform.python_version(), "platform": platform.platform()}, "usage": meter.summary(),
                 "note": "Automatic narrative scores are keyword heuristics; owner ratings are blank until filled in. Scripted mode scores are meaningless."}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
