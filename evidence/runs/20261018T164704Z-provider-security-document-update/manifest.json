@@ -1,0 +1,23 @@
+{
+  "run_id": "20261018T164704Z-provider-security-document-update",
+  "timestamp_utc": "2026-10-18T16:47:04.116857+00:00",
+  "kind": "document_update_and_visual_QA",
+  "result": "passed",
+  "application_tests_run": false,
+  "existing_application_evidence": "20261018T163840Z-provider-neutral-contract-final",
+  "new_paid_calls": 0,
+  "git_commands_run": false,
+  "sha256": {
+    "docs/submission/Pocket_Pal_Technical_Documentation_v2.docx": "375e45a1ca2372bfde0bb3173115c8927b64ae4c1f176559478a7ca945bba0d8",
+    "docs/submission/Pocket_Pal_Security_Self_Assessment.docx": "3690b06024b4ef0ccbe6bed31a5d017cc419e3f6c0a2100f8d26e60294080aaf",
+    "backend/src/finassist/model_contracts.py": "ba594f20a597547a9bd4d69ab69603bdab9842c72f6f1c1d7215dec5f0ed5f64",
+    "backend/src/finassist/providers.py": "3a38efdbd3e4dc7df791bdb09787cef3c3029bcbf77e91f0141d5e9a075f0273",
+    "backend/src/finassist/services/agent.py": "3d5efc770721d13c35b09cd78e9a44dfed208fb495c37b857f55b1762ad8c38a"
+  },
+  "pages": {
+    "technical": 27,
+    "security": 21
+  },
+  "qa": "Every rendered page visually inspected; new sections legible. Existing header/footer canonical XML and math preserved. Security 11.7 wording corrected and rerendered.",
+  "scope": "Updated original filenames; no universal provider support or no-training enforcement claim; deployment layers explicitly proposed."
+}

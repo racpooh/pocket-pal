@@ -7,6 +7,7 @@ test suite or an E2E run could break a running phone server even without a reset
 | profile  | used by                                   | cluster dir (under FINASSIST_PGDATA_ROOT) | database                 | login roles            | storage                         | port |
 |----------|-------------------------------------------|-------------------------------------------|--------------------------|------------------------|---------------------------------|------|
 | dev      | the phone (owner, `dev_server.py`)        | pgdata-dev                                | finassist_dev            | finassist_{app,worker}_dev | dev-uploads (same root)     | 8000 |
+| gallery  | clean APK gallery trial                    | pgdata-gallery                            | finassist_gallery        | finassist_{app,worker}_gallery | gallery-uploads               | 8002 |
 | e2e      | automated client E2E (`cp3a_e2e.py`)      | pgdata-e2e                                | finassist_e2e            | finassist_{app,worker}_e2e | e2e-uploads (same root)     | 8001 |
 | test     | pytest (`local_pg.py`)                    | pgdata-test                               | finassist_test           | finassist_app/worker (conftest) | per-test temp dirs     | —    |
 | realeval | real-slip evaluation replay (private)     | pgdata-realeval                           | finassist_realeval_test  | finassist_app/worker (conftest) | eval/private/<round>/uploads | — |
@@ -52,6 +53,7 @@ class Profile:
 
 PROFILES = {
     "dev": Profile("dev", "pgdata-dev", "finassist_dev", "dev-uploads", 8000),
+    "gallery": Profile("gallery", "pgdata-gallery", "finassist_gallery", "gallery-uploads", 8002),
     "e2e": Profile("e2e", "pgdata-e2e", "finassist_e2e", "e2e-uploads", 8001),
     "test": Profile("test", "pgdata-test", "finassist_test", None, None),
     "realeval": Profile("realeval", "pgdata-realeval", "finassist_realeval_test", None, None),

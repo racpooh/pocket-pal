@@ -18,7 +18,7 @@ from finassist.domain.ledger import counts_for_totals, ranked_categories, spendi
 from finassist.domain.money import MoneyParseError, format_thb, parse_thb
 from finassist.domain.periods import reporting_periods
 from finassist.infra import audit
-from finassist.providers import ChatModel, ChatTurn, anthropic_content
+from finassist.model_contracts import ChatMessage, ChatModel, ChatTurn
 from finassist.services import budget, core, imports
 
 MAX_TOOL_CALLS = 8
@@ -115,7 +115,7 @@ TOOLS = [
     ("get_overview", "Current balance projection, reserved bills/essentials/savings/buffer, money left and daily allowance, pocket status.", _Empty, "T0"),
     ("get_spending", "Net spending by category for a date range (end exclusive), with unassigned and excluded counts.", _Range, "T0"),
     ("list_bills", "Unpaid and paid bills with due dates.", _Empty, "T0"),
-    ("list_proposals", "Your 5 most recent proposals, newest first, with their CURRENT status (pending, applied, stale, expired, superseded, cancelled) and summary. Read-only.", _Empty, "T0"),
+    ("list_proposals", "Your 5 most recent proposals, newest first, with stored lifecycle status, derived expiry and summary. Pending proposals are revalidated for applicability only at approval. Read-only.", _Empty, "T0"),
     ("list_review_items", "Imported images waiting for the user's review and uncategorised payees.", _Empty, "T0"),
     ("simulate_purchase", "What-if: impact of a purchase on bills, money left and daily allowance. Records nothing.", _Amount, "T1"),
     ("check_goal", "Feasibility of a savings goal and alternatives. Records nothing.", _Goal, "T1"),
@@ -199,7 +199,7 @@ def run_tool(conn, owner_id, name: str, args: dict, cards: list[dict]) -> dict:
             return {"proposals": [{"proposal_id": r["proposal_id"], "kind": r["kind"], "status": r["status"], "created_by": r["created_by"],
                                    "created_at": str(r["created_at"]), "decided_at": str(r["decided_at"]) if r["decided_at"] else None,
                                    "summary": ((r.get("card") or {}).get("summary") or {}).get("text")} for r in rows],
-                    "note": "Status is current. Only 'applied' proposals changed the budget; the user approves or cancels in the app."}
+                    "note": "Status reflects the stored lifecycle plus expiry, not a fresh applicability check. Pending proposals may have become stale and are revalidated on approval. Only applied proposals committed their changes; the user approves or cancels in the app."}
         if name == "list_review_items":
             items = imports.list_review(conn, owner_id)
             return {"open_review_items": len(items), "reasons": [i["reason"] for i in items][:20],
@@ -288,7 +288,7 @@ def chat(conn, owner_id, text: str, model: ChatModel) -> dict:
 def _chat(conn, owner_id, text: str, model: ChatModel) -> dict:
     grant = core.active_consent(conn, owner_id, "chat_history_retention")
     keep = grant is not None
-    history: list[dict] = []
+    history: list[ChatMessage] = []
     if keep:
         for r in conn.execute("select role,content from chat_message where owner_id=%s order by created_at desc, (role='user') limit %s", (owner_id, MAX_HISTORY_MESSAGES)).fetchall()[::-1]:
             if r["role"] in ("user", "assistant") and isinstance(r["content"], dict) and r["content"].get("text"):
@@ -314,7 +314,7 @@ def _chat(conn, owner_id, text: str, model: ChatModel) -> dict:
         if not turn.tool_calls:
             reply = turn.text
             break
-        messages.append({"role": "assistant", "content": anthropic_content(turn)})
+        messages.append({"role": "assistant", "content": turn.text, "tool_calls": turn.tool_calls})
         results = []
         for call in turn.tool_calls:
             if len(tools_used) >= MAX_TOOL_CALLS:
@@ -322,8 +322,8 @@ def _chat(conn, owner_id, text: str, model: ChatModel) -> dict:
             else:
                 tools_used.append(call["name"])
                 out = run_tool(conn, owner_id, call["name"], call.get("input") or {}, cards)
-            results.append({"type": "tool_result", "tool_use_id": call["id"], "content": json.dumps(out, default=str, ensure_ascii=False)})
-        messages.append({"role": "user", "content": results})
+            results.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps(out, default=str, ensure_ascii=False)})
+        messages.extend(results)
         reply = turn.text
     if truncated:
         reply = (reply.rstrip() + "\n\n" if reply.strip() else "") + TRUNCATED_NOTE

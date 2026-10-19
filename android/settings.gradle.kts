@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "finassist-android"
-include(":core", ":app")
+include(":core", ":app", ":pocketpal")

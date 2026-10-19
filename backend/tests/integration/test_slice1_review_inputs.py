@@ -61,3 +61,67 @@ def test_unknown_status_follows_the_users_choice_in_the_ledger(client, db, stora
     assert t["payment_status"] == status
     spend_after = u.req("GET", "/spending?from=2026-07-01&to=2026-11-01").json()["total_satang"]
     assert (spend_after - spend_before) == (t["amount_satang"] if counted else 0)
+
+
+def test_web_review_preserves_readable_bill_due_date(client, db, storage, provider):
+    """The web form must receive a due date already read while reviewing another field."""
+    import hashlib
+    u = User(client).onboard()
+    file, fields = _variant("var_bill_no_due_date.png")
+    fields = {**fields, "due_date_text": "2026-10-20", "amount_text": None}
+    data = (VARIANTS / file).read_bytes()
+    provider.by_sha[hashlib.sha256(data).hexdigest()] = fields
+    uid = u.upload(data).json()["upload_id"]
+    drain(db, storage, provider)
+    item = next(i for i in u.req("GET", "/review-items").json()["items"] if i["upload_id"] == uid)
+    assert item["extracted"]["due_date_text"] == "2026-10-20"
+
+
+def test_web_replanning_uses_latest_period_and_does_not_revive_old_plan(client, db):
+    from datetime import date, timedelta
+    from finassist.services import budget
+    from finassist.infra import set_owner
+    u = User(client).onboard()
+    today = date.fromisoformat(u.req("GET", "/plan").json()["today"])
+    for start, end, buffer in ((today-timedelta(days=1), today+timedelta(days=10), 0),
+                               (today, today+timedelta(days=2), 50_000)):
+        card = u.req("POST", "/proposals", json={"kind":"budget_plan", "payload":{
+            "period_start":str(start), "period_end":str(end), "buffer_satang":buffer,
+            "allocations":{u.pockets["Food"]:100_000}}}).json()
+        response = u.req("POST", f"/proposals/{card['proposal_id']}/approve", idem=True,
+                         json={"payload_hash":card["payload_hash"],"card_hash":card["card_hash"]})
+        assert response.status_code == 200, response.text
+    plan = u.req("GET", "/plan").json()["plan"]
+    assert plan["period_start"] == str(today) and plan["buffer_satang"] == 50_000
+    owner = u.req("GET", "/me").json()["user_id"]
+    with db.connect() as conn:
+        set_owner(conn, owner)
+        assert budget.current_plan(conn, owner, today+timedelta(days=3)) is None
+
+
+def test_category_assignment_updates_only_its_budget_period_and_chat_explains_scope(client, db):
+    """Reproduce category editing through the API, including a historical slip."""
+    from finassist.infra import set_owner
+    from finassist.services.agent import run_tool
+    u = User(client).onboard()
+    u.approve_plan()
+    def food_spent():
+        return next(p for p in u.req("GET", "/plan").json()["pockets"] if p["pocket_id"] == u.pockets["Food"])["spent_confirmed_satang"]
+    assert food_spent() == 0
+    for day, amount, expected in (("2026-10-13", 10_000, 0), ("2026-10-15", 12_000, 12_000)):
+        created = u.req("POST", "/transactions", idem=True, json={"kind":"expense", "amount_satang":amount, "occurred_date":day, "payee":"Synthetic cafe"})
+        assert created.status_code == 201, created.text
+        txn = next(t for t in u.req("GET", "/transactions").json() if t["occurred_date"] == day)
+        changed = u.req("PATCH", f"/transactions/{txn['id']}", json={"version":txn["version"], "changes":{"category":"food"}})
+        assert changed.status_code == 200, changed.text
+        assert food_spent() == expected
+    assert u.req("GET", "/spending?from=2026-10-01&to=2026-11-01").json()["total_satang"] == 22_000
+    owner = u.req("GET", "/me").json()["user_id"]
+    with db.connect() as conn:
+        set_owner(conn, owner)
+        result = run_tool(conn, owner, "get_overview", {}, [])
+    assert result["today"] == "2026-10-15"
+    assert result["next_income_date"] == "2026-11-01"
+    assert result["budget_period"] == {"start":"2026-10-15", "end_exclusive":"2026-11-01"}
+    assert "older categorized transactions" in result["pocket_spending_scope"]
+    assert "on or after" in result["bill_reservation_policy"]

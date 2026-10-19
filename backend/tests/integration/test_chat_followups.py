@@ -29,7 +29,7 @@ def _done(text: str) -> ChatTurn:
 
 
 def _last_tool_result(model: ScriptedChatModel) -> dict:
-    return json.loads(model.seen[-1][-1]["content"][0]["content"])
+    return json.loads(model.seen[-1][-1]["content"])
 
 
 def _send(u: User, text: str) -> dict:
@@ -43,8 +43,7 @@ def test_status_after_approval_is_read_from_server_not_from_history(client, app)
     u.approve_plan()
     _consent(u)
     model = ScriptedChatModel([
-        # A budget_plan trade-off (not 'reallocate'): test_security asserts no agent-created reallocation is ever applied in this DB.
-        _tool("propose_tradeoff", {"pocket": "Shopping", "increase_thb": "500"}), _done("Prepared; approve it in the app."),
+        _tool("propose_reallocation", {"from_pocket": "Food", "to_pocket": "Shopping", "amount_thb": "500"}), _done("Prepared; approve it in the app."),
         _tool("list_proposals"), _done("It is pending."),
         _tool("list_proposals"), _done("It was applied."),
     ])

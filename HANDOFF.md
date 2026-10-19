@@ -1,3 +1,20 @@
+## Public repository preparation — 19 October 2026 (Codex)
+**TL;DR:** Added SECURITY.md, CONTRIBUTING.md, a public release checklist and redacted working-tree preflight tool. Updated reviewer navigation/latest offline evidence and distinguished web dev ports from the active APK profile. Evidence `20261019T085615Z-public-repository-preflight`: selected-text pattern scan and scanner self-check passed; not a history, binary or PII certification. No Git commands, application changes/tests, paid calls or resets. Owner must review staging/history, UI and original-document redistribution rights, license choice and final demo before public push.
+
+## Provider and layered-security documents updated — 18 October 2026 (Codex)
+**TL;DR:** Existing Technical v2 and Security DOCX now document neutral adapters, offline evidence (329 passed + 2 strict reference xfails), proposed no-training admission and network/routing/ingress/orchestration controls. Implemented, verified and proposed claims remain distinct. Earlier Anthropic live evidence predates the refactor; live S22 smoke remains pending. All 18 known risks retained; math/header/footer preserved. Document QA `20261018T164704Z-provider-security-document-update` (27/21 rendered pages). No app changes, paid calls, runtime resets or Git commands in this checkpoint.
+
+## Provider interface checkpoint — 18 October 2026 (Codex)
+**TL;DR:** Neutral model contracts implemented; orchestration no longer emits Anthropic wire blocks. Anthropic adapter translates the transcript. Full offline isolated regression suite: 329 passed + 2 existing strict reference xfails (`20261018T163840Z-provider-neutral-contract-final`). New provider implementations and external compatibility are NOT tested; no claim of universal plug-and-play. Runtime settings remain restricted to existing implemented providers. Submission reports deliberately unchanged per owner; network/routing/ingress/orchestration hardening remains proposed. No live calls, demo restart/reset or Git commands.
+
+## Final Chat review and submission documents — 18 October 2026 (Codex)
+**TL;DR:** Scoped Chat polish is sufficient for the controlled POC; Claude can move to other work. Fixed unavailable-plan goal projection and clarified pending-proposal applicability. Targeted tests 46 passed; full isolated suite 326 passed + 2 strict reference xfails (no ordinary skips/failures). Existing Technical and Security DOCX updated in place with latest controls, live-pilot limits and known risks. No paid calls, Git commands or demo resets/restarts in this review.
+
+- Evidence: `20261018T125417Z-chat-final-review`, `20261018T125457Z-chat-final-review-full`; document/source QA `20261018T160134Z-chat-documents-final-review`.
+- Latest live pilot predates final source-review fixes: ten synthetic scenarios, not general model accuracy. Owner narrative ratings remain pending. Reference gaps, thin-history coverage and native acceptance limitations remain open.
+- Next: restart the chosen backend without `--reset`, then smoke-test Chat on S22 before recording. Technical manual layout retained; inspect running headers and glossary continuation during final pagination. Do not rebuild Technical DOCX from the older Markdown source.
+- Entries below are chronological historical snapshots; earlier “not run” statements do not override this entry or later recorded evidence.
+
 ## Live chat eval 3 — English default verified (18 Oct 2026, Claude)
 **TL;DR:** `20261018T124452Z-chat-eval-live` (23 requests, est. $0.26): tools 10/10, numeric 7/7, period 2/2, boundary 10/10; all English prompts answered in English (also after a Thai turn), the Thai prompt in Thai. The single narrative fail was a harness false positive (Thai payee name quoted in an English reply); harness fixed and the same replies re-scored offline 10/10 (`20261018T124708Z-chat-eval-live3-review`). Limits: one run, 10 synthetic scenarios, heuristic narrative checks, owner ratings blank. Chat eval spend 18 Oct ≈ $0.76 est.
 

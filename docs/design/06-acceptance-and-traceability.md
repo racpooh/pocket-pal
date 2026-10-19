@@ -1,5 +1,31 @@
 # 06 — Acceptance plan and submission traceability
 
+| Publication checkpoint | Status | Evidence / boundary |
+|---|---|---|
+| Public repository preparation, 19 October 2026 | Working-tree documentation and bounded hygiene scan complete; owner release checks pending | `20261019T085615Z-public-repository-preflight`; no Git/history/staging inspection, no binary/PII certification, no new application tests. Redistribution rights/license and final demo access require owner confirmation. |
+
+| Documentation checkpoint | Status | Evidence / boundary |
+|---|---|---|
+| Provider extension and layered security reports | Updated in existing DOCX; visual QA complete | `20261018T164704Z-provider-security-document-update`; Technical 3.5/9.13 and Security 7.2.1/11.4–11.7. Existing offline adapter evidence referenced, no new runtime verification. Provider governance and deployment hardening remain proposed; 18 known risks retained. |
+
+
+| Latest checkpoint | Status | Evidence / limit |
+|---|---|---|
+| Provider-neutral Chat/extraction interfaces | Implemented; offline regression passed | `20261018T163840Z-provider-neutral-contract-final`: 329 passed + 2 strict reference xfails. Neutral tool transcript mapped by Anthropic adapter; no other vendor adapter or live rerun. Submission reports held unchanged at owner request. No-training admission/network hardening not implemented. |
+
+
+## Current final Chat review — 18 October 2026
+
+| Scope | Status | Evidence / remaining boundary |
+|---|---|---|
+| Chat polish and final review corrections | Implemented; deterministic regression review complete for controlled POC | `20261018T125417Z-chat-final-review`: 46 passed; `20261018T125457Z-chat-final-review-full`: 326 passed, 2 strict reference xfails, zero ordinary skips/failures. Isolated test profile; fake/scripted providers. |
+| Real-model Chat | Small synthetic live pilot complete; human narrative assessment pending | `20261018T124452Z-chat-eval-live` plus offline `20261018T124708Z-chat-eval-live3-review`. No live rerun after final capacity guard and tool wording changes. Not general accuracy or attack coverage. |
+| Submission documents | Existing Technical v2 and Security DOCX updated in place | Document QA `20261018T160134Z-chat-documents-final-review`; temporal grounding, per-event units, T0 proposal lifecycle, truncation, evidence and residual risks. Manual Technical layout retained. |
+| Runtime/demo | Restart and S22 smoke pending | No demo reset/restart performed. Overall CP3 and production security acceptance remain open. |
+
+Historical dated entries below retain their original execution scope.
+
+
 ### Web integration status (16 Oct 2026)
 
 | Scope | Implemented | Tested | Not verified / open |

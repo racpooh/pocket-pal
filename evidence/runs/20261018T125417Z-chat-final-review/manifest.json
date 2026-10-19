@@ -1,0 +1,219 @@
+{
+  "run_id": "20261018T125417Z-chat-final-review",
+  "started_at_utc": "2026-10-18T12:54:17.644127+00:00",
+  "finished_at_utc": "2026-10-18T12:54:30.770182+00:00",
+  "code_version": {
+    "git": "not queried (no git commands run by scripts; see content_sha256)",
+    "content_sha256": "55e5e1ed5c0e6b95dbbb8410108432f33e7645d8d4f1f66f0269d2c0990791c3"
+  },
+  "command": "pytest -rs -v --junitxml=/Users/POOH/Development/case/shenzen/evidence/runs/20261018T125417Z-chat-final-review/junit.xml tests/integration/test_chat_grounding.py tests/integration/test_chat_followups.py tests/integration/test_security.py tests/unit/test_chat_grounding.py",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "macOS-26.6.2-arm64-i386-64bit-Mach-O",
+    "postgres_server_version": "18.4",
+    "db_tests_enabled": true
+  },
+  "configuration": {
+    "FINASSIST_MODEL_PROVIDER": "fake"
+  },
+  "model_identifiers": [],
+  "uses_mocks": [
+    "tests/integration: FakeExtractionProvider (returns ground-truth fields; no real OCR/vision call)",
+    "tests/integration: ScriptedChatModel (fixed tool-call sequence; no real LLM)",
+    "real components: FastAPI app, Postgres with RLS (API as finassist_app, worker as finassist_worker), worker logic, storage on local disk"
+  ],
+  "expected": "all collected tests pass; DB tests skipped only if TEST_DATABASE_URL unset",
+  "actual": {
+    "passed": 46,
+    "failed": 0,
+    "error": 0,
+    "skipped": 0
+  },
+  "exit_code": 0,
+  "cases": [
+    {
+      "id": "tests.integration.test_chat_grounding::test_system_prompt_carries_server_date_in_user_timezone_without_identifiers[2026-10-31T17:30:00+00:00-2026-11-01-2026-11-01-last0]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_system_prompt_carries_server_date_in_user_timezone_without_identifiers[2026-10-31T16:59:00+00:00-2026-10-31-2026-10-01-last1]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_get_spending_returns_server_ranked_totals_with_refunds_unassigned_and_predicted",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_get_spending_with_no_records_says_absence_not_zero_spending_and_rejects_bad_range",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_insights_converts_monthly_savings_to_per_income_event[monthly-100000]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_insights_converts_monthly_savings_to_per_income_event[biweekly-46153]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_insights_converts_monthly_savings_to_per_income_event[weekly-23076]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_insights_converts_monthly_savings_to_per_income_event[irregular-None]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_grounding::test_insights_does_not_project_goal_impact_from_unavailable_plan",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_status_after_approval_is_read_from_server_not_from_history",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_cancelled_proposal_is_reported_cancelled",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_follow_up_after_new_spending_gets_fresh_totals",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_system_rules_cover_answer_shape_and_fact_kinds",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_cut_off_or_empty_model_answers_are_never_shown_as_blank[turns0-_(This answer was cut short. Ask me to continue or to answer more briefly.)_]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_cut_off_or_empty_model_answers_are_never_shown_as_blank[turns1-\\u0e22\\u0e2d\\u0e14\\u0e40\\u0e14\\u0e37\\u0e2d\\u0e19\\u0e19\\u0e35\\u0e49\\u0e04\\u0e37\\u0e2d\\n\\n_(This answer was cut short. Ask me to continue or to answer more briefly.)_]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_cut_off_or_empty_model_answers_are_never_shown_as_blank[turns2-Sorry, I couldn't finish an answer this time. Please ask again.]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_language_rule_defaults_to_english",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_server_states_reply_language_of_latest_message[Did my budget change go through?-English]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_server_states_reply_language_of_latest_message[\\u0e1c\\u0e48\\u0e32\\u0e19\\u0e44\\u0e2b\\u0e21 \\u0e3f300-Thai]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_server_states_reply_language_of_latest_message[\\u0e3f300 ok?-English]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_chat_followups::test_server_states_reply_language_of_latest_message[\\xbfCu\\xe1nto gast\\xe9?-English]",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_own_cross_user_access_is_404_everywhere",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_own_cannot_inject_owner_or_unknown_fields",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_auth_required_and_logout",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_apr_hash_mismatch_rejected",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_apr_stale_after_data_change_returns_replacement",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_apr_expired",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_apr_replay_and_repeat",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_apr_concurrent_approvals_apply_once",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_conc_manual_and_import_race",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_cons_upload_requires_consent",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_cons_revoke_before_worker_cancels_job",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_cons_revoke_during_extraction_discards_result",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_cons_delete_then_retry_is_noop",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_fail_model_failure_keeps_saved_data",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_inj_image_text_cannot_act",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_tools_registry_has_no_write_authority",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_agent_hijack_attempt_and_tool_limit",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_agent_proposes_user_approves",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_log_audit_has_no_sensitive_content",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.integration.test_security::test_sec_rls_blocks_cross_owner_even_without_app_filter",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_chat_grounding::test_periods_mid_month",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_chat_grounding::test_periods_on_first_day_of_year_and_month_boundaries",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_chat_grounding::test_ranked_categories_keep_split_and_order_with_refund_and_ties",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_chat_grounding::test_ranked_categories_empty",
+      "outcome": "passed"
+    },
+    {
+      "id": "tests.unit.test_chat_grounding::test_monthly_to_per_event_rule",
+      "outcome": "passed"
+    }
+  ]
+}

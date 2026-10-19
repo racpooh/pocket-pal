@@ -1,0 +1,34 @@
+{
+  "run_id": "20261018T160134Z-chat-documents-final-review",
+  "timestamp_utc": "2026-10-18T16:01:34.153615+00:00",
+  "kind": "source_review_and_document_QA",
+  "git_revision": "not queried; Git prohibited by owner",
+  "result": "completed with disclosed presentation notes",
+  "sha256": {
+    "docs/submission/Pocket_Pal_Technical_Documentation_v2.docx": "f545535b583ffe69ae96f2c379e6a6d0625db15130789c0d40033a3532da1240",
+    "docs/submission/Pocket_Pal_Security_Self_Assessment.docx": "863905a027dbf9a899f4d34c31f521e860372f6c0b9fdfdfda81c67a37cfbabf",
+    "backend/src/finassist/services/agent.py": "04c8a1025c4bd9ee6e9b06bc32181aa16cb50adf40f2c78b36f0620fb2c9b487",
+    "backend/src/finassist/services/budget.py": "88ab9c38cdf3c7f1ff20905643411f9f4716650a988d68a5c7aae6a7cb2e619c",
+    "backend/tests/integration/test_chat_grounding.py": "1451c794e032338953a27e30a6572c5524f0b38d0899716c3b5a0e02d51569d2",
+    "backend/tests/integration/test_chat_followups.py": "453405cdde45373dfcb04fd8eddb06c12fa80dc0a97f6f9e6dc742b5b1a4d7ed",
+    "backend/tests/integration/test_security.py": "6bdd0ad03def74c6eee3a28b9221591602cdf7e6e2c759e4a2bde4134ae82fe8"
+  },
+  "rendered_pages": {
+    "technical": 26,
+    "security": 19
+  },
+  "visual_review": "All pages individually inspected. Security method paragraph corrected and affected page rechecked. No clipping or unreadable content. Technical existing header configuration and glossary continuation retained for owner pagination.",
+  "preserved": "Technical header canonical XML and six equation nodes match pre-edit original.",
+  "application_evidence": [
+    "20261018T125417Z-chat-final-review",
+    "20261018T125457Z-chat-final-review-full"
+  ],
+  "new_paid_model_calls": 0,
+  "demo_reset_or_restart": false,
+  "limits": [
+    "No live rerun after final source fixes",
+    "Human narrative ratings pending",
+    "Two strict reference xfails remain open",
+    "Technical running header absent on some rendered pages; glossary continuation lacks repeated header; manual layout preserved"
+  ]
+}

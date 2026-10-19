@@ -1,0 +1,21 @@
+{
+  "run_id": "20261019T085615Z-public-repository-preflight",
+  "scope": "publication documentation and selected working-tree hygiene; no Git invoked",
+  "status": "passed_with_limits",
+  "scan_exit_code": 0,
+  "scanner_sha256": "39fafcb17bdf0e9fcbcd410a3c5a5b27639290b6c757cee8326f7230a8953a2d",
+  "scanner_self_check": {
+    "status": "passed",
+    "checks": [
+      "constructed dummy token detected",
+      "generated artifact detected",
+      "private directory excluded",
+      "matched token not emitted"
+    ]
+  },
+  "application_tests": "not run; no runtime code changed",
+  "paid_calls": 0,
+  "git_history_staging_remote": "not inspected",
+  "binary_metadata_and_personal_data": "not certified",
+  "clean_checkout": "not run"
+}

@@ -20,3 +20,24 @@ backend/pytest-cache-files-*/
 .sync/
 # real slips (owner-provided, private): never in Git
 backend/fixtures/real/
+# additional local dependency caches and editor lock files
+.pnpm-store/
+~$*
+# environment variants and private signing material
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# local analysis/test caches and recordings (publish reviewed demos separately)
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.mp4
+*.mov

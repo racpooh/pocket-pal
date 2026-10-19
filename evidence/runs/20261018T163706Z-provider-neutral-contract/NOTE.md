@@ -1,0 +1,1 @@
+This initial offline full-suite run had one failure: the security tool-limit test still indexed the previous Anthropic tool-result envelope. The assertion was adapted to the provider-neutral text result without weakening the eight-call limit check. Original failed evidence is retained. No external model requests were made.

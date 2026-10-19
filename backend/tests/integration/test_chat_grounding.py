@@ -119,3 +119,24 @@ def test_insights_converts_monthly_savings_to_per_income_event(client, db, frequ
     else:
         assert impact["added_capacity_per_income_event_satang"] == added
         assert impact["income_frequency"] == frequency
+
+
+def test_insights_does_not_project_goal_impact_from_unavailable_plan(client, db, monkeypatch):
+    u = User(client).onboard()
+    owner = _owner(db, u)
+    _spend(u, 100_000, "food", "2026-08-10")
+    _spend(u, 200_000, "food", "2026-09-10")
+    # A previously valid income schedule becomes stale as the clock advances.
+    monkeypatch.setenv("FINASSIST_FIXED_NOW", "2026-10-15T06:00:00+00:00")
+    with db.connect() as conn:
+        conn.execute("update income_schedule set next_income_date='2026-10-01' where owner_id=%s", (owner,))
+        conn.execute("insert into goal(owner_id,name,target_satang,saved_satang,deadline,status) values (%s,'Trip',5000000,0,'2027-03-01','active')", (owner,))
+        out = budget.insights(conn, owner)
+    assert out["plan_unavailable"] == "NEXT_INCOME_DATE_PASSED"
+    rec = next(r for r in out["recommendations"] if r["category"] == "food")
+    assert rec["estimated_savings_per_month_satang"] == 100_000
+    impact = rec["goal_impact"][0]
+    assert impact["goal_impact_unavailable"] is True
+    assert impact["plan_error"] == "NEXT_INCOME_DATE_PASSED"
+    assert not any(k.startswith(("feasible_", "later_deadline_")) for k in impact)
+    assert "added_capacity_per_income_event_satang" not in impact

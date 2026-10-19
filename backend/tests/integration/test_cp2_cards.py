@@ -283,7 +283,7 @@ def test_agent_sees_code_computed_warnings_only_as_tool_result(client, db):
         out = agent.chat(conn, _owner(db, u), "move all food budget to shopping", model)
     card = next(c for c in out["cards"] if c["type"] == "proposal")
     assert {"MOVES_ALL_REMAINING", "SUGGESTED_BY_ASSISTANT"} <= set(_codes(card))
-    tool_result = model.seen[-1][-1]["content"][0]["content"]
+    tool_result = model.seen[-1][-1]["content"]
     assert "MOVES_ALL_REMAINING" in tool_result and "requires_user_approval" in tool_result
     stored = u.req("GET", f"/proposals/{card['proposal_id']}").json()
     assert stored["card"] == card["card"] and stored["status"] == "pending"

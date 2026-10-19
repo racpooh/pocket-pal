@@ -1,0 +1,6 @@
+{
+  "scope": "selected working-tree text only; no Git, history, staging, binary or PII certification",
+  "text_files_scanned": 665,
+  "excluded_entries": 31,
+  "findings": []
+}

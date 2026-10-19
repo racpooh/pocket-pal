@@ -10,7 +10,12 @@ from __future__ import annotations
 import base64
 import time
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
+
+from finassist.model_contracts import (
+    ChatMessage, ChatModel, ChatTurn, ExtractionProvider, ExtractionResult,
+    FatalProviderError, ProviderError, ToolSpec,
+)
 
 EXTRACTION_SCHEMA_VERSION = "slip-extract@0.2"  # 0.2: `payee` = counterparty (sender for incoming transfers)
 
@@ -198,27 +203,6 @@ def image_tokens_estimate(image: bytes) -> int:
         return 1600
 
 
-@dataclass
-class ExtractionResult:
-    fields: dict
-    model_id: str
-    latency_ms: int
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-
-
-class ExtractionProvider(Protocol):
-    def extract(self, image: bytes, mime: str) -> ExtractionResult: ...
-
-
-class ProviderError(Exception):
-    """Retryable provider failure (timeout, 5xx, malformed output)."""
-
-
-class FatalProviderError(Exception):
-    """Non-retryable: authentication, billing/permission, unknown model, invalid request."""
-
-
 def _safe_msg(e: Exception) -> str:
     """Provider error text without echoing request content or credentials."""
     msg = getattr(e, "message", None) or str(e)
@@ -289,19 +273,6 @@ class AnthropicExtractionProvider:
 
 # ---------------- chat ----------------
 
-@dataclass
-class ChatTurn:
-    text: str
-    tool_calls: list[dict]  # [{"id","name","input"}]
-    stop: bool
-    model_id: str
-    stop_reason: str | None = None  # provider's reason, e.g. "max_tokens" when the answer was cut off
-
-
-class ChatModel(Protocol):
-    def step(self, system: str, messages: list[dict], tools: list[dict]) -> ChatTurn: ...
-
-
 def verify_model_access(api_key: str, model: str) -> dict:
     """Checks that the key can see the model (Models API; no tokens billed). Raises FatalProviderError."""
     import anthropic
@@ -322,7 +293,7 @@ class ScriptedChatModel:
     seen: list[list[dict]] = field(default_factory=list)
     systems: list[str] = field(default_factory=list)
 
-    def step(self, system: str, messages: list[dict], tools: list[dict]) -> ChatTurn:
+    def step(self, system: str, messages: list[ChatMessage], tools: list[ToolSpec]) -> ChatTurn:
         self.seen.append(messages)
         self.systems.append(system)
         return self.turns.pop(0)
@@ -339,16 +310,17 @@ class AnthropicChatModel:
         self.max_output_tokens = max_output_tokens
         self.run_id = run_id
 
-    def step(self, system: str, messages: list[dict], tools: list[dict]) -> ChatTurn:
+    def step(self, system: str, messages: list[ChatMessage], tools: list[ToolSpec]) -> ChatTurn:
         import json
 
         import anthropic
 
+        wire_messages = anthropic_messages(messages)
         if self.meter:
-            est = (len(system) + len(json.dumps(messages, ensure_ascii=False, default=str)) + len(json.dumps(tools))) // 2
+            est = (len(system) + len(json.dumps(wire_messages, ensure_ascii=False, default=str)) + len(json.dumps(tools))) // 2
             self.meter.check(self.model, est, self.max_output_tokens)
         try:
-            msg = self.client.messages.create(model=self.model, max_tokens=self.max_output_tokens, system=system, tools=tools, messages=messages)
+            msg = self.client.messages.create(model=self.model, max_tokens=self.max_output_tokens, system=system, tools=tools, messages=wire_messages)
         except (anthropic.AuthenticationError, anthropic.PermissionDeniedError, anthropic.NotFoundError, anthropic.BadRequestError) as e:
             raise FatalProviderError(f"{type(e).__name__}: {_safe_msg(e)}") from None
         if self.meter:
@@ -358,10 +330,39 @@ class AnthropicChatModel:
         return ChatTurn(text, calls, msg.stop_reason != "tool_use", msg.model, msg.stop_reason)
 
 
-def anthropic_content(turn: ChatTurn) -> list[dict[str, Any]]:
+def _anthropic_content(turn: ChatTurn) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     if turn.text:
         out.append({"type": "text", "text": turn.text})
     for c in turn.tool_calls:
         out.append({"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["input"]})
+    return out
+
+
+def anthropic_messages(messages: list[ChatMessage]) -> list[dict]:
+    """Translate the neutral transcript only at the Anthropic SDK boundary.
+
+    Consecutive tool results form one user turn, preserving parallel call IDs.
+    Plain user text remains text; tool results cannot become instructions/system roles.
+    """
+    out: list[dict] = []
+    previous_tool = False
+    for message in messages:
+        role = message["role"]
+        if role == "tool":
+            block = {"type": "tool_result", "tool_use_id": message["tool_call_id"],
+                     "content": message["content"]}
+            if previous_tool:
+                out[-1]["content"].append(block)
+            else:
+                out.append({"role": "user", "content": [block]})
+            previous_tool = True
+            continue
+        if role not in ("user", "assistant"):
+            raise FatalProviderError("unsupported transcript role")
+        content = message["content"]
+        if role == "assistant" and message.get("tool_calls"):
+            content = _anthropic_content(ChatTurn(content, message["tool_calls"], False, ""))
+        out.append({"role": role, "content": content})
+        previous_tool = False
     return out

@@ -251,9 +251,10 @@ def test_sec_inj_image_text_cannot_act(client, db, storage, provider):
     u.upload(register(provider, inj["file"], f))
     drain(db, storage, provider)
     with db.connect() as c:
-        ex = c.execute("select fields from extraction order by created_at desc limit 1").fetchone()["fields"]
+        owner = u_owner(db, u)
+        ex = c.execute("select fields from extraction where owner_id=%s order by created_at desc limit 1", (owner,)).fetchone()["fields"]
         assert "memo" not in ex
-        assert c.execute("select count(*) n from proposal where status='applied' and created_by='agent' and kind='reallocate'").fetchone()["n"] == 0
+        assert c.execute("select count(*) n from proposal where owner_id=%s and status='applied' and created_by='agent' and kind='reallocate'", (owner,)).fetchone()["n"] == 0
     assert u.req("GET", "/plan").json()["pockets"] == before
 
 
@@ -279,7 +280,7 @@ def test_sec_agent_hijack_attempt_and_tool_limit(client, db):
         out2 = agent.chat(conn, u_owner(db, u), "bills?", many)
     assert len(out2["tools_used"]) == 8
     last = many.seen[-1][-1]["content"]
-    assert "tool_call_limit_reached" in last[-1]["content"]
+    assert "tool_call_limit_reached" in last
 
 
 def test_sec_agent_proposes_user_approves(client, db):

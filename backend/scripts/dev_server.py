@@ -28,7 +28,7 @@ sys.path.insert(0, str(BACKEND / "scripts"))
 
 from local_envs import PROFILES, Profile, local_admin_url, port_free  # noqa: E402
 
-SERVER_PROFILES = ("dev", "e2e")
+SERVER_PROFILES = ("dev", "e2e", "gallery")
 
 
 def _prepare(url: str, reset: bool, prof: Profile) -> dict[str, str]:
@@ -95,11 +95,11 @@ def _fixture_provider():
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--profile", choices=SERVER_PROFILES, required=True, help="dev = the phone; e2e = automated runs (no default)")
+    ap.add_argument("--profile", choices=SERVER_PROFILES, required=True, help="dev = existing phone; gallery = clean gallery trial; e2e = automated runs (no default)")
     ap.add_argument("--provider", choices=["fake", "anthropic"], required=True, help="explicit; no default")
     ap.add_argument("--database-url", default=None, help="admin URL of the profile's database (default: the profile's own local pgserver cluster)")
     ap.add_argument("--reset", action="store_true", help="drop and re-create the profile's schema and upload storage")
-    ap.add_argument("--port", type=int, default=None, help="default: dev 8000, e2e 8001")
+    ap.add_argument("--port", type=int, default=None, help="default: dev 8000, e2e 8001, gallery 8002")
     a = ap.parse_args()
     prof = PROFILES[a.profile]
     port = a.port or prof.port
@@ -127,7 +127,7 @@ def main() -> int:
         print("=" * 72 + f"\nTEST MODE: fake extraction with {len(provider.by_sha)} SYNTHETIC fixtures; no model calls.\n"
               "Non-fixture images will fail extraction (extract_failed).\n" + "=" * 72, flush=True)
     else:
-        print("REAL MODEL PROVIDER: extraction calls are billed. CP3 rules: do not use this mode.", flush=True)
+        print("REAL MODEL PROVIDER: extraction calls are billed. Only process owner-consented photos.", flush=True)
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
     return 0
 

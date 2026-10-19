@@ -1,0 +1,85 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.5, pytest-8.4.2, pluggy-1.6.0 -- /Users/POOH/Development/case/shenzen/backend/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/POOH/Development/case/shenzen/backend
+configfile: pyproject.toml
+plugins: anyio-4.15.1
+collecting ... collected 46 items
+
+tests/integration/test_chat_grounding.py::test_system_prompt_carries_server_date_in_user_timezone_without_identifiers[2026-10-31T17:30:00+00:00-2026-11-01-2026-11-01-last0] PASSED [  2%]
+tests/integration/test_chat_grounding.py::test_system_prompt_carries_server_date_in_user_timezone_without_identifiers[2026-10-31T16:59:00+00:00-2026-10-31-2026-10-01-last1] PASSED [  4%]
+tests/integration/test_chat_grounding.py::test_get_spending_returns_server_ranked_totals_with_refunds_unassigned_and_predicted PASSED [  6%]
+tests/integration/test_chat_grounding.py::test_get_spending_with_no_records_says_absence_not_zero_spending_and_rejects_bad_range PASSED [  8%]
+tests/integration/test_chat_grounding.py::test_insights_converts_monthly_savings_to_per_income_event[monthly-100000] PASSED [ 10%]
+tests/integration/test_chat_grounding.py::test_insights_converts_monthly_savings_to_per_income_event[biweekly-46153] PASSED [ 13%]
+tests/integration/test_chat_grounding.py::test_insights_converts_monthly_savings_to_per_income_event[weekly-23076] PASSED [ 15%]
+tests/integration/test_chat_grounding.py::test_insights_converts_monthly_savings_to_per_income_event[irregular-None] PASSED [ 17%]
+tests/integration/test_chat_grounding.py::test_insights_does_not_project_goal_impact_from_unavailable_plan PASSED [ 19%]
+tests/integration/test_chat_followups.py::test_status_after_approval_is_read_from_server_not_from_history PASSED [ 21%]
+tests/integration/test_chat_followups.py::test_cancelled_proposal_is_reported_cancelled PASSED [ 23%]
+tests/integration/test_chat_followups.py::test_follow_up_after_new_spending_gets_fresh_totals PASSED [ 26%]
+tests/integration/test_chat_followups.py::test_system_rules_cover_answer_shape_and_fact_kinds PASSED [ 28%]
+tests/integration/test_chat_followups.py::test_cut_off_or_empty_model_answers_are_never_shown_as_blank[turns0-_(This answer was cut short. Ask me to continue or to answer more briefly.)_] PASSED [ 30%]
+tests/integration/test_chat_followups.py::test_cut_off_or_empty_model_answers_are_never_shown_as_blank[turns1-\u0e22\u0e2d\u0e14\u0e40\u0e14\u0e37\u0e2d\u0e19\u0e19\u0e35\u0e49\u0e04\u0e37\u0e2d\n\n_(This answer was cut short. Ask me to continue or to answer more briefly.)_] PASSED [ 32%]
+tests/integration/test_chat_followups.py::test_cut_off_or_empty_model_answers_are_never_shown_as_blank[turns2-Sorry, I couldn't finish an answer this time. Please ask again.] PASSED [ 34%]
+tests/integration/test_chat_followups.py::test_language_rule_defaults_to_english PASSED [ 36%]
+tests/integration/test_chat_followups.py::test_server_states_reply_language_of_latest_message[Did my budget change go through?-English] PASSED [ 39%]
+tests/integration/test_chat_followups.py::test_server_states_reply_language_of_latest_message[\u0e1c\u0e48\u0e32\u0e19\u0e44\u0e2b\u0e21 \u0e3f300-Thai] PASSED [ 41%]
+tests/integration/test_chat_followups.py::test_server_states_reply_language_of_latest_message[\u0e3f300 ok?-English] PASSED [ 43%]
+tests/integration/test_chat_followups.py::test_server_states_reply_language_of_latest_message[\xbfCu\xe1nto gast\xe9?-English] PASSED [ 45%]
+tests/integration/test_security.py::test_sec_own_cross_user_access_is_404_everywhere PASSED [ 47%]
+tests/integration/test_security.py::test_sec_own_cannot_inject_owner_or_unknown_fields PASSED [ 50%]
+tests/integration/test_security.py::test_sec_auth_required_and_logout PASSED [ 52%]
+tests/integration/test_security.py::test_sec_apr_hash_mismatch_rejected PASSED [ 54%]
+tests/integration/test_security.py::test_sec_apr_stale_after_data_change_returns_replacement PASSED [ 56%]
+tests/integration/test_security.py::test_sec_apr_expired PASSED          [ 58%]
+tests/integration/test_security.py::test_sec_apr_replay_and_repeat PASSED [ 60%]
+tests/integration/test_security.py::test_sec_apr_concurrent_approvals_apply_once PASSED [ 63%]
+tests/integration/test_security.py::test_sec_conc_manual_and_import_race PASSED [ 65%]
+tests/integration/test_security.py::test_sec_cons_upload_requires_consent PASSED [ 67%]
+tests/integration/test_security.py::test_sec_cons_revoke_before_worker_cancels_job PASSED [ 69%]
+tests/integration/test_security.py::test_sec_cons_revoke_during_extraction_discards_result PASSED [ 71%]
+tests/integration/test_security.py::test_sec_cons_delete_then_retry_is_noop PASSED [ 73%]
+tests/integration/test_security.py::test_sec_fail_model_failure_keeps_saved_data PASSED [ 76%]
+tests/integration/test_security.py::test_sec_inj_image_text_cannot_act PASSED [ 78%]
+tests/integration/test_security.py::test_sec_tools_registry_has_no_write_authority PASSED [ 80%]
+tests/integration/test_security.py::test_sec_agent_hijack_attempt_and_tool_limit PASSED [ 82%]
+tests/integration/test_security.py::test_sec_agent_proposes_user_approves PASSED [ 84%]
+tests/integration/test_security.py::test_sec_log_audit_has_no_sensitive_content PASSED [ 86%]
+tests/integration/test_security.py::test_sec_rls_blocks_cross_owner_even_without_app_filter PASSED [ 89%]
+tests/unit/test_chat_grounding.py::test_periods_mid_month PASSED         [ 91%]
+tests/unit/test_chat_grounding.py::test_periods_on_first_day_of_year_and_month_boundaries PASSED [ 93%]
+tests/unit/test_chat_grounding.py::test_ranked_categories_keep_split_and_order_with_refund_and_ties PASSED [ 95%]
+tests/unit/test_chat_grounding.py::test_ranked_categories_empty PASSED   [ 97%]
+tests/unit/test_chat_grounding.py::test_monthly_to_per_event_rule PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.13/site-packages/fastapi/testclient.py:1
+  /Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_chat_grounding.py: 9 warnings
+tests/integration/test_chat_followups.py: 10 warnings
+tests/integration/test_security.py: 19 warnings
+  /Users/POOH/Development/case/shenzen/backend/src/finassist/api/app.py:54: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/integration/test_chat_grounding.py: 9 warnings
+tests/integration/test_chat_followups.py: 10 warnings
+tests/integration/test_security.py: 19 warnings
+  /Users/POOH/Development/case/shenzen/backend/.venv/lib/python3.13/site-packages/fastapi/applications.py:4745: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/POOH/Development/case/shenzen/evidence/runs/20261018T125417Z-chat-final-review/junit.xml -
+======================= 46 passed, 77 warnings in 12.32s =======================

@@ -590,6 +590,11 @@ def insights(conn, owner_id) -> dict:
             # (goals_d.monthly_to_per_event) or report the impact as unavailable — never add monthly to per-event.
             added = goals_d.monthly_to_per_event(r.estimated_savings_per_month_satang, inc["frequency"])
             for g in goals:
+                if "plan_unavailable" in out:
+                    impacts.append({"goal": g["name"], "goal_impact_unavailable": True,
+                                    "reason": "Current financial capacity is unavailable; update the income schedule or profile before projecting goal impact.",
+                                    "plan_error": out["plan_unavailable"]})
+                    continue
                 if added is None:
                     impacts.append({"goal": g["name"], "goal_impact_unavailable": True,
                                     "reason": "Income has no fixed frequency, so monthly savings cannot be converted to per-income amounts."})

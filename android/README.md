@@ -145,3 +145,8 @@ S10b proves only that a request which never reached the server is not shown as s
 
 Screenshots (synthetic data only; crop out the status bar if it shows notifications):
 `adb exec-out screencap -p > evidence/runs/<UTC>-cp3a-device/NN-<step>.png`. Do not record real accounts or photos.
+
+
+## Pocket Pal gallery APK (separate module)
+
+See [POCKETPAL_GALLERY.md](POCKETPAL_GALLERY.md) for the new web-UI APK, clean gallery profile, and morning trial steps. Existing Compose instructions above still refer to `:app`.
